@@ -1,0 +1,16 @@
+digraph imports {
+  rankdir=LR;
+  graph [fontsize=10];
+  node  [shape=box, fontsize=10];
+  edge  [fontsize=9, arrowsize=0.7];
+  subgraph cluster_0 { label="yourpkg"; fontsize=12; style=rounded; color=gray50;
+    "yourpkg.__init__" [shape=box];
+    "yourpkg.adapters.__init__" [shape=box];
+    "yourpkg.domain.__init__" [shape=box];
+    "yourpkg.infrastructure.__init__" [shape=box];
+    "yourpkg.ports.__init__" [shape=box];
+    "yourpkg.presentation.__init__" [shape=box];
+    "yourpkg.shared.__init__" [shape=box];
+    "yourpkg.use_cases.__init__" [shape=box];
+  }
+}

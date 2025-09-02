@@ -1,0 +1,62 @@
+{
+  "Module Docstring (Google)": {
+    "scope": "python",
+    "prefix": "dmodule",
+    "description": "Google-style module docstring",
+    "body": [
+      "\"\"\"",
+      "${1:Short summary}.",
+      "",
+      "Details:",
+      "- Responsibilities",
+      "- Dependencies",
+      "- Assumptions/limitations",
+      "\"\"\"",
+      "",
+      "$0"
+    ]
+  },
+  "Class Docstring (Google)": {
+    "scope": "python",
+    "prefix": "dclass",
+    "description": "Google-style class docstring",
+    "body": [
+      "class ${1:ClassName}:",
+      "    \"\"\"${2:One-line summary}.",
+      "",
+      "    Responsibilities:",
+      "        - ${3:What this class does}",
+      "",
+      "    Attributes:",
+      "        ${4:attr1} (${5:type}): ${6:Description}.",
+      "        ${7:attr2} (${8:type}): ${9:Description}.",
+      "    \"\"\"",
+      "    def __init__(self$10):",
+      "        $0"
+    ]
+  },
+  "Function Docstring (Google)": {
+    "scope": "python",
+    "prefix": "dfunc",
+    "description": "Google-style function docstring",
+    "body": [
+      "def ${1:function_name}(${2:param1}: ${3:type}) -> ${4:return_type}:",
+      "    \"\"\"${5:One-line summary}.",
+      "",
+      "    Args:",
+      "        ${2:param1} (${3:type}): ${6:Description}.",
+      "",
+      "    Returns:",
+      "        ${4:return_type}: ${7:Meaning}.",
+      "",
+      "    Raises:",
+      "        ${8:ExceptionType}: ${9:Condition}.",
+      "",
+      "    Example:",
+      "        >>> ${1:function_name}(${10:example_args})",
+      "        ${11:expected_result}",
+      "    \"\"\"",
+      "    $0"
+    ]
+  }
+}

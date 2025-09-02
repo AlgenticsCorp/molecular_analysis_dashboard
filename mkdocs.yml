@@ -1,0 +1,68 @@
+site_name: Project Documentation
+site_description: A professionally structured Python project following clean architecture principles
+site_url: https://your-org.github.io/your-repo
+repo_url: https://github.com/your-org/your-repo
+repo_name: your-org/your-repo
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_signature_annotations: true
+            merge_init_into_class: true
+            separate_signature: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quick-start.md
+    - Architecture: getting-started/architecture.md
+  - Development:
+    - Developer Guide: DEVELOPER_GUIDE.md
+    - LLM Agent Guide: LLM_AGENT_GUIDE.md
+    - Contributing: CONTRIBUTING.md
+  - API Reference: api.md
+  - Code Atlas:
+    - Schema: schema.md
+    - Dependency Graphs: graphs.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
