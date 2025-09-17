@@ -48,7 +48,7 @@ This project enforces strict quality standards:
 
 1. **Write tests first** (TDD approach recommended)
 2. **Implement feature** following existing patterns
-3. **Add comprehensive docstrings**
+3. **Add comprehensive docstrings** (see Developer Guide: Code Commenting Guidelines)
 4. **Update documentation** if needed
 5. **Run quality checks**:
    ```bash
@@ -180,6 +180,23 @@ def process_payment(
         PaymentStatus.COMPLETED
     """
 ```
+
+### Code Snippet Comments (Required)
+
+All code snippets included in:
+
+- Documentation pages (in `docs/`)
+- README or other repo Markdown files
+- PR descriptions and issue comments
+- Docstring `Example` sections
+
+Must include brief comments that:
+
+- Explain the snippet’s purpose/context in 1–2 lines
+- Clarify any non-obvious steps or parameters
+- Avoid restating trivial code
+
+See “Code Commenting Guidelines” in `DEVELOPER_GUIDE.md` for the professional commenting schema and examples.
 
 ### Documentation Updates
 

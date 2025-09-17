@@ -3,14 +3,14 @@ digraph imports {
   graph [fontsize=10];
   node  [shape=box, fontsize=10];
   edge  [fontsize=9, arrowsize=0.7];
-  subgraph cluster_0 { label="yourpkg"; fontsize=12; style=rounded; color=gray50;
-    "yourpkg.__init__" [shape=box];
-    "yourpkg.adapters.__init__" [shape=box];
-    "yourpkg.domain.__init__" [shape=box];
-    "yourpkg.infrastructure.__init__" [shape=box];
-    "yourpkg.ports.__init__" [shape=box];
-    "yourpkg.presentation.__init__" [shape=box];
-    "yourpkg.shared.__init__" [shape=box];
-    "yourpkg.use_cases.__init__" [shape=box];
+  subgraph cluster_0 { label="molecular_analysis_dashboard"; fontsize=12; style=rounded; color=gray50;
+    "molecular_analysis_dashboard.__init__" [shape=box];
+    "molecular_analysis_dashboard.adapters.__init__" [shape=box];
+    "molecular_analysis_dashboard.domain.__init__" [shape=box];
+    "molecular_analysis_dashboard.infrastructure.__init__" [shape=box];
+    "molecular_analysis_dashboard.ports.__init__" [shape=box];
+    "molecular_analysis_dashboard.presentation.__init__" [shape=box];
+    "molecular_analysis_dashboard.shared.__init__" [shape=box];
+    "molecular_analysis_dashboard.use_cases.__init__" [shape=box];
   }
 }

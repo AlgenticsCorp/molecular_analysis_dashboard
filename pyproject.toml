@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "yourpkg"
+name = "molecular_analysis_dashboard"
 version = "0.1.0"
 description = "A professionally structured Python project following clean architecture principles"
 readme = "README.md"
@@ -31,6 +31,10 @@ requires-python = ">=3.9"
 dependencies = [
     "pydantic>=2.0.0",
     "click>=8.0.0",
+    "fastapi>=0.111.0",
+    "uvicorn[standard]>=0.30.0",
+    "gunicorn>=21.2.0",
+    "celery>=5.3.0",
 ]
 
 [project.optional-dependencies]
@@ -58,7 +62,7 @@ tools = [
     "pyan3>=1.2.0",
     "graphviz>=0.20.0",
 ]
-all = ["yourpkg[dev,docs,tools]"]
+all = ["molecular_analysis_dashboard[dev,docs,tools]"]
 
 [project.urls]
 Homepage = "https://github.com/your-org/your-repo"
@@ -68,13 +72,13 @@ Issues = "https://github.com/your-org/your-repo/issues"
 Changelog = "https://github.com/your-org/your-repo/blob/main/CHANGELOG.md"
 
 [project.scripts]
-your-cli = "yourpkg.presentation.cli:main"
+your-cli = "molecular_analysis_dashboard.presentation.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-yourpkg = ["py.typed"]
+molecular_analysis_dashboard = ["py.typed"]
 
 # Black configuration
 [tool.black]
@@ -133,7 +137,7 @@ minversion = "7.0"
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src/yourpkg",
+    "--cov=src/molecular_analysis_dashboard",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",

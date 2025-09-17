@@ -1,0 +1,120 @@
+version: "3.9"
+
+x-common-env: &common-env
+  ENV: ${ENV}
+  LOG_LEVEL: ${LOG_LEVEL}
+  SECRET_KEY: ${SECRET_KEY}
+  DATABASE_URL: ${DATABASE_URL}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  RESULTS_DIR: ${RESULTS_DIR}
+  UPLOADS_DIR: ${UPLOADS_DIR}
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    environment:
+      <<: *common-env
+      HOST: ${HOST}
+      PORT: ${PORT}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY}
+      UVICORN_WORKERS: ${UVICORN_WORKERS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - results:${RESULTS_DIR}
+      - uploads:${UPLOADS_DIR}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    environment:
+      <<: *common-env
+      CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY}
+      CELERY_PREFETCH_MULTIPLIER: ${CELERY_PREFETCH_MULTIPLIER}
+      CELERY_ACKS_LATE: ${CELERY_ACKS_LATE}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - results:${RESULTS_DIR}
+      - uploads:${UPLOADS_DIR}
+    networks: [appnet]
+
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    environment:
+      <<: *common-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["bash", "-lc", "alembic upgrade head"]
+    restart: "no"
+    networks: [appnet]
+
+  flower:
+    image: mher/flower:1.2.0
+    environment:
+      - FLOWER_PORT=5555
+      - FLOWER_BASIC_AUTH=user:password
+    command: ["flower", "--broker=${CELERY_BROKER_URL}"]
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks: [appnet]
+
+volumes:
+  pgdata:
+  redisdata:
+  results:
+  uploads:
+
+networks:
+  appnet:

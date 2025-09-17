@@ -79,7 +79,7 @@ def run_health_checks() -> bool:
         "pyproject.toml",
         ".pre-commit-config.yaml",
         "bootstrap.sh",
-        "src/yourpkg/__init__.py",
+        "src/molecular_analysis_dashboard/__init__.py",
     ]
 
     for filepath in critical_files:

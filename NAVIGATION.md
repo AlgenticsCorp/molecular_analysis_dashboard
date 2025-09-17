@@ -22,10 +22,22 @@ This file helps you navigate the repository efficiently and know exactly where t
 - **[.flake8](.flake8)** - Linting configuration
 - **[mkdocs.yml](mkdocs.yml)** - Documentation site configuration
 
+### 🧭 **Project Design Docs**
+- **[project_design/ARCHITECTURE.md](project_design/ARCHITECTURE.md)** — Clean Architecture overview
+- **[project_design/FRAMEWORK_DESIGN.md](project_design/FRAMEWORK_DESIGN.md)** — Component/sequence/deployment/class diagrams
+- **[project_design/TOOLS_AND_WORKFLOW.md](project_design/TOOLS_AND_WORKFLOW.md)** — Tech stack & E2E workflow
+- **[project_design/IMPLEMENTATION_PLAN.md](project_design/IMPLEMENTATION_PLAN.md)** — Sprints & steps
+- **[project_design/USE_CASES.md](project_design/USE_CASES.md)** — Core use cases
+- **[project_design/USERS_AND_ROLES.md](project_design/USERS_AND_ROLES.md)** — Actors, RBAC, tenancy
+- **[project_design/DATABASES.md](project_design/DATABASES.md)** — Metadata vs results DBs
+- **[project_design/API_CONTRACT.md](project_design/API_CONTRACT.md)** — HTTP API endpoints
+- **[project_design/REPO_COMPONENT_MAP.md](project_design/REPO_COMPONENT_MAP.md)** — Repo ↔ containers mapping
+ - **[project_design/SCHEMA_PROPOSAL.md](project_design/SCHEMA_PROPOSAL.md)** — Concrete PostgreSQL DDL proposal
+
 ## 🏗️ Source Code Structure
 
 ```
-src/your_package_name/
+src/molecular_analysis_dashboard/
 ├── __init__.py                  # Package entry point
 ├── py.typed                     # Type checking marker
 ├── domain/                      # Business logic (pure)
@@ -34,11 +46,11 @@ src/your_package_name/
 │   └── __init__.py
 ├── ports/                       # Abstract interfaces
 │   └── __init__.py
-├── adapters/                    # External integrations
+├── adapters/                    # External integrations (DB/engines/messaging)
 │   └── __init__.py
-├── infrastructure/              # DI and configuration
+├── infrastructure/              # DI, config, db, security, celery
 │   └── __init__.py
-├── presentation/                # Controllers and CLI
+├── presentation/                # API routers, schemas
 │   └── __init__.py
 └── shared/                      # Cross-cutting utilities
     └── __init__.py

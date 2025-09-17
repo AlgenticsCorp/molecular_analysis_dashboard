@@ -93,7 +93,7 @@ jobs:
       run: pytest tests/integration/ -v --tb=short
 
     - name: Run full test suite with coverage
-      run: pytest --cov=src/yourpkg --cov-report=xml --cov-report=term-missing --cov-fail-under=80
+      run: pytest --cov=src/molecular_analysis_dashboard --cov-report=xml --cov-report=term-missing --cov-fail-under=80
 
     - name: Upload coverage to Codecov
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == env.PYTHON_DEFAULT_VERSION

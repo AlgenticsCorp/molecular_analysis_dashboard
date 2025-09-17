@@ -45,10 +45,16 @@ nav:
   - Getting Started:
     - Quick Start: getting-started/quick-start.md
     - Architecture: getting-started/architecture.md
+  - Design Overview: design.md
   - Development:
     - Developer Guide: DEVELOPER_GUIDE.md
     - LLM Agent Guide: LLM_AGENT_GUIDE.md
     - Contributing: CONTRIBUTING.md
+  - Operations:
+    - API Gateway: operations/api-gateway.md
+  - Deployment:
+    - Local (Docker Compose): deployment/local.md
+    - Cloud: deployment/cloud.md
   - API Reference: api.md
   - Code Atlas:
     - Schema: schema.md

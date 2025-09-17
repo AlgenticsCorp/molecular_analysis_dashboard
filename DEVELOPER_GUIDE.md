@@ -103,6 +103,89 @@ def price_with_tax(amount: float, rate: float) -> float:
     """
 ```
 
+## Code Commenting Guidelines (Professional Schema)
+
+Goal: Comments make intent obvious, capture the “why,” and reduce cognitive load. Prefer self-documenting code first; add comments where non-obvious. Keep comments accurate and up to date.
+
+Principles:
+- Prefer explaining “why” over restating “what” the code already says.
+- Place comments at the smallest helpful scope (inline, block, function, module).
+- Use full sentences for multi-line comments. Keep to ~100 chars/line.
+- Remove stale comments; if behavior changes, update the comment in the same commit.
+
+Comment types and schema:
+- Module/file header: Use a module docstring (PEP 257). Summarize responsibilities, dependencies, assumptions.
+- Public API docstrings: Mandatory Google style (already defined above). Include Args/Returns/Raises/Examples.
+- Block comment (above code): Use when rationale, invariants, edge-cases, or trade-offs need explaining.
+    - Format:
+        ```python
+        # RATIONALE: batching reduces DB round-trips from O(n) to O(1).
+        # INVARIANT: items are unique by (org_id, key).
+        ```
+- Inline comment (end-of-line or just above a line): Use sparingly for non-obvious intent.
+    - Format: `# why this line exists`
+- Decision/TODO/FIXME/NOTE/Security tags:
+    - Use canonical tags at the start of the comment and include traceability:
+        - `# TODO(#123) [@owner] 2025-09-03: replace O(n^2) loop with bulk upsert`
+        - `# FIXME: incorrect timezone handling around DST; see issue #456`
+        - `# NOTE: idempotent by design; safe to retry`
+        - `# SECURITY: avoid logging secrets; tokens are redacted upstream`
+    - Convert TODOs to issues when work spills over a PR; keep tags short and actionable.
+- Snippet comments (required): Any code snippet in docs, README, PR descriptions, or docstring Examples must include brief comments for context and non-obvious steps.
+    - First line: context/purpose of the snippet.
+    - Add inline comments for complex lines; avoid over-commenting trivial ones.
+
+Style rules:
+- Python inline/block comments start with `# ` (single space after hash).
+- Wrap multi-line comments to ~100 columns; separate from code with a blank line when they’re long.
+- Avoid commented-out code in committed files. If you must show alternatives, put them in docs.
+- Keep comments neutral and professional; no blame or jokes.
+
+Examples:
+
+1) Block + inline comments around a tricky section
+
+```python
+def top_k(items: list[int], k: int) -> list[int]:
+        """Return the k largest items. Assumes k << len(items)."""
+        # RATIONALE: heapq.nlargest is O(n log k), faster than sorting O(n log n) for small k.
+        import heapq
+
+        if k <= 0:
+                return []
+
+        # NOTE: defensive copy to avoid mutating caller’s list; heapq works on iterables.
+        return heapq.nlargest(k, list(items))
+```
+
+2) Decision/TODO with traceability
+
+```python
+# TODO(#321) [@data-eng] 2025-09-03: replace per-row inserts with COPY for large batches
+save_rows(rows)
+```
+
+3) Snippet in docs with required comments
+
+```python
+# Submit a job and poll status until completion (simplified example)
+job_id = api.submit_job(molecule_path)  # returns UUID
+
+while True:
+        status = api.get_job_status(job_id)
+        if status.done:
+                break  # stop polling when finished
+        time.sleep(1)  # backoff/jitter omitted for brevity
+
+result = api.get_job_result(job_id)  # retrieve final artifact
+```
+
+Checklist before merging:
+- [ ] Public functions/classes have Google-style docstrings.
+- [ ] Complex blocks have a brief rationale comment.
+- [ ] TODO/FIXME/NOTE/SECURITY tags use the schema and link to issues when relevant.
+- [ ] Snippets in docs/PRs have minimal context comments.
+
 ## Auto-generated Code Atlas
 
 - `extract_schema.py`: builds `docs/schema.json` with functions, signatures, and docs.

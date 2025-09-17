@@ -1,90 +1,113 @@
-# Professional Python Project Template
+# Molecular Analysis Dashboard
 
-[![CI](https://github.com/your-org/your-repo/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/your-repo/actions/workflows/ci.yml)
-[![Coverage](https://codecov.io/gh/your-org/your-repo/branch/main/graph/badge.svg)](https://codecov.io/gh/your-org/your-repo)
+[![CI](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/AlgenticsCorp/molecular_analysis_dashboard/branch/main/graph/badge.svg)](https://codecov.io/gh/AlgenticsCorp/molecular_analysis_dashboard)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 [![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
 [![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A professional Python project template implementing **Clean Architecture** (Hexagonal/Ports & Adapters) with comprehensive tooling for AI agent-assisted development.
+An end-to-end platform for running and managing molecular docking pipelines. The system follows **Clean Architecture** (Hexagonal/Ports & Adapters), exposes a FastAPI backend, offloads long-running compute to Celery workers, persists state in PostgreSQL, uses Redis as a broker, and stores artifacts on local filesystem (dev) or S3/MinIO (prod). The repo is fully containerized for easy local runs and ready to scale out in orchestrators.
 
 > Governance and Policies: see `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, and `CHANGELOG.md`.
 
-## 🚀 **Using This Template**
+## 🔗 Quick Links
 
-1. **Click "Use this template"** button above
-2. **Create your new repository** from this template
-3. **Clone your new repository** locally
-4. **Run the setup script**: `./bootstrap.sh your_package_name`
-5. **Start developing** with all tools pre-configured!
+- Architecture Overview: [project_design/ARCHITECTURE.md](project_design/ARCHITECTURE.md)
+- Frontend Architecture: [project_design/FRONTEND_ARCHITECTURE.md](project_design/FRONTEND_ARCHITECTURE.md)
+- Framework Design & Diagrams: [project_design/FRAMEWORK_DESIGN.md](project_design/FRAMEWORK_DESIGN.md)
+- Tools & Workflow: [project_design/TOOLS_AND_WORKFLOW.md](project_design/TOOLS_AND_WORKFLOW.md)
+- Docker Deployment & Scaling: [project_design/DEPLOYMENT_DOCKER.md](project_design/DEPLOYMENT_DOCKER.md)
+- Agile Implementation Plan: [project_design/IMPLEMENTATION_PLAN.md](project_design/IMPLEMENTATION_PLAN.md)
+- Users & Roles: [project_design/USERS_AND_ROLES.md](project_design/USERS_AND_ROLES.md)
+- Use Cases: [project_design/USE_CASES.md](project_design/USE_CASES.md)
+- Databases & Tenancy: [project_design/DATABASES.md](project_design/DATABASES.md)
 
-## 🗺️ **New to this repository?** Start with [NAVIGATION.md](NAVIGATION.md) to understand the structure.
-
-## 🚀 **Quick Setup:** Follow [SETUP.md](SETUP.md) for installation instructions.
-
+For initial setup details and development environment guidelines, see [SETUP.md](SETUP.md) and [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
 ## 🏗️ Architecture
 
-This template enforces **SOLID principles** and **Clean Architecture** patterns:
+This project implements **SOLID** and **Clean Architecture** patterns. See `project_design/ARCHITECTURE.md` for details and `project_design/FRAMEWORK_DESIGN.md` for Mermaid diagrams.
+
+## 🛠️ Technology Stack
+
+### **Backend**
+- **Python 3.11+** with FastAPI, Celery, SQLAlchemy
+- **PostgreSQL** for data persistence with multi-tenant architecture
+- **Redis** for task queuing and caching
+- **Docker** for containerization and local development
+
+### **Frontend**
+- **React 18+** with TypeScript for type-safe UI development
+- **Material-UI (MUI)** for consistent design system
+- **React Query** for server state management and caching
+- **Vite** for fast development and optimized builds
+- **3Dmol.js** for interactive molecular visualization
+
+### **Molecular Computing**
+- **AutoDock Vina, Smina, Gnina** via pluggable engine adapters
+- **RDKit** for cheminformatics and molecular processing
 
 ```
-src/your_package_name/
+src/molecular_analysis_dashboard/
 ├── domain/          # Business entities and domain services
 ├── use_cases/       # Application services (business logic)
 ├── ports/           # Abstract interfaces (dependency inversion)
-├── adapters/        # Concrete implementations (DB, HTTP, CLI)
-├── infrastructure/  # DI containers, configuration, logging
-├── presentation/    # Controllers, CLI, API endpoints
+├── adapters/        # Concrete implementations (DB, external engines, storage)
+├── infrastructure/  # Celery, DB session, config, security
+├── presentation/    # FastAPI routers, schemas, templates
 └── shared/          # Cross-cutting utilities
 ```
 
 ## 🚀 Quick Start
 
-### 1. **For New Projects from Template**
+### Option A: Full Stack Development (Backend + Frontend)
 
 ```bash
-# 1. Clone the template
-git clone <this-template> my-new-project
-cd my-new-project
+# Backend setup
+cp .env.example .env
+docker compose build
+docker compose up -d postgres redis
+docker compose run --rm migrate   # after Alembic is configured
+docker compose up -d api worker
 
-# 2. Bootstrap with your package name (lowercase, underscores only)
-chmod +x bootstrap.sh
-./bootstrap.sh my_package_name
+# Frontend setup (in new terminal)
+cd frontend
+npm install
+npm run dev
 
-# Examples:
-# ./bootstrap.sh order_service
-# ./bootstrap.sh data_processor
-# ./bootstrap.sh web_api
+# Access application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
 ```
 
-**Package naming rules**: Use lowercase letters, numbers, and underscores only.
-- ✅ Good: `user_service`, `data_api`, `ml_pipeline`
-- ❌ Bad: `User-Service`, `DataAPI`, `web.api`
-
-### 2. **For Existing Projects**
+### Option B: Backend Only (API development)
 
 ```bash
-# Activate environment and install dependencies
+cp .env.example .env
+docker compose build
+docker compose up -d postgres redis
+docker compose run --rm migrate   # after Alembic is configured
+docker compose up -d api worker
+curl -f http://localhost:8000/health
+```
+
+Scale horizontally:
+
+```bash
+docker compose up -d --scale api=2 --scale worker=3
+```
+
+See `project_design/DEPLOYMENT_DOCKER.md` for details.
+
+### Option B: Run via virtualenv (for contributors)
+
+```bash
+python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev,docs,tools]"
 pre-commit install
-```
-
-### 3. **Verify Installation**
-
-```bash
-# Run quality checks
-pre-commit run --all-files
-
-# Run tests
 pytest
-
-# Generate documentation
-mkdocs serve
-
-# Generate code atlas
-python tools/extract_schema.py
-python tools/render_graphs.py --repo-url https://github.com/your-org/your-repo/blob/main
 ```
 
 ## 🛠️ Development Workflow
@@ -130,7 +153,7 @@ def process_order(order_id: str, user_id: str) -> OrderResult:
 
 ### Automated Code Atlas
 
-The template automatically generates:
+The project automatically generates:
 
 - **Schema extraction** (`docs/schema.json`): Machine-readable API documentation
 - **Call graphs** (`docs/atlas/calls.svg`): Function-level dependency visualization
@@ -154,7 +177,7 @@ The template automatically generates:
 
 ## 🤖 AI Agent Integration
 
-This template is optimized for AI-assisted development:
+This project is optimized for AI-assisted development:
 
 ### For LLM Agents
 
@@ -187,7 +210,7 @@ authors = [{name = "Your Name", email = "your.email@domain.com"}]
 ### 2. Rename Package Directory
 
 ```bash
-mv src/yourpkg src/your_actual_package
+mv src/yourpkg src/molecular_analysis_dashboard
 # Update imports throughout codebase
 ```
 
@@ -196,8 +219,8 @@ mv src/yourpkg src/your_actual_package
 Update in `pyproject.toml` and CI workflows:
 ```toml
 [project.urls]
-Homepage = "https://github.com/your-org/your-repo"
-Repository = "https://github.com/your-org/your-repo"
+Homepage = "https://github.com/AlgenticsCorp/molecular_analysis_dashboard"
+Repository = "https://github.com/AlgenticsCorp/molecular_analysis_dashboard"
 ```
 
 ## 📁 Project Structure
@@ -206,11 +229,11 @@ Repository = "https://github.com/your-org/your-repo"
 project-root/
 ├── .github/workflows/           # CI/CD pipelines
 ├── .vscode/                    # VS Code configuration
-├── docs/                       # Documentation
+├── docs/                       # Generated docs
 │   ├── atlas/                  # Generated graphs
 │   ├── schema.json            # API schema
 │   └── *.md                   # Manual documentation
-├── src/your_package_name/     # Source code
+├── src/molecular_analysis_dashboard/  # Source code
 │   ├── domain/                # Business logic
 │   ├── use_cases/             # Application services
 │   ├── ports/                 # Interfaces
@@ -225,15 +248,37 @@ project-root/
 ├── tools/                     # Development tools
 ├── bootstrap.sh               # Project setup script
 ├── pyproject.toml             # Project configuration
-└── DEVELOPER_GUIDE.md         # Architecture guide
+├── project_design/             # Design and plans
+│   ├── ARCHITECTURE.md
+│   ├── FRAMEWORK_DESIGN.md
+│   ├── TOOLS_AND_WORKFLOW.md
+│   ├── DEPLOYMENT_DOCKER.md
+│   └── implementation_plan.md
+└── DEVELOPER_GUIDE.md         # Engineering guide
 ```
 
 ## 📚 Documentation
 
-- **Architecture Guide**: [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
-- **API Documentation**: `mkdocs serve` (auto-generated)
-- **Code Atlas**: `docs/atlas/` (dependency graphs)
-- **API Schema**: `docs/schema.json` (machine-readable)
+- Architecture Overview: `project_design/ARCHITECTURE.md`
+- Framework Design & Diagrams: `project_design/FRAMEWORK_DESIGN.md`
+- Tools & Workflow: `project_design/TOOLS_AND_WORKFLOW.md`
+- Deployment & Scaling: `project_design/DEPLOYMENT_DOCKER.md`
+- Implementation Plan: `project_design/IMPLEMENTATION_PLAN.md`
+- Users & Roles: `project_design/USERS_AND_ROLES.md`
+- Use Cases: `project_design/USE_CASES.md`
+- Databases & Tenancy: `project_design/DATABASES.md`
+- API Contract: `project_design/API_CONTRACT.md`
+- Component Map (Repo ↔ Containers): `project_design/REPO_COMPONENT_MAP.md`
+- Configuration Reference: `project_design/CONFIGURATION.md`
+- Security Architecture: `project_design/SECURITY_ARCH.md`
+- Operations Runbook: `project_design/RUNBOOK.md`
+- Task Queue Design: `project_design/QUEUE_DESIGN.md`
+- Data Model ERD: `project_design/ERD.md`
+- Schema Proposal (DDL): `project_design/SCHEMA_PROPOSAL.md`
+- Developer Guide: [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
+- API Docs (local): `mkdocs serve`
+- Code Atlas: `docs/atlas/` (dependency graphs)
+- API Schema: `docs/schema.json` (machine-readable)
 
 ## 🧪 Testing Strategy
 
@@ -255,8 +300,8 @@ pytest -m unit
 pytest -m integration
 pytest -m e2e
 
-# With coverage (replace 'your_package_name' with actual package)
-pytest --cov=src/your_package_name --cov-report=html
+# With coverage
+pytest --cov=src/molecular_analysis_dashboard --cov-report=html
 ```
 
 ## 🔄 Continuous Integration

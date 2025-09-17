@@ -74,7 +74,7 @@ Command 'pre-commit' not found
 
 1. **Check current coverage**:
    ```bash
-   pytest --cov=src/yourpkg --cov-report=term-missing
+   pytest --cov=src/molecular_analysis_dashboard --cov-report=term-missing
    ```
 
 2. **For template usage** (disable strict coverage):

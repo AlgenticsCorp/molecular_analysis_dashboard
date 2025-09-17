@@ -1,4 +1,4 @@
-"""Your package root module.
+"""molecular_analysis_dashboard package root module.
 
 Details:
 - Entry point for the application
