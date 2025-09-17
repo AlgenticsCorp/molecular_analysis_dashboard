@@ -7,9 +7,7 @@ export const AdminPanel: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Admin Panel
       </Typography>
-      <Typography variant="body1">
-        Administrative settings and user management.
-      </Typography>
+      <Typography variant="body1">Administrative settings and user management.</Typography>
     </Box>
   );
 };

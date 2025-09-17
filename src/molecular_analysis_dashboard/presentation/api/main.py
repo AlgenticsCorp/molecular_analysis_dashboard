@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import List
+from typing import Any, Callable, List
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.proxy_headers import ProxyHeadersMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 root_path = os.getenv("ROOT_PATH", "")
 app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
@@ -46,7 +46,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def add_request_id_header(request: Request, call_next):
+async def add_request_id_header(request: Request, call_next: Callable[[Request], Any]) -> Response:
     """Add request ID header to all responses."""
     req_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
     response = await call_next(request)
@@ -61,6 +61,6 @@ def health() -> dict[str, str]:
 
 
 @app.get("/ready")
-def ready() -> dict:
+def ready() -> dict[str, Any]:
     """Readiness probe: placeholder until DB/broker are wired (Stage 1)."""
     return {"status": "not_ready", "checks": {"db": "pending", "broker": "pending"}}

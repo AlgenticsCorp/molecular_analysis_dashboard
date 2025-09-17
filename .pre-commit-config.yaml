@@ -1,18 +1,20 @@
 repos:
-  # Code formatting
+  # Python Code formatting
   - repo: https://github.com/psf/black
     rev: 24.8.0
     hooks:
       - id: black
         language_version: python3
+        files: ^src/.*\.py$
 
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
         args: ["--profile", "black"]
+        files: ^src/.*\.py$
 
-  # Linting and style
+  # Python Linting and style
   - repo: https://github.com/pycqa/flake8
     rev: 7.1.0
     hooks:
@@ -24,24 +26,26 @@ repos:
           - flake8-simplify==0.21.0
         args: ["--config", ".flake8"]
         exclude: "^tools/"
+        files: ^src/.*\.py$
 
-  # Docstring checking
+  # Python Docstring checking
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
     hooks:
       - id: pydocstyle
         args: ["--convention=google", "src/"]
         exclude: "^tools/"
+        files: ^src/.*\.py$
 
-  # Type checking
+  # Python Type checking
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.11.1
     hooks:
       - id: mypy
         args: ["--config-file", "pyproject.toml"]
-        files: ^src/
+        files: ^src/.*\.py$
 
-  # Security scanning
+  # Python Security scanning
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.9
     hooks:
@@ -49,8 +53,9 @@ repos:
         args: ["-r", "src/", "--skip", "B110,B404,B603,B607"]
         exclude: "tests/"
         pass_filenames: false
+        files: ^src/.*\.py$
 
-  # Code quality analysis
+  # Python Code quality analysis
   - repo: https://github.com/pycqa/pylint
     rev: v3.2.6
     hooks:
@@ -58,26 +63,57 @@ repos:
         args: ["--rcfile", "pyproject.toml", "src/"]
         additional_dependencies: [toml]
         exclude: "^(tests/|tools/)"
+        files: ^src/.*\.py$
+
+  # Frontend TypeScript/React formatting and linting
+  - repo: local
+    hooks:
+      - id: frontend-prettier
+        name: Format frontend code with Prettier
+        entry: bash -c "cd frontend && npm run format"
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx|json|css|md)$
+        pass_filenames: false
+
+      - id: frontend-eslint
+        name: Lint frontend code with ESLint
+        entry: bash -c "cd frontend && npm run lint:fix"
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
+
+      - id: frontend-typecheck
+        name: TypeScript type checking
+        entry: bash -c "cd frontend && npm run type-check"
+        language: system
+        files: ^frontend/src/.*\.(ts|tsx)$
+        pass_filenames: false
 
   # Generic pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        exclude: '^frontend/.*\.(md|json)$'
       - id: end-of-file-fixer
+        exclude: '^frontend/.*\.(md|json)$'
       - id: check-yaml
       - id: check-toml
       - id: check-json
+        exclude: '^frontend/(package-lock\.json|.*\.json)$'
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ['--maxkb=1000']
       - id: check-case-conflict
       - id: check-docstring-first
+        files: ^src/.*\.py$
       - id: debug-statements
+        files: ^src/.*\.py$
       - id: name-tests-test
         args: ['--pytest-test-first']
+        files: ^tests/.*\.py$
 
-  # Complexity analysis
+  # Python Complexity analysis
   - repo: local
     hooks:
       - id: radon-cc
@@ -86,6 +122,7 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+        files: ^src/.*\.py$
 
       - id: radon-mi
         name: radon maintainability check
@@ -93,6 +130,7 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
+        files: ^src/.*\.py$
 
       # Auto-generate code atlas on commit
       - id: extract-schema
@@ -101,9 +139,7 @@ repos:
         language: system
         pass_filenames: false
         stages: [pre-commit]
-
-      # Note: render-graphs moved to CI-only to avoid "failed" status on file modification
-      # Run manually: python tools/render_graphs.py
+        files: ^src/.*\.py$
 
   # Jupyter notebook support (if using notebooks)
   - repo: https://github.com/nbQA-dev/nbQA
@@ -130,5 +166,5 @@ ci:
   autoupdate_branch: ''
   autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
   autoupdate_schedule: weekly
-  skip: [radon-cc, radon-mi, extract-schema, render-graphs]
+  skip: [radon-cc, radon-mi, extract-schema, render-graphs, frontend-prettier, frontend-eslint, frontend-typecheck]
   submodules: false

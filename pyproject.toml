@@ -131,6 +131,23 @@ extra_checks = true
 module = "tests.*"
 disallow_untyped_defs = false
 
+[[tool.mypy.overrides]]
+module = [
+    "click.*",
+    "fastapi.*",
+    "starlette.*",
+    "uvicorn.*",
+    "celery.*"
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "molecular_analysis_dashboard.presentation.*",
+    "molecular_analysis_dashboard.infrastructure.tasks"
+]
+disallow_untyped_decorators = false
+
 # pytest configuration
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -184,6 +201,9 @@ exclude_lines = [
 disable = [
     "C0114",  # missing-module-docstring (handled by flake8-docstrings)
     "R0903",  # too-few-public-methods
+    "E0401",  # import-error (for template dependencies)
+    "W0107",  # unnecessary-pass (for template placeholder functions)
+    "C0415",  # import-outside-toplevel (for conditional imports)
 ]
 
 [tool.pylint.format]

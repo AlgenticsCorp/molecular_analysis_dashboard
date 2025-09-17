@@ -7,9 +7,7 @@ export const Settings: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Settings
       </Typography>
-      <Typography variant="body1">
-        Configure application preferences and user settings.
-      </Typography>
+      <Typography variant="body1">Configure application preferences and user settings.</Typography>
     </Box>
   );
 };

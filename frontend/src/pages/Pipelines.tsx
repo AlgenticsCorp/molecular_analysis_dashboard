@@ -7,9 +7,7 @@ export const Pipelines: React.FC = () => {
       <Typography variant="h4" gutterBottom>
         Pipelines
       </Typography>
-      <Typography variant="body1">
-        Create and manage molecular analysis pipelines.
-      </Typography>
+      <Typography variant="body1">Create and manage molecular analysis pipelines.</Typography>
     </Box>
   );
 };

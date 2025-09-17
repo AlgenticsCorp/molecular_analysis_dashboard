@@ -66,7 +66,12 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const drawer = (
     <div>
       <Toolbar>
-        <Typography variant="h6" noWrap component="div" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+        <Typography
+          variant="h6"
+          noWrap
+          component="div"
+          sx={{ color: 'primary.main', fontWeight: 'bold' }}
+        >
           Molecular Analysis
         </Typography>
       </Toolbar>
@@ -124,14 +129,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 500 }}>
-            {menuItems.find(item => item.path === location.pathname)?.text || 'Dashboard'}
+            {menuItems.find((item) => item.path === location.pathname)?.text || 'Dashboard'}
           </Typography>
         </Toolbar>
       </AppBar>
-      <Box
-        component="nav"
-        sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-      >
+      <Box component="nav" sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}>
         <Drawer
           variant="temporary"
           open={mobileOpen}

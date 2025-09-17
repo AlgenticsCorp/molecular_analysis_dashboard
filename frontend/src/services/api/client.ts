@@ -38,7 +38,7 @@ class ApiClient {
       },
       (error) => {
         return Promise.reject(error);
-      }
+      },
     );
 
     // Response interceptor for error handling
@@ -77,7 +77,7 @@ class ApiClient {
         }
 
         return Promise.reject(error);
-      }
+      },
     );
   }
 
@@ -89,15 +89,27 @@ class ApiClient {
     return this.instance.get<T>(url, config);
   }
 
-  async post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async post<T>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> {
     return this.instance.post<T>(url, data, config);
   }
 
-  async put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async put<T>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> {
     return this.instance.put<T>(url, data, config);
   }
 
-  async patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async patch<T>(
+    url: string,
+    data?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> {
     return this.instance.patch<T>(url, data, config);
   }
 
@@ -105,7 +117,11 @@ class ApiClient {
     return this.instance.delete<T>(url, config);
   }
 
-  async upload<T>(url: string, formData: FormData, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  async upload<T>(
+    url: string,
+    formData: FormData,
+    config?: AxiosRequestConfig,
+  ): Promise<AxiosResponse<T>> {
     return this.instance.post<T>(url, formData, {
       ...config,
       headers: {

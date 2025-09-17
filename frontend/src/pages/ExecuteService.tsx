@@ -118,12 +118,8 @@ export const ExecuteService: React.FC = () => {
               <Typography variant="h6" gutterBottom>
                 Job Summary
               </Typography>
-              <Typography variant="body2">
-                Ligand: {selectedLigand || 'Not selected'}
-              </Typography>
-              <Typography variant="body2">
-                Protein: {selectedProtein || 'Not selected'}
-              </Typography>
+              <Typography variant="body2">Ligand: {selectedLigand || 'Not selected'}</Typography>
+              <Typography variant="body2">Protein: {selectedProtein || 'Not selected'}</Typography>
               <Typography variant="body2">
                 Pipeline: {selectedPipeline || 'Not selected'}
               </Typography>
@@ -150,17 +146,10 @@ export const ExecuteService: React.FC = () => {
           ))}
         </Stepper>
 
-        <Box sx={{ mb: 4 }}>
-          {renderStepContent(activeStep)}
-        </Box>
+        <Box sx={{ mb: 4 }}>{renderStepContent(activeStep)}</Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
-          <Button
-            color="inherit"
-            disabled={activeStep === 0}
-            onClick={handleBack}
-            sx={{ mr: 1 }}
-          >
+          <Button color="inherit" disabled={activeStep === 0} onClick={handleBack} sx={{ mr: 1 }}>
             Back
           </Button>
           <Box sx={{ flex: '1 1 auto' }} />

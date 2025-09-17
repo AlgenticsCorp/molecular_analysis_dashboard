@@ -96,7 +96,7 @@ class JobWebSocket {
 
   private connect() {
     // In real implementation, this would connect to actual WebSocket
-    console.log('WebSocket connection established');
+    console.warn('WebSocket connection established');
 
     // Simulate real-time updates
     setInterval(() => {
@@ -198,13 +198,15 @@ const fetchJobs = async (filters: JobFilter): Promise<Job[]> => {
   ];
 
   // Apply filters
-  return mockJobs.filter(job => {
+  return mockJobs.filter((job) => {
     const matchesStatus = filters.status === 'all' || job.status === filters.status;
     const matchesType = filters.taskType === 'all' || job.taskType === filters.taskType;
     const matchesPriority = filters.priority === 'all' || job.priority === filters.priority;
-    const matchesSearch = filters.searchTerm === '' ||
+    const matchesSearch =
+      filters.searchTerm === '' ||
       job.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      job.description?.toLowerCase().includes(filters.searchTerm.toLowerCase()) || '';
+      job.description?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      '';
 
     return matchesStatus && matchesType && matchesPriority && matchesSearch;
   });
@@ -225,7 +227,12 @@ export const JobManager: React.FC = () => {
   const queryClient = useQueryClient();
 
   // TanStack Query for job data
-  const { data: jobs = [], error, isLoading, refetch } = useQuery({
+  const {
+    data: jobs = [],
+    error,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: ['jobs', filters],
     queryFn: () => fetchJobs(filters),
     refetchInterval: 10000, // Refresh every 10 seconds
@@ -237,7 +244,7 @@ export const JobManager: React.FC = () => {
     const ws = new JobWebSocket((updatedJob: Job) => {
       queryClient.setQueryData(['jobs', filters], (oldJobs: Job[] | undefined) => {
         if (!oldJobs) return [updatedJob];
-        const existingIndex = oldJobs.findIndex(job => job.id === updatedJob.id);
+        const existingIndex = oldJobs.findIndex((job) => job.id === updatedJob.id);
         if (existingIndex >= 0) {
           const newJobs = [...oldJobs];
           newJobs[existingIndex] = updatedJob;
@@ -257,8 +264,8 @@ export const JobManager: React.FC = () => {
   const pauseJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
       // Mock API call
-      console.log('Pausing job:', jobId);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn('Pausing job:', jobId);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
       refetch();
@@ -268,8 +275,8 @@ export const JobManager: React.FC = () => {
   const stopJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
       // Mock API call
-      console.log('Stopping job:', jobId);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn('Stopping job:', jobId);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
       refetch();
@@ -279,8 +286,8 @@ export const JobManager: React.FC = () => {
   const deleteJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
       // Mock API call
-      console.log('Deleting job:', jobId);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.warn('Deleting job:', jobId);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     },
     onSuccess: () => {
       refetch();
@@ -289,32 +296,48 @@ export const JobManager: React.FC = () => {
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
     switch (status) {
-      case 'SUCCEEDED': return 'success';
-      case 'FAILED': return 'error';
-      case 'RUNNING': return 'info';
-      case 'PENDING': return 'warning';
-      case 'CANCELLED': return 'default';
-      default: return 'default';
+      case 'SUCCEEDED':
+        return 'success';
+      case 'FAILED':
+        return 'error';
+      case 'RUNNING':
+        return 'info';
+      case 'PENDING':
+        return 'warning';
+      case 'CANCELLED':
+        return 'default';
+      default:
+        return 'default';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SUCCEEDED': return <CheckCircle />;
-      case 'FAILED': return <Error />;
-      case 'RUNNING': return <PlayArrow />;
-      case 'PENDING': return <Schedule />;
-      case 'CANCELLED': return <Stop />;
-      default: return <Schedule />;
+      case 'SUCCEEDED':
+        return <CheckCircle />;
+      case 'FAILED':
+        return <Error />;
+      case 'RUNNING':
+        return <PlayArrow />;
+      case 'PENDING':
+        return <Schedule />;
+      case 'CANCELLED':
+        return <Stop />;
+      default:
+        return <Schedule />;
     }
   };
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'error';
-      case 'medium': return 'warning';
-      case 'low': return 'success';
-      default: return 'default';
+      case 'high':
+        return 'error';
+      case 'medium':
+        return 'warning';
+      case 'low':
+        return 'success';
+      default:
+        return 'default';
     }
   };
 
@@ -393,15 +416,15 @@ export const JobManager: React.FC = () => {
               <TableCell>
                 <Chip
                   label={job.priority}
-                  color={getPriorityColor(job.priority) as 'error' | 'warning' | 'success' | 'default'}
+                  color={
+                    getPriorityColor(job.priority) as 'error' | 'warning' | 'success' | 'default'
+                  }
                   size="small"
                   variant="outlined"
                 />
               </TableCell>
               <TableCell>
-                <Typography variant="body2">
-                  {job.runtime || '-'}
-                </Typography>
+                <Typography variant="body2">{job.runtime || '-'}</Typography>
               </TableCell>
               <TableCell>
                 <Box sx={{ display: 'flex', gap: 1 }}>
@@ -580,12 +603,7 @@ export const JobManager: React.FC = () => {
       )}
 
       {/* Job Details Dialog */}
-      <Dialog
-        open={detailsOpen}
-        onClose={() => setDetailsOpen(false)}
-        maxWidth="lg"
-        fullWidth
-      >
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="lg" fullWidth>
         {selectedJob && (
           <>
             <DialogTitle>
@@ -611,7 +629,9 @@ export const JobManager: React.FC = () => {
                 {tabValue === 0 && (
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>Job Information</Typography>
+                      <Typography variant="h6" gutterBottom>
+                        Job Information
+                      </Typography>
                       <List dense>
                         <ListItem>
                           <ListItemText primary="Job ID" secondary={selectedJob.id} />
@@ -635,7 +655,9 @@ export const JobManager: React.FC = () => {
                     <Grid item xs={12} md={6}>
                       {selectedJob.description && (
                         <>
-                          <Typography variant="h6" gutterBottom>Description</Typography>
+                          <Typography variant="h6" gutterBottom>
+                            Description
+                          </Typography>
                           <Typography variant="body2" paragraph>
                             {selectedJob.description}
                           </Typography>
@@ -652,7 +674,9 @@ export const JobManager: React.FC = () => {
 
                 {tabValue === 1 && (
                   <Box>
-                    <Typography variant="h6" gutterBottom>Parameters</Typography>
+                    <Typography variant="h6" gutterBottom>
+                      Parameters
+                    </Typography>
                     <pre style={{ backgroundColor: '#f5f5f5', padding: 16, borderRadius: 4 }}>
                       {JSON.stringify(selectedJob.parameters, null, 2)}
                     </pre>
@@ -662,7 +686,9 @@ export const JobManager: React.FC = () => {
                 {tabValue === 2 && (
                   <Grid container spacing={3}>
                     <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>Input Files</Typography>
+                      <Typography variant="h6" gutterBottom>
+                        Input Files
+                      </Typography>
                       <List dense>
                         {selectedJob.inputFiles.map((file, index) => (
                           <ListItem key={index}>
@@ -672,7 +698,9 @@ export const JobManager: React.FC = () => {
                       </List>
                     </Grid>
                     <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>Output Files</Typography>
+                      <Typography variant="h6" gutterBottom>
+                        Output Files
+                      </Typography>
                       <List dense>
                         {selectedJob.outputFiles.map((file, index) => (
                           <ListItem key={index}>
@@ -694,10 +722,18 @@ export const JobManager: React.FC = () => {
 
                 {tabValue === 3 && (
                   <Box>
-                    <Typography variant="h6" gutterBottom>Job Logs</Typography>
-                    <Paper sx={{ p: 2, backgroundColor: '#f8f9fa', maxHeight: 400, overflow: 'auto' }}>
+                    <Typography variant="h6" gutterBottom>
+                      Job Logs
+                    </Typography>
+                    <Paper
+                      sx={{ p: 2, backgroundColor: '#f8f9fa', maxHeight: 400, overflow: 'auto' }}
+                    >
                       {selectedJob.logs.map((log, index) => (
-                        <Typography key={index} variant="body2" sx={{ fontFamily: 'monospace', mb: 1 }}>
+                        <Typography
+                          key={index}
+                          variant="body2"
+                          sx={{ fontFamily: 'monospace', mb: 1 }}
+                        >
                           {log}
                         </Typography>
                       ))}
@@ -712,7 +748,9 @@ export const JobManager: React.FC = () => {
                         <CardContent sx={{ textAlign: 'center' }}>
                           <Speed sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
                           <Typography variant="h6">CPU Usage</Typography>
-                          <Typography variant="h4" color="primary">{selectedJob.resourceUsage.cpu}%</Typography>
+                          <Typography variant="h4" color="primary">
+                            {selectedJob.resourceUsage.cpu}%
+                          </Typography>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -721,7 +759,9 @@ export const JobManager: React.FC = () => {
                         <CardContent sx={{ textAlign: 'center' }}>
                           <Memory sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
                           <Typography variant="h6">Memory</Typography>
-                          <Typography variant="h4" color="warning.main">{selectedJob.resourceUsage.memory} MB</Typography>
+                          <Typography variant="h4" color="warning.main">
+                            {selectedJob.resourceUsage.memory} MB
+                          </Typography>
                         </CardContent>
                       </Card>
                     </Grid>
@@ -730,7 +770,9 @@ export const JobManager: React.FC = () => {
                         <CardContent sx={{ textAlign: 'center' }}>
                           <GetApp sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
                           <Typography variant="h6">Disk Usage</Typography>
-                          <Typography variant="h4" color="success.main">{selectedJob.resourceUsage.diskSpace} MB</Typography>
+                          <Typography variant="h4" color="success.main">
+                            {selectedJob.resourceUsage.diskSpace} MB
+                          </Typography>
                         </CardContent>
                       </Card>
                     </Grid>

@@ -3,27 +3,336 @@
 [![CI](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/actions/workflows/ci.yml)
 [![Coverage](https://codecov.io/gh/AlgenticsCorp/molecular_analysis_dashboard/branch/main/graph/badge.svg)](https://codecov.io/gh/AlgenticsCorp/molecular_analysis_dashboard)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Imports: isort](https://img.shields.io/badge/%20imports-isort-%231674b1?style=flat&labelColor=ef8336)](https://pycqa.github.io/isort/)
-[![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue)](https://mypy-lang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-An end-to-end platform for running and managing molecular docking pipelines. The system follows **Clean Architecture** (Hexagonal/Ports & Adapters), exposes a FastAPI backend, offloads long-running compute to Celery workers, persists state in PostgreSQL, uses Redis as a broker, and stores artifacts on local filesystem (dev) or S3/MinIO (prod). The repo is fully containerized for easy local runs and ready to scale out in orchestrators.
+A comprehensive web-based platform for molecular analysis and computational chemistry workflows. Built with modern architecture patterns, this dashboard provides researchers and scientists with tools to manage molecular docking pipelines, visualize results, and orchestrate complex computational workflows.
 
-> Governance and Policies: see `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`, and `CHANGELOG.md`.
+## 🎯 Key Features
 
-## 🔗 Quick Links
+### 🧬 Molecular Analysis Capabilities
+- **Multi-Engine Docking**: Support for AutoDock Vina, Smina, and Gnina
+- **3D Molecular Visualization**: Interactive molecule viewing with 3Dmol.js
+- **Cheminformatics Integration**: RDKit-powered molecular processing
+- **Pipeline Management**: Create and manage complex analysis workflows
+- **Real-time Job Monitoring**: Live updates on running computations
 
-- Architecture Overview: [project_design/ARCHITECTURE.md](project_design/ARCHITECTURE.md)
-- Frontend Architecture: [project_design/FRONTEND_ARCHITECTURE.md](project_design/FRONTEND_ARCHITECTURE.md)
-- Framework Design & Diagrams: [project_design/FRAMEWORK_DESIGN.md](project_design/FRAMEWORK_DESIGN.md)
-- Tools & Workflow: [project_design/TOOLS_AND_WORKFLOW.md](project_design/TOOLS_AND_WORKFLOW.md)
-- Docker Deployment & Scaling: [project_design/DEPLOYMENT_DOCKER.md](project_design/DEPLOYMENT_DOCKER.md)
-- Agile Implementation Plan: [project_design/IMPLEMENTATION_PLAN.md](project_design/IMPLEMENTATION_PLAN.md)
-- Users & Roles: [project_design/USERS_AND_ROLES.md](project_design/USERS_AND_ROLES.md)
-- Use Cases: [project_design/USE_CASES.md](project_design/USE_CASES.md)
-- Databases & Tenancy: [project_design/DATABASES.md](project_design/DATABASES.md)
+### 🎨 Modern Web Interface
+- **React TypeScript Frontend**: Type-safe, responsive user interface
+- **Material-UI Components**: Professional, consistent design system
+- **Multi-step Wizards**: Intuitive task configuration and execution
+- **Real-time Updates**: WebSocket integration for live job status
+- **Mobile-Friendly**: Responsive design for all devices
 
-For initial setup details and development environment guidelines, see [SETUP.md](SETUP.md) and [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md).
+### 🏗️ Enterprise Architecture
+- **Clean Architecture**: SOLID principles with Hexagonal/Ports & Adapters pattern
+- **Microservice Ready**: FastAPI backend with containerized deployment
+- **Scalable Computing**: Celery-based distributed task processing
+- **Multi-tenant**: Organization-based data isolation
+- **Security First**: JWT authentication with role-based access control
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Docker and Docker Compose
+- Node.js 18+ (for frontend development)
+- Python 3.11+ (for backend development)
+
+### 1. Clone and Setup
+```bash
+git clone https://github.com/AlgenticsCorp/molecular_analysis_dashboard.git
+cd molecular_analysis_dashboard
+cp .env.example .env
+```
+
+### 2. Start Backend Services
+```bash
+# Start infrastructure services
+docker compose up -d postgres redis
+
+# Run database migrations
+docker compose run --rm migrate
+
+# Start API and worker services
+docker compose up -d api worker
+```
+
+### 3. Start Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. Access the Application
+- **Dashboard**: http://localhost:3000
+- **API Documentation**: http://localhost:8000/docs
+- **API Health Check**: http://localhost:8000/health
+
+## 📱 Application Overview
+
+### Dashboard Features
+The molecular analysis dashboard provides eight main interfaces:
+
+1. **📊 Platform Dashboard**
+   - Real-time job statistics and system metrics
+   - Recent job history with status tracking
+   - Quick access to common actions
+   - System health monitoring
+
+2. **📚 Task Library**
+   - Browse available molecular analysis tasks
+   - Task templates and configurations
+   - Custom task creation and management
+   - Version control for analysis protocols
+
+3. **⚡ Execute Tasks**
+   - Multi-step wizard for job configuration
+   - Molecule upload and validation
+   - Parameter optimization settings
+   - Batch job submission
+
+4. **🔄 Pipelines**
+   - Visual pipeline builder
+   - Workflow orchestration
+   - Dependency management
+   - Pipeline templates and sharing
+
+5. **👔 Job Manager**
+   - Real-time job monitoring
+   - Resource usage tracking
+   - Log streaming and error handling
+   - Job scheduling and prioritization
+
+6. **📁 File Manager**
+   - Molecular structure file organization
+   - Bulk upload and validation
+   - File format conversion
+   - Storage quota management
+
+7. **⚙️ Admin Panel**
+   - User and organization management
+   - System configuration
+   - Resource allocation
+   - Security settings
+
+8. **🔧 Settings**
+   - User preferences and profiles
+   - API key management
+   - Notification settings
+   - Integration configurations
+
+## 🛠️ Technology Stack
+
+### Backend Architecture
+```
+├── FastAPI (Web Framework)
+├── SQLAlchemy (ORM)
+├── PostgreSQL (Database)
+├── Redis (Cache & Message Broker)
+├── Celery (Distributed Tasks)
+├── Docker (Containerization)
+└── JWT (Authentication)
+```
+
+### Frontend Architecture
+```
+├── React 18 + TypeScript
+├── Material-UI (Design System)
+├── React Query (State Management)
+├── React Router (Navigation)
+├── React Hook Form + Zod (Forms)
+├── 3Dmol.js (Molecular Visualization)
+├── WebSocket (Real-time Updates)
+└── Vite (Build Tool)
+```
+
+### Molecular Computing
+```
+├── AutoDock Vina (Molecular Docking)
+├── Smina (Enhanced Docking)
+├── Gnina (Deep Learning Docking)
+├── RDKit (Cheminformatics)
+├── OpenBabel (Format Conversion)
+└── ChemAxon (Enterprise Tools)
+```
+
+## 🏗️ Architecture Patterns
+
+This project implements **Clean Architecture** with clear separation of concerns:
+
+```
+src/molecular_analysis_dashboard/
+├── domain/          # Business entities (Molecule, Job, Pipeline)
+├── use_cases/       # Application services (CreateJob, RunDocking)
+├── ports/           # Abstract interfaces (Repository, DockingEngine)
+├── adapters/        # Concrete implementations (PostgreSQL, Vina)
+├── infrastructure/  # Framework setup (Celery, FastAPI, Config)
+├── presentation/    # API routes and schemas
+└── shared/          # Cross-cutting utilities
+```
+
+Key architectural benefits:
+- **Testability**: Business logic isolated from frameworks
+- **Flexibility**: Easy to swap implementations
+- **Maintainability**: Clear dependencies and responsibilities
+- **Scalability**: Horizontally scalable with Docker Compose
+
+## 🧪 Development Workflow
+
+### Quality Gates
+Every commit is protected by automated checks:
+- **Type Safety**: mypy strict mode
+- **Code Formatting**: Black + isort
+- **Linting**: flake8, pylint
+- **Security**: bandit scanning
+- **Testing**: pytest with 80%+ coverage
+- **Documentation**: Comprehensive docstrings
+
+### Running Tests
+```bash
+# Backend tests
+pytest tests/ --cov=src
+
+# Frontend tests
+cd frontend && npm test
+
+# Integration tests
+docker compose -f docker-compose.test.yml up --abort-on-container-exit
+```
+
+### Development Environment
+```bash
+# Backend development
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+pre-commit install
+
+# Frontend development
+cd frontend
+npm install
+npm run dev
+
+# API documentation
+mkdocs serve
+```
+
+## 🚀 Deployment
+
+### Local Development
+```bash
+docker compose up -d
+```
+
+### Production Deployment
+```bash
+# Scale services
+docker compose up -d --scale api=3 --scale worker=5
+
+# Monitor services
+docker compose logs -f api worker
+```
+
+### Cloud Deployment
+- Kubernetes manifests available in `k8s/`
+- Helm charts for easy deployment
+- Multi-environment configuration
+- Auto-scaling based on job queue length
+
+## 📊 Monitoring and Observability
+
+### Metrics
+- **Application Metrics**: Job completion rates, error rates
+- **System Metrics**: CPU, memory, disk usage
+- **Business Metrics**: User engagement, computation hours
+
+### Logging
+- **Structured Logging**: JSON format with correlation IDs
+- **Log Aggregation**: Centralized logging with ELK stack
+- **Error Tracking**: Sentry integration for error monitoring
+
+### Health Checks
+- **API Health**: `/health` endpoint
+- **Database Connectivity**: Connection pool monitoring
+- **Worker Health**: Celery worker status
+- **External Services**: Docking engine availability
+
+## 🔐 Security
+
+### Authentication & Authorization
+- **JWT Tokens**: Secure API authentication
+- **Role-Based Access**: User, Admin, Super Admin roles
+- **Organization Isolation**: Multi-tenant data security
+- **API Rate Limiting**: Prevent abuse and ensure fair usage
+
+### Data Protection
+- **Encryption at Rest**: Database and file storage encryption
+- **Encryption in Transit**: TLS/SSL for all communications
+- **Input Validation**: Comprehensive request validation
+- **Audit Logging**: Complete audit trail for compliance
+
+## 📚 Documentation
+
+### User Documentation
+- [User Guide](docs/USER_GUIDE.md) - Complete user manual
+- [API Reference](http://localhost:8000/docs) - Interactive API docs
+- [Tutorial](docs/TUTORIAL.md) - Step-by-step getting started
+
+### Developer Documentation
+- [Architecture Guide](project_design/ARCHITECTURE.md) - System design overview
+- [API Design](project_design/API_CONTRACT.md) - API specifications
+- [Database Schema](project_design/ERD.md) - Data model documentation
+- [Deployment Guide](project_design/DEPLOYMENT_DOCKER.md) - Production deployment
+
+### Design Documentation
+- [Frontend Architecture](project_design/FRONTEND_ARCHITECTURE.md) - UI/UX design patterns
+- [Framework Design](project_design/FRAMEWORK_DESIGN.md) - System diagrams
+- [Implementation Plan](project_design/IMPLEMENTATION_PLAN.md) - Development roadmap
+
+## 🤝 Contributing
+
+We welcome contributions from the molecular analysis and software development communities!
+
+### Getting Started
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature/amazing-feature`
+3. Follow our [Contributing Guidelines](CONTRIBUTING.md)
+4. Ensure all tests pass: `pytest && npm test`
+5. Submit a pull request
+
+### Areas for Contribution
+- **New Docking Engines**: Add support for additional molecular docking tools
+- **Visualization Features**: Enhance 3D molecular visualization capabilities
+- **Analysis Tools**: Implement new computational chemistry algorithms
+- **UI/UX Improvements**: Enhance user experience and accessibility
+- **Performance Optimization**: Improve computation and rendering performance
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+### Scientific Community
+- **AutoDock Team**: For the Vina docking engine
+- **RDKit Contributors**: For cheminformatics tools
+- **3Dmol.js Team**: For molecular visualization
+
+### Technical Community
+- **FastAPI**: For the excellent web framework
+- **React Team**: For the robust frontend framework
+- **Material-UI**: For the comprehensive design system
+
+## 📞 Support
+
+- **Documentation**: [User Guide](docs/USER_GUIDE.md)
+- **Issues**: [GitHub Issues](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions)
+- **Email**: support@algentics.com
+
+---
+
+Built with ❤️ by the Algentics team for the molecular analysis community.
 ## 🏗️ Architecture
 
 This project implements **SOLID** and **Clean Architecture** patterns. See `project_design/ARCHITECTURE.md` for details and `project_design/FRAMEWORK_DESIGN.md` for Mermaid diagrams.
@@ -175,86 +484,74 @@ The project automatically generates:
 - **Test types**: Unit, Integration, E2E
 - **Test organization**: Mirror `src/` structure in `tests/`
 
-## 🤖 AI Agent Integration
+### Areas for Contribution
+- **New Docking Engines**: Add support for additional molecular docking tools
+- **Visualization Features**: Enhance 3D molecular visualization capabilities
+- **Analysis Tools**: Implement new computational chemistry algorithms
+- **UI/UX Improvements**: Enhance user experience and accessibility
+- **Performance Optimization**: Improve computation and rendering performance
 
-This project is optimized for AI-assisted development:
+## 📄 License
 
-### For LLM Agents
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-1. **Read** `DEVELOPER_GUIDE.md` for architecture patterns
-2. **Analyze** `docs/schema.json` for current API surface
-3. **Review** `docs/atlas/*.svg` for dependency relationships
-4. **Follow** docstring templates for consistent documentation
-5. **Validate** changes with `pre-commit run --all-files`
+## 🙏 Acknowledgments
 
-### Agent-Friendly Features
+### Scientific Community
+- **AutoDock Team**: For the Vina docking engine
+- **RDKit Contributors**: For cheminformatics tools
+- **3Dmol.js Team**: For molecular visualization
 
-- **Single source of truth**: Code generates all documentation
-- **Clear contracts**: Comprehensive type hints and docstrings
-- **Dependency visualization**: Understand impact of changes
-- **Automated validation**: Immediate feedback on code quality
-- **Standardized structure**: Predictable file organization
+### Technical Community
+- **FastAPI**: For the excellent web framework
+- **React Team**: For the robust frontend framework
+- **Material-UI**: For the comprehensive design system
 
-## 🔧 Project Customization
+## 📞 Support
 
-### 1. Update Project Metadata
+- **Documentation**: [User Guide](docs/USER_GUIDE.md)
+- **Issues**: [GitHub Issues](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions)
+- **Email**: support@algentics.com
 
-Edit `pyproject.toml`:
-```toml
-[project]
-name = "your-actual-package-name"
-description = "Your project description"
-authors = [{name = "Your Name", email = "your.email@domain.com"}]
-```
+---
 
-### 2. Rename Package Directory
+Built with ❤️ by the Algentics team for the molecular analysis community.
 
-```bash
-mv src/yourpkg src/molecular_analysis_dashboard
-# Update imports throughout codebase
-```
-
-### 3. Configure Repository URLs
-
-Update in `pyproject.toml` and CI workflows:
-```toml
-[project.urls]
-Homepage = "https://github.com/AlgenticsCorp/molecular_analysis_dashboard"
-Repository = "https://github.com/AlgenticsCorp/molecular_analysis_dashboard"
-```
-
-## 📁 Project Structure
+## � Project Structure
 
 ```
-project-root/
-├── .github/workflows/           # CI/CD pipelines
-├── .vscode/                    # VS Code configuration
-├── docs/                       # Generated docs
-│   ├── atlas/                  # Generated graphs
-│   ├── schema.json            # API schema
-│   └── *.md                   # Manual documentation
-├── src/molecular_analysis_dashboard/  # Source code
-│   ├── domain/                # Business logic
-│   ├── use_cases/             # Application services
-│   ├── ports/                 # Interfaces
-│   ├── adapters/              # Implementations
-│   ├── infrastructure/        # Configuration & DI
-│   ├── presentation/          # Controllers & CLI
-│   └── shared/                # Utilities
-├── tests/                     # Test suite
-│   ├── unit/                  # Unit tests
-│   ├── integration/           # Integration tests
-│   └── e2e/                   # End-to-end tests
-├── tools/                     # Development tools
-├── bootstrap.sh               # Project setup script
-├── pyproject.toml             # Project configuration
-├── project_design/             # Design and plans
-│   ├── ARCHITECTURE.md
-│   ├── FRAMEWORK_DESIGN.md
-│   ├── TOOLS_AND_WORKFLOW.md
-│   ├── DEPLOYMENT_DOCKER.md
-│   └── implementation_plan.md
-└── DEVELOPER_GUIDE.md         # Engineering guide
+molecular_analysis_dashboard/
+├── frontend/                   # React TypeScript application
+│   ├── src/
+│   │   ├── components/        # Reusable UI components
+│   │   ├── pages/            # Application pages/routes
+│   │   ├── services/         # API client services
+│   │   ├── types/            # TypeScript definitions
+│   │   └── utils/            # Utility functions
+│   ├── package.json          # Frontend dependencies
+│   └── vite.config.ts        # Build configuration
+├── src/molecular_analysis_dashboard/  # Backend source code
+│   ├── domain/               # Business entities (Molecule, Job, Pipeline)
+│   ├── use_cases/            # Application services (CreateJob, RunDocking)
+│   ├── ports/                # Abstract interfaces (Repository, DockingEngine)
+│   ├── adapters/             # Concrete implementations (PostgreSQL, Vina)
+│   ├── infrastructure/       # Framework setup (Celery, FastAPI, Config)
+│   ├── presentation/         # API routes and schemas
+│   └── shared/               # Cross-cutting utilities
+├── tests/                    # Test suite
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └── e2e/                  # End-to-end tests
+├── project_design/           # Design documentation
+│   ├── ARCHITECTURE.md       # System architecture
+│   ├── FRONTEND_ARCHITECTURE.md  # UI architecture
+│   ├── DEPLOYMENT_DOCKER.md  # Deployment guide
+│   └── *.md                  # Additional design docs
+├── docker-compose.yml        # Local development environment
+├── Dockerfile               # Container definition
+├── pyproject.toml           # Python project configuration
+└── README.md               # This file
 ```
 
 ## 📚 Documentation
@@ -285,36 +582,91 @@ project-root/
 ### Test Organization
 ```
 tests/
-├── unit/           # Fast, isolated tests
+├── unit/           # Fast, isolated tests for business logic
 ├── integration/    # Service integration tests
-└── e2e/           # Full system tests
+└── e2e/           # Full system tests with Docker
 ```
 
 ### Running Tests
 ```bash
-# All tests
-pytest
+# Backend tests
+pytest tests/ --cov=src/molecular_analysis_dashboard
+
+# Frontend tests
+cd frontend && npm test
+
+# Integration tests with Docker
+docker compose -f docker-compose.test.yml up --abort-on-container-exit
 
 # Specific test types
 pytest -m unit
 pytest -m integration
 pytest -m e2e
-
-# With coverage
-pytest --cov=src/molecular_analysis_dashboard --cov-report=html
 ```
 
 ## 🔄 Continuous Integration
 
 GitHub Actions workflow includes:
-
 - **Multi-Python versions**: 3.9, 3.10, 3.11, 3.12
 - **Cross-platform**: Linux, macOS, Windows
 - **Quality gates**: All linting and testing
 - **Security scanning**: Bandit, safety
 - **Documentation**: Auto-build and deploy
-- **Atlas generation**: Dependency graphs
 - **Coverage reporting**: Codecov integration
+
+## 🔧 Configuration
+
+### Environment Variables
+Key configuration options in `.env`:
+```bash
+# Database
+DATABASE_URL=postgresql://user:pass@localhost:5432/molecular_db
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Molecular Engines
+VINA_PATH=/usr/local/bin/vina
+SMINA_PATH=/usr/local/bin/smina
+
+# Security
+JWT_SECRET_KEY=your-secret-key
+JWT_ALGORITHM=HS256
+
+# File Storage
+STORAGE_TYPE=local  # or s3
+STORAGE_PATH=/app/data
+```
+
+### Docker Configuration
+The application uses Docker Compose for orchestration:
+- **API Service**: FastAPI application server
+- **Worker Service**: Celery task workers for molecular computations
+- **PostgreSQL**: Primary database for application data
+- **Redis**: Message broker and caching layer
+
+## 🎯 Use Cases
+
+### Research Scientists
+- Upload molecular structures for analysis
+- Configure docking parameters and constraints
+- Monitor long-running computational jobs
+- Visualize and analyze docking results
+- Export results for publication
+
+### Computational Chemists
+- Create custom analysis pipelines
+- Batch process large molecular libraries
+- Optimize docking parameters
+- Compare results across different engines
+- Integrate with existing computational workflows
+
+### Laboratory Managers
+- Manage user access and permissions
+- Monitor system resource usage
+- Configure organizational settings
+- Generate usage reports and analytics
+- Ensure data security and compliance
 
 ## 📄 License
 

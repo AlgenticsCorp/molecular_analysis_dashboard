@@ -87,13 +87,55 @@ const taskTemplates: TaskTemplate[] = [
     estimatedRuntime: '10-30 minutes',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt'],
     parameters: [
-      { name: 'center_x', type: 'number', required: true, default: 0, description: 'X coordinate of search space center' },
-      { name: 'center_y', type: 'number', required: true, default: 0, description: 'Y coordinate of search space center' },
-      { name: 'center_z', type: 'number', required: true, default: 0, description: 'Z coordinate of search space center' },
-      { name: 'size_x', type: 'number', required: true, default: 20, description: 'Search space size in X dimension' },
-      { name: 'size_y', type: 'number', required: true, default: 20, description: 'Search space size in Y dimension' },
-      { name: 'size_z', type: 'number', required: true, default: 20, description: 'Search space size in Z dimension' },
-      { name: 'exhaustiveness', type: 'number', required: false, default: 8, description: 'Exhaustiveness of search' },
+      {
+        name: 'center_x',
+        type: 'number',
+        required: true,
+        default: 0,
+        description: 'X coordinate of search space center',
+      },
+      {
+        name: 'center_y',
+        type: 'number',
+        required: true,
+        default: 0,
+        description: 'Y coordinate of search space center',
+      },
+      {
+        name: 'center_z',
+        type: 'number',
+        required: true,
+        default: 0,
+        description: 'Z coordinate of search space center',
+      },
+      {
+        name: 'size_x',
+        type: 'number',
+        required: true,
+        default: 20,
+        description: 'Search space size in X dimension',
+      },
+      {
+        name: 'size_y',
+        type: 'number',
+        required: true,
+        default: 20,
+        description: 'Search space size in Y dimension',
+      },
+      {
+        name: 'size_z',
+        type: 'number',
+        required: true,
+        default: 20,
+        description: 'Search space size in Z dimension',
+      },
+      {
+        name: 'exhaustiveness',
+        type: 'number',
+        required: false,
+        default: 8,
+        description: 'Exhaustiveness of search',
+      },
     ],
     compatibility: ['linux', 'macos', 'windows'],
     tags: ['docking', 'vina', 'basic', 'tutorial'],
@@ -109,10 +151,33 @@ const taskTemplates: TaskTemplate[] = [
     estimatedRuntime: '1-4 hours',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt', 'config.txt'],
     parameters: [
-      { name: 'num_modes', type: 'number', required: false, default: 9, description: 'Number of binding modes to generate' },
-      { name: 'energy_range', type: 'number', required: false, default: 3, description: 'Maximum energy difference between best and worst mode' },
-      { name: 'seed', type: 'number', required: false, description: 'Random seed for reproducible results' },
-      { name: 'cpu', type: 'number', required: false, default: 1, description: 'Number of CPUs to use' },
+      {
+        name: 'num_modes',
+        type: 'number',
+        required: false,
+        default: 9,
+        description: 'Number of binding modes to generate',
+      },
+      {
+        name: 'energy_range',
+        type: 'number',
+        required: false,
+        default: 3,
+        description: 'Maximum energy difference between best and worst mode',
+      },
+      {
+        name: 'seed',
+        type: 'number',
+        required: false,
+        description: 'Random seed for reproducible results',
+      },
+      {
+        name: 'cpu',
+        type: 'number',
+        required: false,
+        default: 1,
+        description: 'Number of CPUs to use',
+      },
     ],
     compatibility: ['linux', 'macos'],
     tags: ['docking', 'vina', 'advanced', 'multi-conformation'],
@@ -128,9 +193,27 @@ const taskTemplates: TaskTemplate[] = [
     estimatedRuntime: '2-6 hours',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt', 'grid.gpf'],
     parameters: [
-      { name: 'ga_runs', type: 'number', required: false, default: 10, description: 'Number of genetic algorithm runs' },
-      { name: 'ga_pop_size', type: 'number', required: false, default: 150, description: 'Population size for genetic algorithm' },
-      { name: 'ga_num_evals', type: 'number', required: false, default: 2500000, description: 'Maximum number of energy evaluations' },
+      {
+        name: 'ga_runs',
+        type: 'number',
+        required: false,
+        default: 10,
+        description: 'Number of genetic algorithm runs',
+      },
+      {
+        name: 'ga_pop_size',
+        type: 'number',
+        required: false,
+        default: 150,
+        description: 'Population size for genetic algorithm',
+      },
+      {
+        name: 'ga_num_evals',
+        type: 'number',
+        required: false,
+        default: 2500000,
+        description: 'Maximum number of energy evaluations',
+      },
     ],
     compatibility: ['linux', 'macos'],
     tags: ['docking', 'autodock4', 'genetic-algorithm', 'classic'],
@@ -146,9 +229,26 @@ const taskTemplates: TaskTemplate[] = [
     estimatedRuntime: '12-48 hours',
     requiredFiles: ['receptor.pdbqt', 'ligand_library.sdf'],
     parameters: [
-      { name: 'library_size', type: 'number', required: true, description: 'Number of compounds in library' },
-      { name: 'scoring_function', type: 'select', required: true, options: ['vina', 'autodock4', 'glide'], description: 'Scoring function to use' },
-      { name: 'filter_druglike', type: 'boolean', required: false, default: true, description: 'Apply drug-like filters' },
+      {
+        name: 'library_size',
+        type: 'number',
+        required: true,
+        description: 'Number of compounds in library',
+      },
+      {
+        name: 'scoring_function',
+        type: 'select',
+        required: true,
+        options: ['vina', 'autodock4', 'glide'],
+        description: 'Scoring function to use',
+      },
+      {
+        name: 'filter_druglike',
+        type: 'boolean',
+        required: false,
+        default: true,
+        description: 'Apply drug-like filters',
+      },
     ],
     compatibility: ['linux'],
     tags: ['screening', 'high-throughput', 'pipeline', 'drug-discovery'],
@@ -165,10 +265,11 @@ export const TaskLibrary: React.FC = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Filter tasks based on search and filters
-  const filteredTasks = taskTemplates.filter(task => {
-    const matchesSearch = task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredTasks = taskTemplates.filter((task) => {
+    const matchesSearch =
+      task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.tags.some((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
     const matchesComplexity = complexityFilter === 'all' || task.complexity === complexityFilter;
@@ -178,25 +279,34 @@ export const TaskLibrary: React.FC = () => {
 
   const getComplexityColor = (complexity: string): 'success' | 'warning' | 'error' => {
     switch (complexity) {
-      case 'beginner': return 'success';
-      case 'intermediate': return 'warning';
-      case 'advanced': return 'error';
-      default: return 'success';
+      case 'beginner':
+        return 'success';
+      case 'intermediate':
+        return 'warning';
+      case 'advanced':
+        return 'error';
+      default:
+        return 'success';
     }
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'autodock_vina': return <Science />;
-      case 'autodock4': return <Settings />;
-      case 'schrodinger': return <Speed />;
-      case 'custom': return <Category />;
-      default: return <Science />;
+      case 'autodock_vina':
+        return <Science />;
+      case 'autodock4':
+        return <Settings />;
+      case 'schrodinger':
+        return <Speed />;
+      case 'custom':
+        return <Category />;
+      default:
+        return <Science />;
     }
   };
 
   const handleExecuteTask = (task: TaskTemplate) => {
-    navigate('/tasks', { state: { selectedTemplate: task } });
+    navigate('/execute-tasks', { state: { selectedTemplate: task } });
   };
 
   const handleViewDetails = (task: TaskTemplate) => {
@@ -292,12 +402,7 @@ export const TaskLibrary: React.FC = () => {
                     size="small"
                     sx={{ mr: 1, mb: 1 }}
                   />
-                  <Chip
-                    label={`v${task.version}`}
-                    variant="outlined"
-                    size="small"
-                    sx={{ mb: 1 }}
-                  />
+                  <Chip label={`v${task.version}`} variant="outlined" size="small" sx={{ mb: 1 }} />
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -336,11 +441,7 @@ export const TaskLibrary: React.FC = () => {
               </CardContent>
 
               <CardActions sx={{ justifyContent: 'space-between', p: 2 }}>
-                <Button
-                  size="small"
-                  startIcon={<Info />}
-                  onClick={() => handleViewDetails(task)}
-                >
+                <Button size="small" startIcon={<Info />} onClick={() => handleViewDetails(task)}>
                   Details
                 </Button>
                 <Button
@@ -369,12 +470,7 @@ export const TaskLibrary: React.FC = () => {
       )}
 
       {/* Task Details Dialog */}
-      <Dialog
-        open={detailsOpen}
-        onClose={() => setDetailsOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="md" fullWidth>
         {selectedTask && (
           <>
             <DialogTitle>
@@ -415,12 +511,8 @@ export const TaskLibrary: React.FC = () => {
                 <Accordion key={param.name}>
                   <AccordionSummary expandIcon={<ExpandMore />}>
                     <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                      <Typography sx={{ fontWeight: 500, mr: 1 }}>
-                        {param.name}
-                      </Typography>
-                      {param.required && (
-                        <Chip label="Required" color="error" size="small" />
-                      )}
+                      <Typography sx={{ fontWeight: 500, mr: 1 }}>{param.name}</Typography>
+                      {param.required && <Chip label="Required" color="error" size="small" />}
                       <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
                         {param.type}
                       </Typography>
@@ -465,9 +557,7 @@ export const TaskLibrary: React.FC = () => {
               </Box>
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setDetailsOpen(false)}>
-                Close
-              </Button>
+              <Button onClick={() => setDetailsOpen(false)}>Close</Button>
               <Button
                 variant="contained"
                 startIcon={<PlayArrow />}

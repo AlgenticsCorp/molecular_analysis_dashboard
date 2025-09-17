@@ -110,7 +110,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         dispatch({
           type: 'AUTH_FAILURE',
-          payload: error instanceof Error ? error.message : 'Authentication failed'
+          payload: error instanceof Error ? error.message : 'Authentication failed',
         });
       }
     };
@@ -163,9 +163,5 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     clearError,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

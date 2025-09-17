@@ -59,10 +59,33 @@ const fetchDashboardStats = async (): Promise<DashboardStats> => {
 const fetchRecentJobs = async (): Promise<RecentJob[]> => {
   // Mock data - replace with actual API call
   return [
-    { id: '1', name: 'AutoDock Vina - Protein Complex A', status: 'SUCCEEDED', runtime: '2h 34m', createdAt: '2025-09-10T10:30:00Z' },
-    { id: '2', name: 'AutoDock 4 - Drug Screening', status: 'RUNNING', runtime: '1h 12m', createdAt: '2025-09-10T11:45:00Z' },
-    { id: '3', name: 'Pipeline - Lead Optimization', status: 'PENDING', createdAt: '2025-09-10T12:15:00Z' },
-    { id: '4', name: 'AutoDock Vina - Conformational Search', status: 'SUCCEEDED', runtime: '45m', createdAt: '2025-09-10T09:20:00Z' },
+    {
+      id: '1',
+      name: 'AutoDock Vina - Protein Complex A',
+      status: 'SUCCEEDED',
+      runtime: '2h 34m',
+      createdAt: '2025-09-10T10:30:00Z',
+    },
+    {
+      id: '2',
+      name: 'AutoDock 4 - Drug Screening',
+      status: 'RUNNING',
+      runtime: '1h 12m',
+      createdAt: '2025-09-10T11:45:00Z',
+    },
+    {
+      id: '3',
+      name: 'Pipeline - Lead Optimization',
+      status: 'PENDING',
+      createdAt: '2025-09-10T12:15:00Z',
+    },
+    {
+      id: '4',
+      name: 'AutoDock Vina - Conformational Search',
+      status: 'SUCCEEDED',
+      runtime: '45m',
+      createdAt: '2025-09-10T09:20:00Z',
+    },
   ];
 };
 
@@ -70,14 +93,22 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // TanStack Query for data fetching with proper error handling
-  const { data: stats, error: statsError, isLoading: statsLoading } = useQuery({
+  const {
+    data: stats,
+    error: statsError,
+    isLoading: statsLoading,
+  } = useQuery({
     queryKey: ['dashboard', 'summary'],
     queryFn: fetchDashboardStats,
     refetchInterval: 30000, // Refresh every 30 seconds
     retry: 3,
   });
 
-  const { data: recentJobs, error: jobsError, isLoading: jobsLoading } = useQuery({
+  const {
+    data: recentJobs,
+    error: jobsError,
+    isLoading: jobsLoading,
+  } = useQuery({
     queryKey: ['jobs', 'recent'],
     queryFn: fetchRecentJobs,
     refetchInterval: 15000, // Refresh every 15 seconds
@@ -86,21 +117,31 @@ export const Dashboard: React.FC = () => {
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' => {
     switch (status) {
-      case 'SUCCEEDED': return 'success';
-      case 'FAILED': return 'error';
-      case 'RUNNING': return 'info';
-      case 'PENDING': return 'warning';
-      default: return 'info';
+      case 'SUCCEEDED':
+        return 'success';
+      case 'FAILED':
+        return 'error';
+      case 'RUNNING':
+        return 'info';
+      case 'PENDING':
+        return 'warning';
+      default:
+        return 'info';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'SUCCEEDED': return <CheckCircle />;
-      case 'FAILED': return <Error />;
-      case 'RUNNING': return <PlayArrow />;
-      case 'PENDING': return <Schedule />;
-      default: return <Schedule />;
+      case 'SUCCEEDED':
+        return <CheckCircle />;
+      case 'FAILED':
+        return <Error />;
+      case 'RUNNING':
+        return <PlayArrow />;
+      case 'PENDING':
+        return <Schedule />;
+      default:
+        return <Schedule />;
     }
   };
 
@@ -136,7 +177,10 @@ export const Dashboard: React.FC = () => {
       {/* Main action cards - exactly as shown in specification */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%', cursor: 'pointer' }} onClick={() => handleQuickAction('design-pipeline')}>
+          <Card
+            sx={{ height: '100%', cursor: 'pointer' }}
+            onClick={() => handleQuickAction('design-pipeline')}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <Build sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
               <Typography variant="h5" gutterBottom>
@@ -155,7 +199,10 @@ export const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%', cursor: 'pointer' }} onClick={() => handleQuickAction('start-job')}>
+          <Card
+            sx={{ height: '100%', cursor: 'pointer' }}
+            onClick={() => handleQuickAction('start-job')}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <PlayArrow sx={{ fontSize: 48, color: 'secondary.main', mb: 2 }} />
               <Typography variant="h5" gutterBottom>
@@ -174,7 +221,10 @@ export const Dashboard: React.FC = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card sx={{ height: '100%', cursor: 'pointer' }} onClick={() => handleQuickAction('view-results')}>
+          <Card
+            sx={{ height: '100%', cursor: 'pointer' }}
+            onClick={() => handleQuickAction('view-results')}
+          >
             <CardContent sx={{ textAlign: 'center', py: 4 }}>
               <Analytics sx={{ fontSize: 48, color: 'success.main', mb: 2 }} />
               <Typography variant="h5" gutterBottom>
@@ -296,11 +346,7 @@ export const Dashboard: React.FC = () => {
                   primary={job.name}
                   secondary={`${new Date(job.createdAt).toLocaleString()}${job.runtime ? ` • Runtime: ${job.runtime}` : ''}`}
                 />
-                <Chip
-                  label={job.status}
-                  color={getStatusColor(job.status)}
-                  size="small"
-                />
+                <Chip label={job.status} color={getStatusColor(job.status)} size="small" />
               </ListItem>
             ))}
           </List>

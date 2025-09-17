@@ -11,9 +11,7 @@ Object.defineProperty(window, 'location', {
 });
 
 // Mock environment variables
-(
-  global as unknown as { import: { meta: { env: Record<string, string> } } }
-).import = {
+(global as unknown as { import: { meta: { env: Record<string, string> } } }).import = {
   meta: {
     env: {
       VITE_API_BASE_URL: 'http://localhost:8000/api/v1',
