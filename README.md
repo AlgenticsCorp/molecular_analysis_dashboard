@@ -30,6 +30,13 @@ A comprehensive web-based platform for molecular analysis and computational chem
 - **Multi-tenant**: Organization-based data isolation
 - **Security First**: JWT authentication with role-based access control
 
+### 📋 Project Management & Automation
+- **GitHub Project Integration**: Automated project board management
+- **Smart Issue Labeling**: AI-powered categorization and prioritization
+- **Workflow Automation**: Automatic status updates and team assignments
+- **Quality Gates**: Automated testing, code review, and deployment
+- **Progress Tracking**: Real-time project metrics and reporting
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -288,6 +295,11 @@ docker compose logs -f api worker
 - [Frontend Architecture](project_design/FRONTEND_ARCHITECTURE.md) - UI/UX design patterns
 - [Framework Design](project_design/FRAMEWORK_DESIGN.md) - System diagrams
 - [Implementation Plan](project_design/IMPLEMENTATION_PLAN.md) - Development roadmap
+
+### Project Management
+- [GitHub Project Setup](.github/PROJECT_SETUP.md) - Project board configuration
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute effectively
+- [Issue Templates](.github/ISSUE_TEMPLATE/) - Standardized issue reporting
 
 ## 🤝 Contributing
 

@@ -1,0 +1,192 @@
+name: Project Board Management
+
+on:
+  project_card:
+    types: [created, moved, deleted]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'sync'
+        type: choice
+        options:
+          - sync
+          - cleanup
+          - initialize
+
+env:
+  PROJECT_NUMBER: 1  # Update this with your actual project number
+
+jobs:
+  sync-project-items:
+    name: Sync Project Items
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync'
+    steps:
+      - name: Get Open Issues
+        id: get-issues
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/${{ github.repository }}/issues
+          state: open
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Open PRs
+        id: get-prs
+        uses: octokit/request-action@v2.x
+        with:
+          route: GET /repos/${{ github.repository }}/pulls
+          state: open
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add missing items to project
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Add issues to project
+            const issues = ${{ steps.get-issues.outputs.data }};
+            for (const issue of issues) {
+              if (!issue.pull_request) {  // Only process issues, not PRs
+                try {
+                  await github.rest.projects.createCard({
+                    column_id: process.env.PROJECT_TODO_COLUMN_ID,
+                    content_id: issue.id,
+                    content_type: 'Issue'
+                  });
+                  console.log(`Added issue #${issue.number} to project`);
+                } catch (error) {
+                  if (error.status !== 422) {  // 422 means already exists
+                    console.error(`Failed to add issue #${issue.number}:`, error.message);
+                  }
+                }
+              }
+            }
+            
+            // Add PRs to project
+            const prs = ${{ steps.get-prs.outputs.data }};
+            for (const pr of prs) {
+              try {
+                await github.rest.projects.createCard({
+                  column_id: process.env.PROJECT_IN_PROGRESS_COLUMN_ID,
+                  content_id: pr.id,
+                  content_type: 'PullRequest'
+                });
+                console.log(`Added PR #${pr.number} to project`);
+              } catch (error) {
+                if (error.status !== 422) {  // 422 means already exists
+                  console.error(`Failed to add PR #${pr.number}:`, error.message);
+                }
+              }
+            }
+
+  cleanup-project:
+    name: Cleanup Closed Items
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'cleanup'
+    steps:
+      - name: Cleanup closed items
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: projects } = await github.rest.projects.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            for (const project of projects) {
+              const { data: columns } = await github.rest.projects.listColumns({
+                project_id: project.id
+              });
+              
+              for (const column of columns) {
+                const { data: cards } = await github.rest.projects.listCards({
+                  column_id: column.id
+                });
+                
+                for (const card of cards) {
+                  if (card.content_url) {
+                    const urlParts = card.content_url.split('/');
+                    const number = urlParts[urlParts.length - 1];
+                    const type = card.content_url.includes('/issues/') ? 'issue' : 'pull';
+                    
+                    try {
+                      const { data: item } = type === 'issue' 
+                        ? await github.rest.issues.get({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            issue_number: number
+                          })
+                        : await github.rest.pulls.get({
+                            owner: context.repo.owner,
+                            repo: context.repo.repo,
+                            pull_number: number
+                          });
+                      
+                      if (item.state === 'closed') {
+                        await github.rest.projects.deleteCard({
+                          card_id: card.id
+                        });
+                        console.log(`Removed closed ${type} #${number} from project`);
+                      }
+                    } catch (error) {
+                      console.error(`Error processing card ${card.id}:`, error.message);
+                    }
+                  }
+                }
+              }
+            }
+
+  initialize-project:
+    name: Initialize Project Structure
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'initialize'
+    steps:
+      - name: Create Project Labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const labels = [
+              { name: 'priority:high', color: 'b60205', description: 'High priority item' },
+              { name: 'priority:medium', color: 'fbca04', description: 'Medium priority item' },
+              { name: 'priority:low', color: '0e8a16', description: 'Low priority item' },
+              { name: 'size:xs', color: 'c2e0c6', description: 'Extra small task' },
+              { name: 'size:small', color: '7ed321', description: 'Small task' },
+              { name: 'size:medium', color: 'f8e71c', description: 'Medium task' },
+              { name: 'size:large', color: 'f5a623', description: 'Large task' },
+              { name: 'size:xl', color: 'd0021b', description: 'Extra large task' },
+              { name: 'type:feature', color: '0052cc', description: 'New feature' },
+              { name: 'type:bug', color: 'd73a4a', description: 'Bug fix' },
+              { name: 'type:enhancement', color: 'a2eeef', description: 'Enhancement to existing feature' },
+              { name: 'area:backend', color: 'fef2c0', description: 'Backend related' },
+              { name: 'area:frontend', color: 'c5def5', description: 'Frontend related' },
+              { name: 'area:infrastructure', color: 'f9d0c4', description: 'Infrastructure/DevOps related' },
+              { name: 'area:docs', color: 'e4e669', description: 'Documentation related' },
+              { name: 'status:needs-review', color: 'fbca04', description: 'Needs code review' },
+              { name: 'status:blocked', color: 'd93f0b', description: 'Blocked by other work' },
+              { name: 'good first issue', color: '7057ff', description: 'Good for newcomers' }
+            ];
+            
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  name: label.name,
+                  color: label.color,
+                  description: label.description
+                });
+                console.log(`Created label: ${label.name}`);
+              } catch (error) {
+                if (error.status === 422) {
+                  console.log(`Label already exists: ${label.name}`);
+                } else {
+                  console.error(`Failed to create label ${label.name}:`, error.message);
+                }
+              }
+            }

@@ -1,0 +1,89 @@
+name: Project Automation
+
+on:
+  issues:
+    types: [opened, closed, reopened]
+  pull_request:
+    types: [opened, closed, reopened, ready_for_review, converted_to_draft]
+
+jobs:
+  add-to-project:
+    name: Add to Project Board
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened'
+    steps:
+      - name: Add Issue/PR to Project Board
+        uses: actions/add-to-project@v0.6.0
+        with:
+          project-url: https://github.com/orgs/AlgenticsCorp/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  update-project-status:
+    name: Update Project Status
+    runs-on: ubuntu-latest
+    if: >
+      github.event.action == 'closed' ||
+      github.event.action == 'reopened' ||
+      github.event.action == 'ready_for_review' ||
+      github.event.action == 'converted_to_draft'
+    steps:
+      - name: Update Project Status
+        uses: actions/add-to-project@v0.6.0
+        with:
+          project-url: https://github.com/orgs/AlgenticsCorp/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          labeled: false
+          label-operator: OR
+
+      - name: Set Issue Status
+        if: github.event_name == 'issues'
+        uses: titangene/github-project-field-update@v1.0.0
+        with:
+          project-url: https://github.com/orgs/AlgenticsCorp/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          item-id: ${{ github.event.issue.node_id }}
+          field-name: Status
+          field-value: ${{ github.event.action == 'closed' && 'Done' || 'In Progress' }}
+
+      - name: Set PR Status
+        if: github.event_name == 'pull_request'
+        uses: titangene/github-project-field-update@v1.0.0
+        with:
+          project-url: https://github.com/orgs/AlgenticsCorp/projects/1
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          item-id: ${{ github.event.pull_request.node_id }}
+          field-name: Status
+          field-value: >
+            ${{
+              github.event.action == 'closed' && github.event.pull_request.merged && 'Done' ||
+              github.event.action == 'closed' && !github.event.pull_request.merged && 'Cancelled' ||
+              github.event.action == 'ready_for_review' && 'In Review' ||
+              github.event.action == 'converted_to_draft' && 'In Progress' ||
+              'In Progress'
+            }}
+
+  assign-based-on-labels:
+    name: Auto-assign based on labels
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && github.event_name == 'issues'
+    steps:
+      - name: Auto-assign for backend issues
+        if: contains(github.event.issue.labels.*.name, 'backend')
+        uses: pozil/auto-assign-issue@v1.12.0
+        with:
+          assignees: backend-team
+          numOfAssignee: 1
+
+      - name: Auto-assign for frontend issues
+        if: contains(github.event.issue.labels.*.name, 'frontend')
+        uses: pozil/auto-assign-issue@v1.12.0
+        with:
+          assignees: frontend-team
+          numOfAssignee: 1
+
+      - name: Auto-assign for infrastructure issues
+        if: contains(github.event.issue.labels.*.name, 'infrastructure')
+        uses: pozil/auto-assign-issue@v1.12.0
+        with:
+          assignees: devops-team
+          numOfAssignee: 1

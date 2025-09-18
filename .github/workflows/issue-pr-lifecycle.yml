@@ -1,0 +1,241 @@
+name: Issue and PR Lifecycle
+
+on:
+  issues:
+    types: [opened, edited, labeled, unlabeled, assigned, unassigned]
+  pull_request:
+    types: [opened, edited, labeled, unlabeled, assigned, unassigned, ready_for_review, converted_to_draft]
+  pull_request_review:
+    types: [submitted]
+
+jobs:
+  auto-label-issue:
+    name: Auto-label new issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    steps:
+      - name: Add default labels to new issues
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const title = issue.title.toLowerCase();
+            const body = issue.body ? issue.body.toLowerCase() : '';
+            
+            const labels = [];
+            
+            // Auto-detect issue type from title and body
+            if (title.includes('bug') || title.includes('error') || title.includes('issue') || body.includes('error') || body.includes('bug')) {
+              labels.push('type:bug');
+            } else if (title.includes('feature') || title.includes('add') || title.includes('implement') || body.includes('feature')) {
+              labels.push('type:feature');
+            } else if (title.includes('enhance') || title.includes('improve') || body.includes('enhance')) {
+              labels.push('type:enhancement');
+            }
+            
+            // Auto-detect area from content
+            if (body.includes('frontend') || body.includes('react') || body.includes('ui') || body.includes('interface')) {
+              labels.push('area:frontend');
+            } else if (body.includes('backend') || body.includes('api') || body.includes('server') || body.includes('database')) {
+              labels.push('area:backend');
+            } else if (body.includes('docker') || body.includes('deploy') || body.includes('infrastructure') || body.includes('ci/cd')) {
+              labels.push('area:infrastructure');
+            } else if (body.includes('documentation') || body.includes('docs') || body.includes('readme')) {
+              labels.push('area:docs');
+            }
+            
+            // Add default priority
+            labels.push('priority:medium');
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: labels
+              });
+              console.log(`Added labels to issue #${issue.number}: ${labels.join(', ')}`);
+            }
+
+  auto-label-pr:
+    name: Auto-label new PRs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'opened'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Analyze changes and add labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number
+            });
+            
+            const labels = [];
+            const changedFiles = files.map(file => file.filename);
+            
+            // Detect area based on changed files
+            const frontendFiles = changedFiles.filter(file => 
+              file.startsWith('frontend/') || 
+              file.includes('.tsx') || 
+              file.includes('.ts') && !file.includes('test') ||
+              file.includes('.css') ||
+              file.includes('.scss')
+            );
+            
+            const backendFiles = changedFiles.filter(file => 
+              file.startsWith('src/') ||
+              file.includes('.py') ||
+              file.includes('requirements') ||
+              file.includes('pyproject.toml')
+            );
+            
+            const infraFiles = changedFiles.filter(file => 
+              file.includes('docker') ||
+              file.includes('.yml') ||
+              file.includes('.yaml') ||
+              file.includes('Dockerfile') ||
+              file.startsWith('.github/')
+            );
+            
+            const docFiles = changedFiles.filter(file => 
+              file.includes('.md') ||
+              file.startsWith('docs/')
+            );
+            
+            const testFiles = changedFiles.filter(file => 
+              file.includes('test') ||
+              file.includes('spec') ||
+              file.startsWith('tests/')
+            );
+            
+            // Add area labels
+            if (frontendFiles.length > 0) labels.push('area:frontend');
+            if (backendFiles.length > 0) labels.push('area:backend');
+            if (infraFiles.length > 0) labels.push('area:infrastructure');
+            if (docFiles.length > 0) labels.push('area:docs');
+            
+            // Determine size based on changes
+            const totalChanges = files.reduce((sum, file) => sum + file.changes, 0);
+            if (totalChanges < 10) {
+              labels.push('size:xs');
+            } else if (totalChanges < 50) {
+              labels.push('size:small');
+            } else if (totalChanges < 200) {
+              labels.push('size:medium');
+            } else if (totalChanges < 500) {
+              labels.push('size:large');
+            } else {
+              labels.push('size:xl');
+            }
+            
+            // Detect type from PR title and description
+            const title = context.payload.pull_request.title.toLowerCase();
+            const body = context.payload.pull_request.body ? context.payload.pull_request.body.toLowerCase() : '';
+            
+            if (title.includes('fix') || title.includes('bug') || body.includes('fixes #')) {
+              labels.push('type:bug');
+            } else if (title.includes('feat') || title.includes('add') || title.includes('implement')) {
+              labels.push('type:feature');
+            } else if (title.includes('enhance') || title.includes('improve') || title.includes('update')) {
+              labels.push('type:enhancement');
+            }
+            
+            // Add status label
+            if (context.payload.pull_request.draft) {
+              labels.push('status:draft');
+            } else {
+              labels.push('status:needs-review');
+            }
+            
+            if (labels.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.pull_request.number,
+                labels: labels
+              });
+              console.log(`Added labels to PR #${context.payload.pull_request.number}: ${labels.join(', ')}`);
+            }
+
+  update-pr-status:
+    name: Update PR status based on reviews
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_review'
+    steps:
+      - name: Update PR labels based on review
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const review = context.payload.review;
+            const pr = context.payload.pull_request;
+            
+            // Get current labels
+            const { data: currentLabels } = await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number
+            });
+            
+            const labelNames = currentLabels.map(label => label.name);
+            const labelsToAdd = [];
+            const labelsToRemove = [];
+            
+            if (review.state === 'approved') {
+              labelsToAdd.push('status:approved');
+              labelsToRemove.push('status:needs-review', 'status:changes-requested');
+            } else if (review.state === 'changes_requested') {
+              labelsToAdd.push('status:changes-requested');
+              labelsToRemove.push('status:needs-review', 'status:approved');
+            }
+            
+            // Remove old status labels
+            for (const label of labelsToRemove) {
+              if (labelNames.includes(label)) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: pr.number,
+                  name: label
+                });
+              }
+            }
+            
+            // Add new status labels
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                labels: labelsToAdd
+              });
+            }
+            
+            console.log(`Updated PR #${pr.number} status: ${review.state}`);
+
+  check-stale-items:
+    name: Check for stale items
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Mark stale issues and PRs
+        uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs. Thank you for your contributions.'
+          stale-pr-message: 'This pull request has been automatically marked as stale because it has not had recent activity. It will be closed if no further activity occurs. Thank you for your contributions.'
+          stale-issue-label: 'status:stale'
+          stale-pr-label: 'status:stale'
+          days-before-stale: 30
+          days-before-close: 7
+          exempt-issue-labels: 'priority:high,status:blocked'
+          exempt-pr-labels: 'priority:high,status:blocked'
