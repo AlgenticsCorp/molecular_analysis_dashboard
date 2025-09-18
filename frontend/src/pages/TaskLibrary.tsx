@@ -58,12 +58,15 @@ interface TaskTemplate {
   version: string;
   complexity: 'beginner' | 'intermediate' | 'advanced';
   estimatedRuntime: string;
+  cpuRequirement: 'low' | 'medium' | 'high';
+  memoryRequirement: 'low' | 'medium' | 'high';
   requiredFiles: string[];
   parameters: TaskParameter[];
   compatibility: string[];
   tags: string[];
   documentation?: string;
   examples?: string[];
+  isBuiltIn?: boolean;
 }
 
 interface TaskParameter {
@@ -79,13 +82,17 @@ interface TaskParameter {
 const taskTemplates: TaskTemplate[] = [
   {
     id: 'autodock_vina_basic',
-    name: 'AutoDock Vina - Basic Docking',
-    description: 'Standard molecular docking using AutoDock Vina with default parameters',
+    name: 'AutoDock Vina',
+    description:
+      'Fast molecular docking using AutoDock Vina algorithm for protein-ligand binding prediction',
     category: 'autodock_vina',
     version: '1.2.0',
     complexity: 'beginner',
-    estimatedRuntime: '10-30 minutes',
+    estimatedRuntime: '1-10 minutes',
+    cpuRequirement: 'high',
+    memoryRequirement: 'medium',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt'],
+    isBuiltIn: true,
     parameters: [
       {
         name: 'center_x',
@@ -143,13 +150,16 @@ const taskTemplates: TaskTemplate[] = [
   },
   {
     id: 'autodock_vina_advanced',
-    name: 'AutoDock Vina - Advanced Configuration',
+    name: 'AutoDock Vina - Advanced',
     description: 'Advanced AutoDock Vina docking with custom parameters and multiple conformations',
     category: 'autodock_vina',
     version: '1.2.0',
     complexity: 'advanced',
     estimatedRuntime: '1-4 hours',
+    cpuRequirement: 'high',
+    memoryRequirement: 'high',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt', 'config.txt'],
+    isBuiltIn: true,
     parameters: [
       {
         name: 'num_modes',
@@ -185,13 +195,17 @@ const taskTemplates: TaskTemplate[] = [
   },
   {
     id: 'autodock4_basic',
-    name: 'AutoDock 4 - Classic Docking',
-    description: 'Classic AutoDock 4 molecular docking with Lamarckian Genetic Algorithm',
+    name: 'AutoDock 4',
+    description:
+      'Classic molecular docking using AutoDock 4 algorithm for protein-ligand binding prediction',
     category: 'autodock4',
     version: '4.2.6',
     complexity: 'intermediate',
-    estimatedRuntime: '2-6 hours',
+    estimatedRuntime: '5-30 minutes',
+    cpuRequirement: 'medium',
+    memoryRequirement: 'low',
     requiredFiles: ['receptor.pdbqt', 'ligand.pdbqt', 'grid.gpf'],
+    isBuiltIn: true,
     parameters: [
       {
         name: 'ga_runs',
@@ -216,7 +230,7 @@ const taskTemplates: TaskTemplate[] = [
       },
     ],
     compatibility: ['linux', 'macos'],
-    tags: ['docking', 'autodock4', 'genetic-algorithm', 'classic'],
+    tags: ['docking', 'autodock4', 'genetic-algorithm', 'protein-ligand'],
     documentation: 'Traditional AutoDock 4 workflow with genetic algorithm optimization',
   },
   {
@@ -227,7 +241,10 @@ const taskTemplates: TaskTemplate[] = [
     version: '2.1.0',
     complexity: 'advanced',
     estimatedRuntime: '12-48 hours',
+    cpuRequirement: 'high',
+    memoryRequirement: 'high',
     requiredFiles: ['receptor.pdbqt', 'ligand_library.sdf'],
+    isBuiltIn: false,
     parameters: [
       {
         name: 'library_size',
@@ -261,6 +278,9 @@ export const TaskLibrary: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [complexityFilter, setComplexityFilter] = useState<string>('all');
+  const [cpuFilter, setCpuFilter] = useState<string>('all');
+  const [memoryFilter, setMemoryFilter] = useState<string>('all');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskTemplate | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -273,8 +293,10 @@ export const TaskLibrary: React.FC = () => {
 
     const matchesCategory = categoryFilter === 'all' || task.category === categoryFilter;
     const matchesComplexity = complexityFilter === 'all' || task.complexity === complexityFilter;
+    const matchesCpu = cpuFilter === 'all' || task.cpuRequirement === cpuFilter;
+    const matchesMemory = memoryFilter === 'all' || task.memoryRequirement === memoryFilter;
 
-    return matchesSearch && matchesCategory && matchesComplexity;
+    return matchesSearch && matchesCategory && matchesComplexity && matchesCpu && matchesMemory;
   });
 
   const getComplexityColor = (complexity: string): 'success' | 'warning' | 'error' => {
@@ -284,6 +306,19 @@ export const TaskLibrary: React.FC = () => {
       case 'intermediate':
         return 'warning';
       case 'advanced':
+        return 'error';
+      default:
+        return 'success';
+    }
+  };
+
+  const getRequirementColor = (requirement: string): 'success' | 'warning' | 'error' => {
+    switch (requirement) {
+      case 'low':
+        return 'success';
+      case 'medium':
+        return 'warning';
+      case 'high':
         return 'error';
       default:
         return 'success';
@@ -370,6 +405,53 @@ export const TaskLibrary: React.FC = () => {
             </FormControl>
           </Grid>
         </Grid>
+
+        {/* Advanced Filters */}
+        <Accordion
+          sx={{ mt: 2 }}
+          expanded={showAdvancedFilters}
+          onChange={() => setShowAdvancedFilters(!showAdvancedFilters)}
+        >
+          <AccordionSummary expandIcon={<ExpandMore />}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+              Advanced Filters
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Grid container spacing={3}>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>CPU Requirement</InputLabel>
+                  <Select
+                    value={cpuFilter}
+                    label="CPU Requirement"
+                    onChange={(e) => setCpuFilter(e.target.value)}
+                  >
+                    <MenuItem value="all">All CPU Requirements</MenuItem>
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Memory Requirement</InputLabel>
+                  <Select
+                    value={memoryFilter}
+                    label="Memory Requirement"
+                    onChange={(e) => setMemoryFilter(e.target.value)}
+                  >
+                    <MenuItem value="all">All Memory Requirements</MenuItem>
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+          </AccordionDetails>
+        </Accordion>
       </Box>
 
       {/* Task Cards */}
@@ -396,6 +478,9 @@ export const TaskLibrary: React.FC = () => {
                     size="small"
                     sx={{ mr: 1, mb: 1 }}
                   />
+                  {task.isBuiltIn && (
+                    <Chip label="Built-in" variant="outlined" size="small" sx={{ mr: 1, mb: 1 }} />
+                  )}
                   <Chip
                     label={task.category.replace('_', ' ')}
                     variant="outlined"
@@ -408,15 +493,34 @@ export const TaskLibrary: React.FC = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                   <Schedule sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
                   <Typography variant="body2" color="text.secondary">
-                    {task.estimatedRuntime}
+                    Duration: {task.estimatedRuntime}
                   </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                  <Speed sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                    CPU: {task.cpuRequirement}
+                  </Typography>
+                  <Chip
+                    label={task.cpuRequirement}
+                    color={getRequirementColor(task.cpuRequirement)}
+                    size="small"
+                    variant="outlined"
+                  />
                 </Box>
 
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Memory sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                  <Typography variant="body2" color="text.secondary">
-                    {task.requiredFiles.length} required files
+                  <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>
+                    Memory: {task.memoryRequirement}
                   </Typography>
+                  <Chip
+                    label={task.memoryRequirement}
+                    color={getRequirementColor(task.memoryRequirement)}
+                    size="small"
+                    variant="outlined"
+                  />
                 </Box>
 
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
