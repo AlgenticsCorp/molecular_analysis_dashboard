@@ -1,22 +1,23 @@
-# Project Design Overview
+# Project Design Overview (Enhanced with Dynamic Task System)
 
 This page is the entry point for all system design documents. It summarizes the architecture, data model, APIs, security, deployment, and implementation plan, and links to detailed references in this folder.
 
 ---
 
 ## Executive Summary
-- Domain: Molecular analysis with pluggable docking engines (Vina/Smina/Gnina/custom) and 3D visualization.
-- Architecture: Clean Architecture (Ports & Adapters), FastAPI, Celery, PostgreSQL, Redis, object storage.
-- Data: Metadata DB (shared), per-org Results DB, logs in separate backend, JSONB for flexible task results.
-- Key features: Caching via `input_signature`, job events, external auth (OIDC) with local RBAC, object-store artifacts.
-- Delivery: Incremental, always-running stages with per-stage local/cloud deployment plans.
+- Domain: **Dynamic molecular analysis platform** with database-driven task definitions, pluggable docking engines (Vina/Smina/Gnina/custom), and 3D visualization.
+- Architecture: Clean Architecture (Ports & Adapters), FastAPI, **dynamic task microservices**, Celery orchestration, PostgreSQL, Redis, object storage.
+- Data: Metadata DB (shared) with **task registry**, per-org Results DB, **containerized task services**, logs in separate backend, JSONB for flexible task results.
+- Key features: **Database-driven task definitions with OpenAPI specifications**, **auto-generated frontend interfaces**, caching via `input_signature`, job events, external auth (OIDC) with local RBAC, object-store artifacts.
+- Delivery: Incremental, always-running stages with **enhanced dynamic task development phases** and per-stage local/cloud deployment plans.
 
 ---
 
-## Architecture at a Glance
-- Layers: Presentation (API), Use Cases, Ports, Adapters (DB/Engines/Storage), Infrastructure, Domain.
-- Execution path: API validates → Use Case → Ports → Adapters → DB/Worker/Storage.
-- Async work: Celery workers consume from Redis; engines run via subprocess or container.
+## Architecture at a Glance (Enhanced)
+- Layers: Presentation (API + **Task Registry**), Use Cases (**+ Task Management**), Ports (**+ Task & Service Discovery Ports**), Adapters (DB/**Task Registry**/Engines/**HTTP Task Services**/Storage), Infrastructure (**+ Service Orchestration**), Domain (**+ Task Definitions**).
+- Execution path: API validates → Use Case → **Task Registry → Service Discovery** → Ports → Adapters → **HTTP Task Services**/DB/Worker/Storage.
+- Async work: Celery workers coordinate **containerized task services**; **dynamic task execution** via HTTP APIs with **OpenAPI validation**.
+- **Dynamic Task System**: Tasks defined in database with OpenAPI specs → **Frontend auto-generates interfaces** → **No code deployment for new tasks**.
 - Gateway-ready: FastAPI app supports `ROOT_PATH`, proxy headers, trusted hosts, CORS, and request ID.
 
 References:

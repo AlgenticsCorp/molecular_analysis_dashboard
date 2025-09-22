@@ -10,14 +10,15 @@ This document describes how frameworks and libraries are used across the Clean A
 ## Layer-to-Framework Mapping
 
 - Presentation (API): FastAPI (+ Uvicorn/Gunicorn)
-- Use Cases: Pure Python orchestrations (no framework dependency)
-- Ports: Python ABCs/Protocols (type-checked interfaces)
+- Use Cases: Pure Python orchestrations (no framework dependency), **dynamic task orchestration**
+- Ports: Python ABCs/Protocols (type-checked interfaces), **TaskRegistryPort, ServiceDiscoveryPort**
 - Adapters:
-  - Database: SQLAlchemy (async) repositories, Alembic for migrations
-  - External Engines: Docking Engine adapters (e.g., AutoDock Vina, Smina, Gnina) via subprocess or container; RDKit for processing
-  - Messaging: Celery tasks
-- Infrastructure: Settings (Pydantic), Security/JWT, Celery app wiring, DB session management
-- External Services: PostgreSQL, Redis, optional S3/MinIO for file/object storage
+  - Database: SQLAlchemy (async) repositories, Alembic for migrations, **task registry adapters**
+  - External Engines: **Dynamic task service adapters** (HTTP-based), legacy docking engine adapters (AutoDock Vina, Smina, Gnina), RDKit for processing
+  - Messaging: Celery tasks, **task service orchestration**
+  - **Service Discovery**: Kubernetes service discovery, health monitoring
+- Infrastructure: Settings (Pydantic), Security/JWT, Celery app wiring, DB session management, **task service management**
+- External Services: PostgreSQL, Redis, **containerized task services**, optional S3/MinIO for file/object storage
 
 ---
 
@@ -26,29 +27,43 @@ This document describes how frameworks and libraries are used across the Clean A
 ```mermaid
 flowchart TD
   subgraph Client
-    UI["React TypeScript UI<br/>Material-UI + 3Dmol.js"]
+    UI["React TypeScript UI<br/>Material-UI + 3Dmol.js<br/>Dynamic Task Forms"]
   end
 
   subgraph API
     Router["Routers / Schemas"]
+    TaskAPI["Dynamic Task API"]
   end
 
   subgraph Core
     UC["Use Cases"]
+    TaskUC["Task Management Use Cases"]
     Ports["Ports (Interfaces)"]
+    TaskPorts["Task Registry & Service Ports"]
     Domain["Domain Entities"]
+    TaskDomain["Task Definition Entities"]
   end
 
   subgraph Adapters
     RepoAdapter["PostgreSQL Repository"]
-  EngineAdapter["Docking Engine Adapter(s)"]
+    TaskRepoAdapter["Task Registry Adapter"]
+    EngineAdapter["Dynamic Task Service Adapters"]
     StorageAdapter["Storage Adapter"]
+    ServiceDiscovery["Service Discovery Adapter"]
   end
 
   subgraph Infra
     DB["SQLAlchemy + Alembic"]
     CeleryApp["Celery App"]
     Worker["Celery Worker"]
+    TaskOrchestrator["Task Service Orchestrator"]
+  end
+
+  subgraph TaskServices["Containerized Task Services"]
+    DockingService["Molecular Docking Service"]
+    AnalysisService["Analysis Service"]
+    CustomService["Custom Task Service"]
+  end
     Security["Auth/JWT"]
     Config["Settings"]
   end

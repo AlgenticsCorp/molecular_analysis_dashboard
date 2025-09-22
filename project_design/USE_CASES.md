@@ -1,10 +1,10 @@
-# Use Cases
+# Use Cases (Enhanced with Dynamic Task System)
 
-This document captures the core use cases for the Molecular Analysis Dashboard across the defined user types (Root, Admin, Standard). Each use case specifies actors, preconditions, main success scenario, key variations, and error cases.
+This document captures the core use cases for the Molecular Analysis Dashboard across the defined user types (Root, Admin, Standard). Enhanced to include **dynamic task management** capabilities.
 
 ## Legend
 - Actor: R = Root, A = Admin, S = Standard
-- Data domains: Metadata DB (shared), Results DB (per org), Storage (per org)
+- Data domains: Metadata DB (shared), Results DB (per org), Storage (per org), **Task Registry (database)**
 
 ---
 
@@ -12,20 +12,33 @@ This document captures the core use cases for the Molecular Analysis Dashboard a
 - Preconditions: User exists and is enabled; has valid roles in their org (except Root who is global).
 - Main Flow:
   1. User submits credentials (or SSO) and org selection (if multi-org membership).
-  2. System issues JWT (access/refresh) with `sub`, `org_id`, `roles`.
+  2. System issues JWT (access/refresh) with `sub`, `org_id`, `roles`, **task permissions**.
   3. Client stores token and uses it for subsequent requests.
 - Errors: Invalid credentials, disabled user, expired token.
 
-## UC-002: Admin Defines a Pipeline (A, R)
-- Description: Create/edit an interactive pipeline composed of tasks/jobs with defined inputs/outputs.
-- Preconditions: Admin or Root role; org context.
+## UC-002: Admin Defines Custom Tasks (A, R) **[NEW - Dynamic Task System]**
+- Description: Create custom computational tasks with OpenAPI specifications stored in database.
+- Preconditions: Admin or Root role; org context; task creation permissions.
+- Main Flow:
+  1. Admin defines task metadata (name, description, category, version).
+  2. Admin specifies OpenAPI 3.0 interface specification (inputs, outputs, parameters).
+  3. Admin configures service deployment (Docker image, resources, environment).
+  4. System validates OpenAPI specification and stores in task registry database.
+  5. Task becomes available for pipeline composition and direct execution.
+- Variations: Clone existing tasks; version management; import/export task definitions.
+- Errors: Invalid OpenAPI specification, resource constraint violations, permission denied.
+
+## UC-003: Admin Defines a Pipeline (A, R)
+- Description: Create/edit an interactive pipeline composed of **database-defined tasks** with defined inputs/outputs.
+- Preconditions: Admin or Root role; org context; available tasks in registry.
 - Main Flow:
   1. Admin creates pipeline with metadata (name, version, visibility, description).
-  2. Admin defines tasks (e.g., prepare ligand, prepare protein, docking, post-processing) with typed I/O schemas.
-  3. Admin specifies execution adapters (e.g., Vina, Smina, Gnina, script, container) and parameters.
-  4. System validates schema compatibility and persists in Metadata DB.
-- Variations: Import/export pipeline spec as YAML/JSON; clone/branch pipeline versions.
-- Errors: Schema mismatch, missing adapters, permission denied.
+  2. Admin selects tasks from **dynamic task registry** and defines task composition (DAG).
+  3. Admin configures task parameters and data flow between tasks.
+  4. System validates task compatibility and data flow schemas from **database task definitions**.
+  5. Pipeline template stored with references to task definition IDs.
+- Variations: Visual pipeline builder; template sharing; pipeline marketplace.
+- Errors: Task compatibility issues, circular dependencies, missing task definitions.
 
 ## UC-003: Admin Manages Pipeline Versions (A, R)
 - Description: Version existing pipelines; deprecate or publish versions for users.
@@ -33,7 +46,20 @@ This document captures the core use cases for the Molecular Analysis Dashboard a
 - Main Flow: Create new version from base; edit tasks and parameters; publish; optionally deprecate older versions.
 - Errors: Version conflicts; immutable published versions.
 
-## UC-004: Standard Runs a Predefined Pipeline (S, A, R)
+## UC-004: Standard Executes Dynamic Tasks (S, A, R) **[NEW - Dynamic Task System]**
+- Description: Execute individual tasks defined in database with auto-generated interfaces.
+- Preconditions: Active task definitions in registry; user has task execution permissions.
+- Main Flow:
+  1. User browses **dynamic task library** loaded from database.
+  2. System **auto-generates form interface** from task's OpenAPI specification.
+  3. User fills parameters; system validates against **database-stored schema**.
+  4. System discovers healthy task service instances via service discovery.
+  5. Task executed via **HTTP call to containerized service**; execution tracked in database.
+  6. Results returned according to task's OpenAPI response specification.
+- Variations: Batch task execution; task chaining; real-time parameter validation.
+- Errors: Service unavailable, parameter validation failure, task execution timeout.
+
+## UC-005: Standard Runs a Predefined Pipeline (S, A, R)
 - Description: Execute a published pipeline by providing inputs and parameters.
 - Preconditions: Published pipeline; user has `job.create` and access to required inputs.
 - Main Flow:

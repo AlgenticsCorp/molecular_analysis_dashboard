@@ -1,11 +1,12 @@
-# API Contract (Initial)
+# API Contract (Enhanced)
 
-This document defines the initial REST API surface planned for the Molecular Analysis Dashboard. It focuses on core endpoints for health/readiness, authentication, molecule uploads, and job lifecycle.
+This document defines the REST API surface for the Molecular Analysis Dashboard, including **dynamic task management** and traditional molecular analysis endpoints.
 
 Notes:
 - All endpoints return JSON unless serving files.
 - Authentication: Bearer JWT, except for `/health`, `/ready`, and auth endpoints.
 - Multi-tenancy: All authenticated requests include `org_id` in JWT; server enforces org scoping.
+- **Dynamic Tasks**: Task definitions and interfaces are loaded from database with OpenAPI 3.0 specifications.
 - Error format (standardized):
   ```json
   { "error": { "code": "<STRING>", "message": "<HUMAN_READABLE>", "details": { /* optional */ } } }
@@ -22,9 +23,158 @@ Notes:
 
 - GET `/ready`
   - Auth: none
-  - 200: `{ "status": "ready" , "checks": { "db": "ok", "broker": "ok" } }`
+  - 200: `{ "status": "ready" , "checks": { "db": "ok", "broker": "ok", "task_registry": "ok" } }`
   - 503: `{ "status": "not_ready", "checks": { ... } }`
-  - Purpose: Readiness probe (DB + broker connectivity).
+  - Purpose: Readiness probe (DB + broker + task registry connectivity).
+
+---
+
+## Dynamic Task Registry
+
+- GET `/api/v1/task-registry/tasks`
+  - Auth: Bearer; Roles: `standard`+
+  - Query Params: `category` (optional), `is_active` (optional), `search` (optional)
+  - 200:
+    ```json
+    {
+      "tasks": [
+        {
+          "task_definition_id": "uuid",
+          "task_id": "molecular-docking",
+          "version": "1.0.0",
+          "metadata": {
+            "title": "Molecular Docking",
+            "description": "Protein-ligand docking using various engines",
+            "category": "Analysis",
+            "tags": ["docking", "protein", "ligand"],
+            "icon": "fas fa-molecule"
+          },
+          "interface_spec": { /* OpenAPI 3.0 specification */ },
+          "service_config": { "docker_image": "...", "resources": {...} },
+          "is_active": true,
+          "is_system": false
+        }
+      ],
+      "categories": ["Analysis", "Visualization", "Processing"],
+      "total_count": 25
+    }
+    ```
+
+- GET `/api/v1/task-registry/tasks/{task_id}/versions/{version}/interface`
+  - Auth: Bearer; org-scoped
+  - 200: OpenAPI 3.0 specification for task interface
+  - 404: task/version not found
+
+- POST `/api/v1/task-registry/tasks`
+  - Auth: Bearer; Roles: `admin`+ (custom task creation)
+  - Body:
+    ```json
+    {
+      "task_id": "custom-analysis",
+      "version": "1.0.0",
+      "metadata": { "title": "...", "description": "...", "category": "..." },
+      "interface_spec": { /* OpenAPI 3.0 specification */ },
+      "service_config": { "docker_image": "...", "resources": {...} }
+    }
+    ```
+  - 201: Task definition created
+  - 400: validation error (invalid OpenAPI spec)
+
+- GET `/api/v1/task-registry/tasks/{task_id}/services`
+  - Auth: Bearer; org-scoped
+  - 200:
+    ```json
+    {
+      "services": [
+        {
+          "service_id": "uuid",
+          "service_url": "http://task-docking-v1:8080",
+          "health_status": "healthy",
+          "resources_used": { "cpu": "500m", "memory": "1Gi" },
+          "last_health_check": "iso"
+        }
+      ]
+    }
+    ```
+
+---
+
+## Dynamic Task Execution
+
+- POST `/api/v1/tasks/{task_id}/execute`
+  - Auth: Bearer; Roles: `standard`+
+  - Query Params: `version` (optional, defaults to latest)
+  - Body: Dynamic based on task's OpenAPI specification
+  - 202:
+    ```json
+    {
+      "execution_id": "uuid",
+      "task_id": "molecular-docking",
+      "version": "1.0.0",
+      "status": "SUBMITTED",
+      "service_url": "http://task-docking-v1:8080",
+      "estimated_duration": 300
+    }
+    ```
+  - 400: parameter validation error
+  - 404: task not found
+  - 503: no healthy services available
+
+- GET `/api/v1/executions/{execution_id}/status`
+  - Auth: Bearer; org-scoped
+  - 200:
+    ```json
+    {
+      "execution_id": "uuid",
+      "status": "PENDING|RUNNING|COMPLETED|FAILED",
+      "progress": 0.75,
+      "started_at": "iso",
+      "updated_at": "iso",
+      "estimated_completion": "iso"
+    }
+    ```
+
+- GET `/api/v1/executions/{execution_id}/results`
+  - Auth: Bearer; org-scoped
+  - 200: Dynamic response based on task's OpenAPI output specification
+  - 202: task not yet completed
+
+---
+
+## Pipeline Templates
+
+- GET `/api/v1/pipeline-templates`
+  - Auth: Bearer; org-scoped
+  - Query Params: `category` (optional), `is_public` (optional)
+  - 200:
+    ```json
+    {
+      "templates": [
+        {
+          "template_id": "uuid",
+          "name": "protein-ligand-screening",
+          "display_name": "Protein-Ligand Screening Pipeline",
+          "description": "Multi-step docking and analysis workflow",
+          "category": "Screening",
+          "workflow_definition": { /* DAG specification */ },
+          "is_public": false,
+          "version": "1.0.0"
+        }
+      ]
+    }
+    ```
+
+- POST `/api/v1/pipeline-templates/{template_id}/instantiate`
+  - Auth: Bearer; org-scoped
+  - Body:
+    ```json
+    {
+      "name": "My Screening Job",
+      "parameters": { /* template-specific parameters */ },
+      "molecule_ids": ["uuid1", "uuid2"]
+    }
+    ```
+  - 202: Pipeline instance created and queued for execution
 
 ---
 
@@ -143,7 +293,7 @@ Notes:
 
 ---
 
-## Error Codes (Indicative)
+## Error Codes (Enhanced)
 
 - `AUTH_INVALID_CREDENTIALS`
 - `AUTH_UNAUTHORIZED`
@@ -152,11 +302,17 @@ Notes:
 - `VALIDATION_FAILED`
 - `JOB_NOT_FOUND`
 - `ARTIFACT_NOT_FOUND`
+- `TASK_NOT_FOUND`
+- `TASK_VALIDATION_FAILED`
+- `SERVICE_UNAVAILABLE`
+- `EXECUTION_FAILED`
 - `INTERNAL_ERROR`
 
 ---
 
-## OpenAPI
+## OpenAPI & Dynamic Interface Generation
 
 - The FastAPI app will expose an OpenAPI schema at `/openapi.json` and interactive docs at `/docs`.
-- Keep Pydantic models in `presentation` layer for request/response contracts.
+- **Dynamic Task Interfaces**: Each task's OpenAPI specification is stored in the database and loaded dynamically.
+- **Frontend Integration**: Frontend automatically generates forms and interfaces based on task OpenAPI specifications.
+- Keep Pydantic models in `presentation` layer for core API contracts, while task-specific schemas are loaded dynamically.

@@ -45,8 +45,11 @@ frontend/
 │   ├── components/          # Reusable UI components
 │   │   ├── common/         # Generic components (Button, Modal, etc.)
 │   │   ├── forms/          # Form components with validation
+│   │   │   └── dynamic/    # **Dynamic form generation from OpenAPI**
 │   │   ├── layout/         # Layout components (Header, Sidebar, etc.)
 │   │   ├── molecular/      # Molecular-specific components
+│   │   ├── tasks/          # **Dynamic task interface components**
+│   │   ├── pipelines/      # **Pipeline builder and management**
 │   │   └── data-display/   # Tables, charts, result displays
 │   │
 │   ├── pages/              # Page-level components

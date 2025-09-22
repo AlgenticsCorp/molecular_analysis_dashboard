@@ -1,6 +1,8 @@
-# Implementation Plan (Incremental, Always-Running Stages)
+# Implementation Plan (Enhanced with Dynamic Task System)
 
-This plan ensures the system is runnable at the end of every stage. Each stage defines a small goal, strict scope, quality gates, and rollback. Deployment steps per stage live in:
+This plan ensures the system is runnable at the end of every stage. Each stage defines a small goal, strict scope, quality gates, and rollback. **Enhanced to include dynamic task system for scalable computational workflows.**
+
+Deployment steps per stage live in:
 - Local (Compose): `project_design/DEPLOYMENT_PLAN_LOCAL.md`
 - Cloud (VM/Kubernetes outline): `project_design/DEPLOYMENT_PLAN_CLOUD.md`
 
@@ -20,20 +22,53 @@ Goal: Minimal FastAPI app with `/health`. No DB, no broker.
 - Rollback
     - Revert app init; keep only health check
 
-## Stage 1: Metadata DB + Alembic Baseline
-Goal: Add Postgres connectivity and migrations with core identity/RBAC.
+## Stage 1: Metadata DB + Alembic Baseline + Task Registry Foundation
+Goal: Add PostgreSQL connectivity, migrations with core identity/RBAC, and dynamic task system foundation.
 
 - Scope
     - Async SQLAlchemy engine/session; Alembic configured
     - Migrations create: `organizations`, `users`, `roles`, `role_permissions`, `memberships`, `membership_roles`, `tokens`
-    - Endpoint: `GET /ready` -> DB connectivity check
+    - **Dynamic Task Tables**: `task_definitions`, `task_services`, `pipeline_templates`, `pipeline_task_steps`
+    - Endpoint: `GET /ready` -> DB connectivity check + task registry connectivity
 - Quality gates
     - Alembic upgrade/downgrade succeed locally
-    - `/ready` returns `ready` when DB up
+    - `/ready` returns `ready` when DB up and task registry accessible
+    - **Task definition CRUD operations work via database**
 - Rollback
     - Downgrade migration; disable DB wiring
+    - Fall back to static task definitions if needed
 
-## Stage 2: Molecules & Artifacts + Storage Adapter
+## Stage 2: Dynamic Task Registry + Basic Task Management
+Goal: Database-driven task definitions with OpenAPI specifications.
+
+- Scope
+    - **Task Registry API**: `GET /api/v1/task-registry/tasks`, `POST /api/v1/task-registry/tasks`
+    - **OpenAPI Interface Loading**: Task definitions include full OpenAPI 3.0 specifications
+    - **System Task Seeding**: Insert built-in molecular docking tasks into database
+    - **Basic Service Discovery**: Track running task services in `task_services` table
+- Quality gates
+    - **Tasks can be defined in database without code changes**
+    - **Frontend can load task list from API dynamically**
+    - **OpenAPI specifications validate correctly**
+- Rollback
+    - Fall back to hardcoded task definitions; keep schema (non-breaking)
+
+## Stage 2: Dynamic Task Registry + Basic Task Management
+Goal: Database-driven task definitions with OpenAPI specifications.
+
+- Scope
+    - **Task Registry API**: `GET /api/v1/task-registry/tasks`, `POST /api/v1/task-registry/tasks`
+    - **OpenAPI Interface Loading**: Task definitions include full OpenAPI 3.0 specifications
+    - **System Task Seeding**: Insert built-in molecular docking tasks into database
+    - **Basic Service Discovery**: Track running task services in `task_services` table
+- Quality gates
+    - **Tasks can be defined in database without code changes**
+    - **Frontend can load task list from API dynamically**
+    - **OpenAPI specifications validate correctly**
+- Rollback
+    - Fall back to hardcoded task definitions; keep schema (non-breaking)
+
+## Stage 3: Molecules & Artifacts + Storage Adapter
 Goal: Upload molecules; persist metadata and file URIs.
 
 - Scope
@@ -45,110 +80,171 @@ Goal: Upload molecules; persist metadata and file URIs.
 - Rollback
     - Revert endpoints; keep schema (non-breaking)
 
-## Stage 3: Results DB Provisioning + Jobs Meta
-Goal: Establish per-org Results DB and global jobs index.
+## Stage 4: Dynamic Task Execution + Service Orchestration
+Goal: Execute tasks defined in database via containerized services.
 
 - Scope
-    - Provision Results DB (or schema) for an org and apply initial DDL: `jobs`, `job_inputs`, `job_outputs`
+    - **Dynamic Task Execution API**: `POST /api/v1/tasks/{task_id}/execute`, `GET /api/v1/executions/{execution_id}/status`
+    - **Service Discovery Integration**: Find and route to healthy task service instances
+    - **HTTP-based Task Adapters**: Communication with containerized task services via OpenAPI
+    - **Enhanced Task Executions**: Track execution metadata including service URL and task definition ID
+- Quality gates
+    - **Tasks execute via HTTP calls to containerized services**
+    - **Task parameters validate against database-stored OpenAPI schemas**
+    - **Service discovery routes requests to healthy instances**
+- Rollback
+    - Fall back to hardcoded task execution; keep enhanced tracking tables
+
+## Stage 5: Results DB Provisioning + Pipeline Templates
+Goal: Establish per-org Results DB and pipeline composition system.
+
+- Scope
+    - Provision Results DB (or schema) for an org and apply initial DDL: `jobs`, `job_inputs`, `job_outputs`, `dynamic_task_results`
     - Metadata DB: add `jobs_meta`
-    - Endpoints: `POST /api/v1/pipelines/{pipeline_id}/jobs` (create PENDING only), `GET /api/v1/jobs/{job_id}/status`
+    - **Pipeline Templates**: `GET /api/v1/pipeline-templates`, `POST /api/v1/pipeline-templates/{template_id}/instantiate`
+    - **Composable Workflows**: Define pipelines as DAG of database tasks
 - Quality gates
     - Job creation writes to both DBs idempotently; status is retrievable
+    - **Pipeline templates can be composed from available tasks**
+    - **Pipeline instantiation creates executable workflow**
 - Rollback
-    - Drop org results DB (dev only); disable job creation path
+    - Drop org results DB (dev only); disable pipeline composition
 
-## Stage 4: Async Pipeline (Worker, No Engine)
-Goal: Wire Celery worker and Redis; simulate execution.
+## Stage 6: Frontend Dynamic Interface Generation
+Goal: Auto-generate task forms and interfaces from database specifications.
 
 - Scope
-    - Celery app + worker; Redis as broker
-    - Task flips job status `PENDING -> RUNNING -> COMPLETED`; writes dummy outputs
-    - Results API returns dummy artifact URIs
+    - **Dynamic Form Generation**: Frontend generates forms from OpenAPI specifications loaded from database
+    - **Real-time Task Interface**: Forms adapt automatically when task definitions change
+    - **Task Execution UI**: Submit and monitor dynamic task executions
+    - **Pipeline Builder**: Visual interface for composing pipelines from available tasks
 - Quality gates
-    - Submit job -> observe state transitions; artifacts recorded
+    - **Frontend loads and renders new tasks without code deployment**
+    - **Form validation follows OpenAPI schema from database**
+    - **Task execution status updates in real-time**
 - Rollback
-    - Stop worker; API path falls back to PENDING only
+    - Fall back to static task forms; keep API integration
 
-## Stage 5: Docking Engine(s) + Domain Results
-Goal: Execute real docking and persist scores/poses.
+## Stage 7: Async Pipeline Orchestration + Task Services
+Goal: Wire Celery worker coordination with containerized task services.
 
 - Scope
-    - Adapters: one or more engine adapters (e.g., `AutoDockVinaAdapter`, `SminaAdapter`, `GninaAdapter`) behind `DockingEnginePort` with timeouts and error mapping
-    - Results DB: add `docking_results`; `task_executions` with `logs_uri`
-    - Endpoint: `GET /api/v1/jobs/{job_id}/results` -> scores + artifact links
+    - Celery app + worker for workflow orchestration; Redis as broker
+    - **Task Service Management**: Auto-scaling and health monitoring of containerized task services
+    - **Workflow Coordination**: Execute pipeline DAGs with task dependencies
+    - **Service Load Balancing**: Distribute task executions across available service instances
 - Quality gates
-    - Known test ligand/protein produce deterministic outputs; results visible via API
+    - **Pipeline workflows execute with proper task dependency resolution**
+    - **Task services scale based on demand**
+    - **Failed task services are detected and replaced**
 - Rollback
-    - Fallback to Stage 4 task; keep schema (non-breaking)
+    - Stop worker; API path falls back to single-task execution
 
-## Stage 6: Caching & Confidence
-Goal: Reuse results for equivalent inputs; track confidence.
+## Stage 8: Enhanced Docking Engines + Legacy Integration
+Goal: Integrate traditional docking engines with dynamic task system.
+
+- Scope
+    - **Legacy Engine Adapters**: Wrap AutoDock Vina, Smina, Gnina as database-defined tasks
+    - **Engine-Specific Services**: Containerized docking engines with standardized OpenAPI interfaces
+    - Results DB: enhanced `docking_results` with confidence scoring
+    - **Molecular Analysis Tools**: Additional computational chemistry tasks as database entries
+- Quality gates
+    - Known test ligand/protein produce deterministic outputs via dynamic task system
+    - **Legacy engines work seamlessly through database-defined interfaces**
+    - **Results visible via enhanced API with confidence tracking**
+- Rollback
+    - Fall back to direct engine adapters; keep dynamic task capability
+
+## Stage 9: Advanced Caching + Result Intelligence
+Goal: Intelligent result reuse and confidence-based optimization.
 
 - Scope
     - Compute `input_signature` (normalized inputs + params) for `jobs`
-    - Tables: `task_results` (JSONB + `confidence_score`), `result_cache` (canonical job, TTL, counts)
-    - Job creation supports `use_cache`; cache hits may return 200 immediately
+    - Tables: enhanced `task_results` (JSONB + `confidence_score`), `result_cache` with task-aware caching
+    - **Intelligent Cache Keys**: Cache results per task type and version
+    - **Confidence-Based Reuse**: Reuse results based on confidence scores and similarity
 - Quality gates
-    - Submitting same inputs twice yields cache hit; TTL/threshold honored
+    - **Submitting same inputs twice yields cache hit across different task versions**
+    - **Confidence scoring influences cache reuse decisions**
+    - TTL/threshold honored per task type
 - Rollback
-    - Disable cache check; continue persisting signatures
+    - Disable intelligent caching; continue basic cache functionality
 
-## Stage 7: Logs Separation + Job Events
-Goal: Remove log lines from DB; add event timeline.
+## Stage 10: Logs Separation + Enhanced Event Tracking
+Goal: Comprehensive event tracking for dynamic task executions.
 
 - Scope
     - Logs stored in object storage/log backend; keep `logs_uri` only
-    - Table: `job_events` (append-only timeline)
-    - Endpoints: `/api/v1/jobs/{job_id}/events`, `/api/v1/jobs/{job_id}/logs` (redirect/presign)
+    - Table: enhanced `job_events` with task-specific event types
+    - **Task Service Logs**: Centralized logging from containerized task services
+    - Endpoints: `/api/v1/jobs/{job_id}/events`, `/api/v1/executions/{execution_id}/logs`
 - Quality gates
-    - Events populate; logs downloadable via signed link
+    - **Events populate with task-specific context**
+    - **Task service logs aggregated and accessible**
+    - Logs downloadable via signed link
 - Rollback
-    - Continue writing logs to object storage only; endpoints remain
+    - Continue basic event logging; keep enhanced schema
 
-## Stage 8: External Auth (Microsoft/Google) + RBAC
-Goal: Use external IdP for auth, maintain local RBAC.
+## Stage 11: External Auth + Dynamic Task Permissions
+Goal: Fine-grained permissions for custom task creation and execution.
 
 - Scope
     - Tables: `identity_providers`, `identities`
-    - OIDC login flow maps identities to users; enforce `memberships`/`roles`
+    - **Task-Level Permissions**: RBAC for task creation, execution, and management
+    - **Organization Task Scoping**: Custom tasks scoped to organizations
+    - OIDC login flow with task-aware permissions
 - Quality gates
-    - IdP login on test tenant; RBAC enforced on routes
+    - **IdP login with task-specific role enforcement**
+    - **Organization admins can create custom tasks**
+    - **Standard users can execute permitted tasks only**
 - Rollback
-    - Fall back to local email/password (if enabled); keep identity tables
+    - Fall back to basic RBAC; keep enhanced permission schema
 
-## Stage 9: Hardening & Observability
-Goal: Production readiness.
+## Stage 12: Production Hardening + Task Service Infrastructure
+Goal: Production-ready dynamic task system with comprehensive monitoring.
 
 - Scope
-    - Metrics, tracing, structured logging; retries/backoff
-    - Indexes/partitioning; backups/retention; CI/CD pipeline
+    - **Task Service Orchestration**: Kubernetes-based task service deployment and scaling
+    - **Service Health Monitoring**: Comprehensive health checks and auto-recovery
+    - **Task Performance Analytics**: Track task execution performance and resource usage
+    - **Resource Quotas**: Per-organization limits on task execution resources
+    - Enhanced metrics, tracing, structured logging for task services
 - Quality gates
-    - Baseline load test; dashboards show golden signals; backup/restore tested
+    - **Task services auto-scale based on demand**
+    - **Performance bottlenecks detected and reported**
+    - **Resource quotas enforced per organization**
+    - Comprehensive monitoring dashboards operational
 - Rollback
-    - Disable optional collectors; revert partitioning with migrations
+    - Disable auto-scaling; revert to basic service management
 
 ---
 
-## Per-Stage Deliverables (Summary)
+## Per-Stage Deliverables (Enhanced Summary)
 - Stage 0: FastAPI app, `/health`
-- Stage 1: DB engine, Alembic, `/ready`, identity/RBAC tables
-- Stage 2: `molecules`/`artifacts`, storage adapter, upload endpoint
-- Stage 3: Results DB provisioning, `jobs_meta`, job create/status
-- Stage 4: Celery/Redis, async task, dummy results
-- Stage 5: Docking engine adapter(s), `docking_results`, `task_executions`, results API
-- Stage 6: `jobs.input_signature`, `task_results`, `result_cache`, cache-aware submit
-- Stage 7: `job_events`, logs backend integration, events/logs endpoints
-- Stage 8: `identity_providers`, `identities`, OIDC integration
-- Stage 9: metrics/tracing/alerts, backups, CI/CD
+- Stage 1: DB engine, Alembic, `/ready`, identity/RBAC tables, **task registry foundation**
+- Stage 2: **Dynamic task registry API**, **OpenAPI-based task definitions**, system task seeding
+- Stage 3: `molecules`/`artifacts`, storage adapter, upload endpoint
+- Stage 4: **Dynamic task execution API**, **service discovery integration**, HTTP-based task adapters
+- Stage 5: Results DB provisioning, **pipeline templates**, composable workflows
+- Stage 6: **Dynamic frontend interfaces**, **auto-generated forms**, real-time task UI
+- Stage 7: Celery/Redis coordination, **task service orchestration**, workflow execution
+- Stage 8: **Legacy engine integration**, enhanced docking results, molecular analysis tools
+- Stage 9: **Intelligent caching**, confidence-based result reuse, task-aware optimization
+- Stage 10: Enhanced event tracking, **task service logging**, centralized log aggregation
+- Stage 11: **Task-level permissions**, organization task scoping, enhanced RBAC
+- Stage 12: **Production task infrastructure**, auto-scaling, performance analytics, resource quotas
 
-## Minimal Test Matrix
+## Enhanced Test Matrix
 - 0: `/health` 200
-- 1: `/ready` 200 with DB; migrations ok
-- 2: molecule upload persists row + file; presign valid
-- 3: job rows created in both DBs; status PENDING reads back
-- 4: status transitions via worker; dummy artifacts present
-- 5: docking scores persisted; results API returns expected fields
-- 6: cache hit on repeated inputs; TTL/threshold honored
-- 7: events listed; `/logs` returns signed URL
-- 8: IdP login maps to user; RBAC enforced
-- 9: metrics live; backup/restore verified
+- 1: `/ready` 200 with DB + task registry; migrations ok
+- 2: **Tasks definable in database; OpenAPI specs validate; frontend loads dynamically**
+- 3: molecule upload persists row + file; presign valid
+- 4: **Dynamic task execution via HTTP; service discovery routing; parameter validation**
+- 5: **Pipeline templates compose tasks; workflow instantiation works**
+- 6: **Frontend generates forms from database specs; real-time task monitoring**
+- 7: **Pipeline workflows execute with dependencies; task services scale on demand**
+- 8: **Legacy engines accessible as database tasks; enhanced result tracking**
+- 9: **Intelligent cache hits across task versions; confidence-based decisions**
+- 10: **Task service logs aggregated; enhanced event context tracking**
+- 11: **Task permissions enforced; organization custom task scoping**
+- 12: **Auto-scaling operational; performance monitoring active; quotas enforced**

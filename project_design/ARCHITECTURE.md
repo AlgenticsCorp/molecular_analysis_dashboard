@@ -9,6 +9,7 @@ For component diagrams and framework mapping, see [`FRAMEWORK_DESIGN.md`](./FRAM
 1.  **The Dependency Rule**: Source code dependencies can only point inwards. Nothing in an inner circle can know anything at all about something in an outer circle.
 2.  **Entities are Central**: The `domain` layer, containing the core business logic and entities, is the heart of the application and has no external dependencies.
 3.  **Adapters are Plugins**: External technologies like databases, frameworks, and third-party services are treated as plugins (Adapters) that connect to the application core via stable interfaces (Ports).
+4.  **Dynamic Task System**: Tasks are defined in the database with OpenAPI specifications, enabling runtime addition of new computational workflows without code deployment.
 
 ### Architectural Layers:
 
@@ -23,68 +24,83 @@ src/molecular_analysis_dashboard/
 frontend/
 │
 ├── src/ (Frontend Application)
-│   ├── components/ (React components)
+│   ├── components/ (React components with dynamic task support)
 │   ├── pages/ (Page-level components)
-│   ├── hooks/ (Custom React hooks)
-│   ├── services/ (API client functions)
-│   ├── types/ (TypeScript type definitions)
-│   └── utils/ (Utility functions)
+│   ├── hooks/ (Custom React hooks for task management)
+│   ├── services/ (API client functions for dynamic tasks)
+│   ├── types/ (TypeScript type definitions including OpenAPI)
+│   └── utils/ (Utility functions, OpenAPI form generators)
 │
 ├── infrastructure/ (Infrastructure)
 │   ├── config.py, database.py, security.py, celery_app.py
+│   └── task_discovery.py (Service discovery and orchestration)
 │
 ├── adapters/ (Adapters)
-│   ├── database/ (PostgreSQL repositories)
-│   ├── external/ (AutoDock Vina, RDKit adapters)
-│   └── messaging/ (Celery task implementations)
+│   ├── database/ (PostgreSQL repositories including task registry)
+│   ├── external/ (Dynamic task service adapters)
+│   ├── messaging/ (Celery task implementations)
+│   └── task_services/ (Task-specific service adapters)
 │
 ├── ports/ (Ports)
 │   ├── repository/ (Abstract database interfaces)
-│   └── external/ (Abstract external service interfaces)
+│   ├── external/ (Abstract external service interfaces)
+│   └── task_registry/ (Dynamic task definition interfaces)
 │
 ├── use_cases/ (Use Cases)
-│   ├── commands/ (Write operations)
-│   └── queries/ (Read operations)
+│   ├── commands/ (Write operations including task execution)
+│   ├── queries/ (Read operations including task discovery)
+│   └── task_management/ (Dynamic task CRUD operations)
 │
 └── domain/ (Domain)
-    ├── entities/ (Core business objects: Molecule, DockingJob)
-    └── services/ (Domain-specific logic)
+    ├── entities/ (Core business objects: Molecule, DockingJob, TaskDefinition)
+    ├── services/ (Domain-specific logic)
+    └── task_specs/ (Task interface specifications and validation)
 ```
 
 1.  **`domain` (Domain Layer)**:
     - **Purpose**: Contains the enterprise-wide business rules and entities. This is the most independent layer.
-    - **Content**: Pure Python objects representing concepts like `Molecule`, `DockingJob`, and `Pipeline`. It knows nothing about databases, APIs, or any external service.
+    - **Content**: Pure Python objects representing concepts like `Molecule`, `DockingJob`, `Pipeline`, and `TaskDefinition`. Includes OpenAPI schema validation and task interface specifications.
 
 2.  **`use_cases` (Use Case Layer)**:
-    - **Purpose**: Orchestrates the flow of data to and from the domain entities to achieve specific application goals (e.g., `CreateDockingJobUseCase`).
-    - **Content**: Application-specific business rules. It depends on the `Domain` layer but has no knowledge of the `Presentation` or `Infrastructure` layers.
+    - **Purpose**: Orchestrates the flow of data to and from the domain entities to achieve specific application goals (e.g., `CreateDockingJobUseCase`, `ExecuteDynamicTaskUseCase`).
+    - **Content**: Application-specific business rules including dynamic task discovery, validation, and execution orchestration.
 
 3.  **`ports` (Ports Layer)**:
     - **Purpose**: Defines the abstract interfaces that the `Use Cases` depend on. These are the "ports" through which data enters and leaves the application core.
-    - **Content**: Abstract Base Classes (ABCs) or Protocols defining contracts for repositories (`MoleculeRepositoryPort`) or external services (`DockingEnginePort`).
+    - **Content**: Abstract Base Classes (ABCs) or Protocols defining contracts for repositories (`TaskRegistryPort`), external services (`DockingEnginePort`), and service discovery (`ServiceDiscoveryPort`).
 
 4.  **`adapters` (Adapters Layer)**:
     - **Purpose**: Provides the concrete implementations of the `Ports`. This is where the outside world is "adapted" to fit the application's needs.
-    - **Content**: `PostgreSQLMoleculeRepository` which implements `MoleculeRepositoryPort`, or `AutoDockVinaAdapter` which implements `DockingEnginePort`.
+    - **Content**: `PostgreSQLTaskRegistryAdapter`, `KubernetesServiceDiscoveryAdapter`, and dynamic task service adapters that communicate with containerized task services via HTTP APIs.
 
 5.  **`infrastructure` (Infrastructure Layer)**:
     - **Purpose**: Manages the setup and configuration of all external tools and frameworks.
-    - **Content**: Database connection setup, Celery app configuration, security context, and dependency injection wiring.
+    - **Content**: Database connection setup, Celery app configuration, security context, dependency injection wiring, and service discovery infrastructure.
 
 6.  **`presentation` (Presentation Layer)**:
     - **Purpose**: The entry point for external actors (users, other systems). Its job is to parse incoming requests, pass them to the appropriate `Use Case`, and format the output.
-    - **Content**: FastAPI routers, request/response schemas (Pydantic models), and WebSocket handlers.
+    - **Content**: FastAPI routers for both static API endpoints and dynamic task execution, request/response schemas (Pydantic models), and WebSocket handlers for real-time task status.
+
+### Dynamic Task Architecture:
+
+-   **Task Registry**: Task definitions are stored in the database with full OpenAPI 3.0 specifications, enabling runtime discovery and interface generation.
+-   **Service Discovery**: Running task services are registered and discovered dynamically, supporting auto-scaling and load balancing.
+-   **Microservice Execution**: Each task type can run as an independent containerized service, enabling horizontal scaling and technology diversity.
+-   **Frontend Adaptation**: The React frontend automatically generates forms and interfaces based on task OpenAPI specifications loaded from the database.
 
 ### Logical Separation for Scalability:
 
--   **API vs. Workers**: The backend `Presentation` layer (FastAPI) runs in separate containers from the computational workers (Celery). They communicate via a shared message broker (Redis), ensuring that long-running docking jobs do not block user-facing API requests.
--   **Frontend-Backend Separation**: The backend exposes a pure REST API, while the frontend is a completely separate React TypeScript application that consumes this API. This allows the frontend and backend to be:
-    - Developed independently by different teams
-    - Deployed and scaled separately
-    - Versioned independently
-    - Technology stacks can evolve independently
--   **Frontend Architecture**: The React application follows modern patterns:
-    - Component-based architecture with TypeScript for type safety
-    - State management via React Query for server state and React Context for client state
-    - Modular structure with clear separation between UI, business logic, and API communication
--   **Adapter Swapping**: To change the docking engine from AutoDock Vina to OpenEye, only a new adapter needs to be created in the `adapters/external` directory. No changes are needed in the `Domain`, `Use Case` layers, or the frontend application, demonstrating the plug-and-play nature of the architecture.
+-   **API vs. Workers vs. Task Services**: The system now has three distinct service types:
+    - **API Services** (FastAPI): Handle user requests and orchestration
+    - **Worker Services** (Celery): Handle background processing and workflow coordination
+    - **Task Services** (Containerized): Execute specific computational tasks (docking, analysis, etc.)
+-   **Dynamic Service Scaling**: Task services can be scaled independently based on demand, with automatic service discovery and load balancing.
+-   **Frontend-Backend Separation**: Enhanced with dynamic task interface generation, allowing the frontend to adapt to new tasks without code changes.
+-   **Technology Flexibility**: Task services can be implemented in any language/framework, as long as they expose the standard OpenAPI interface.
+-   **Adapter Evolution**: The adapter pattern is enhanced to support dynamic task loading while maintaining the plug-and-play nature for different computational engines.
+
+### Multi-Tenant Task Customization:
+
+-   **Organization-Scoped Tasks**: Each organization can define custom tasks while accessing shared system tasks.
+-   **Task Versioning**: Multiple versions of tasks can coexist, enabling gradual migration and A/B testing.
+-   **Resource Management**: Task execution resources (CPU, memory, GPU) are managed per organization with quotas and billing integration.

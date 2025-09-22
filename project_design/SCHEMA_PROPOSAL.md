@@ -33,9 +33,75 @@ CREATE EXTENSION IF NOT EXISTS citext;
 ```sql
 CREATE TYPE visibility AS ENUM ('private', 'org', 'public');
 CREATE TYPE job_status AS ENUM ('PENDING','RUNNING','COMPLETED','FAILED','CANCELED');
+CREATE TYPE health_status AS ENUM ('healthy', 'unhealthy', 'starting', 'unknown');
 ```
 
-### 1.2 Identity & Access
+### 1.2 Dynamic Task System Tables
+```sql
+-- Task definitions with OpenAPI specifications
+CREATE TABLE task_definitions (
+  task_definition_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id              UUID NOT NULL REFERENCES organizations(org_id),
+  task_id             VARCHAR(100) NOT NULL,
+  version             VARCHAR(20) NOT NULL DEFAULT '1.0.0',
+  metadata            JSONB NOT NULL DEFAULT '{}', -- title, description, category, tags
+  interface_spec      JSONB NOT NULL, -- OpenAPI 3.0 specification
+  service_config      JSONB NOT NULL DEFAULT '{}', -- Docker image, resources, env
+  is_active           BOOLEAN NOT NULL DEFAULT true,
+  is_system           BOOLEAN NOT NULL DEFAULT false,
+  created_by          UUID REFERENCES users(user_id),
+  created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(org_id, task_id, version)
+);
+
+-- Running task service instances
+CREATE TABLE task_services (
+  service_id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_definition_id  UUID NOT NULL REFERENCES task_definitions(task_definition_id),
+  service_url         VARCHAR(500) NOT NULL,
+  pod_name            VARCHAR(200),
+  node_name           VARCHAR(200),
+  health_status       health_status NOT NULL DEFAULT 'unknown',
+  last_health_check   TIMESTAMPTZ,
+  resources_used      JSONB DEFAULT '{}',
+  started_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(task_definition_id, service_url)
+);
+
+-- Pipeline templates for composable workflows
+CREATE TABLE pipeline_templates (
+  template_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id              UUID NOT NULL REFERENCES organizations(org_id),
+  name                VARCHAR(100) NOT NULL,
+  display_name        VARCHAR(100) NOT NULL,
+  description         TEXT,
+  category            VARCHAR(50) NOT NULL,
+  workflow_definition JSONB NOT NULL, -- DAG specification
+  default_parameters  JSONB DEFAULT '{}',
+  is_public           BOOLEAN NOT NULL DEFAULT false,
+  is_system           BOOLEAN NOT NULL DEFAULT false,
+  version             VARCHAR(20) NOT NULL DEFAULT '1.0.0',
+  created_by          UUID REFERENCES users(user_id),
+  created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(org_id, name, version)
+);
+
+-- Pipeline task composition
+CREATE TABLE pipeline_task_steps (
+  step_id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  template_id         UUID NOT NULL REFERENCES pipeline_templates(template_id) ON DELETE CASCADE,
+  task_definition_id  UUID NOT NULL REFERENCES task_definitions(task_definition_id),
+  step_name           VARCHAR(100) NOT NULL,
+  step_order          INTEGER NOT NULL,
+  depends_on          JSONB DEFAULT '[]', -- Array of prerequisite step IDs
+  parameter_overrides JSONB DEFAULT '{}',
+  created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 1.3 Identity & Access
 ```sql
 CREATE TABLE organizations (
   org_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

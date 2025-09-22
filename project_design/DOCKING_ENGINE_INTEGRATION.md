@@ -1,33 +1,34 @@
-# Docking Engine Integration
+# Docking Engine Integration (Enhanced with Dynamic Task System)
 
 ## Overview
 
-The docking engine integration layer provides a **pluggable adapter architecture** that supports multiple molecular docking engines (AutoDock Vina, Smina, Gnina, and custom engines) with consistent interfaces, error handling, and execution strategies.
+The docking engine integration layer provides a **pluggable adapter architecture** that supports multiple molecular docking engines (AutoDock Vina, Smina, Gnina, and custom engines) with consistent interfaces, error handling, and execution strategies. **Enhanced to support dynamic task definitions stored in database with containerized service execution.**
 
-## Architecture
+## Architecture (Enhanced)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Use Cases Layer                              │
 ├─────────────────────────────────────────────────────────────────┤
-│               DockingEnginePort (Interface)                     │
+│     DockingEnginePort + TaskRegistryPort (Interfaces)          │
 ├─────────────────────────────────────────────────────────────────┤
 │                    Adapters Layer                               │
-│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐        │
-│  │VinaAdapter    │ │SminaAdapter   │ │GninaAdapter   │  ...   │
-│  │               │ │               │ │               │        │
-│  │• CLI Wrapper  │ │• CLI Wrapper  │ │• CLI Wrapper  │        │
-│  │• Container    │ │• Container    │ │• Container    │        │
-│  │• File I/O     │ │• File I/O     │ │• File I/O     │        │
-│  └───────────────┘ └───────────────┘ └───────────────┘        │
+│  ┌───────────────┐ ┌───────────────┐ ┌─────────────────────────┐│
+│  │Legacy Engine  │ │Dynamic Task   │ │Service Discovery        ││
+│  │Adapters       │ │Adapters       │ │Adapter                  ││
+│  │               │ │               │ │                         ││
+│  │• VinaAdapter  │ │• HTTP-based   │ │• Container orchestration││
+│  │• SminaAdapter │ │• OpenAPI      │ │• Health monitoring      ││
+│  │• GninaAdapter │ │• Database-def │ │• Load balancing         ││
+│  └───────────────┘ └───────────────┘ └─────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Execution Strategies                            │
-│  • Local Binary Execution                                      │
-│  • Docker Container Execution                                  │
-│  • Remote API Execution (future)                              │
+│  • Legacy: Local Binary + Docker Container Execution           │
+│  • Dynamic: HTTP API calls to containerized task services      │
+│  • Service Discovery: Kubernetes-based service orchestration   │
 └─────────────────────────────────────────────────────────────────┘
 ```
 

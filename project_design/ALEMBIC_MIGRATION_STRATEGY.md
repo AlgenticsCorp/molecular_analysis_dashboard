@@ -18,6 +18,9 @@ The application uses **Alembic** for database schema versioning with a **dual-da
 │  │ • Identities    │    │ • Artifacts                         │  │
 │  │ • Settings      │    │ • Input Signatures (cache)         │  │
 │  │ • Audit Logs    │    │ • Job Events                        │  │
+│  │ • Task Registry │    │ • Dynamic Task Results              │  │
+│  │ • Task Services │    │ • Enhanced Task Executions         │  │
+│  │ • Pipelines     │    │                                     │  │
 │  └─────────────────┘    └─────────────────────────────────────┘  │
 │           │                            │                        │
 │           ▼                            ▼                        │
@@ -40,16 +43,22 @@ alembic/
 │   │   ├── 001_initial_organizations.py
 │   │   ├── 002_add_users_table.py
 │   │   ├── 003_add_identity_providers.py
-│   │   └── 004_add_audit_logging.py
+│   │   ├── 004_add_audit_logging.py
+│   │   ├── 005_add_dynamic_task_foundation.py  # **NEW - Dynamic task system**
+│   │   ├── 006_add_pipeline_templates.py       # **NEW - Pipeline composition**
+│   │   └── 007_seed_system_tasks.py            # **NEW - System task seeding**
 │   └── results/                        # Results database migrations
 │       ├── 001_initial_docking_schema.py
 │       ├── 002_add_task_results.py
 │       ├── 003_add_caching_tables.py
-│       └── 004_add_job_events.py
+│       ├── 004_add_job_events.py
+│       ├── 005_enhance_task_executions.py      # **NEW - Dynamic task tracking**
+│       └── 006_add_dynamic_task_results.py     # **NEW - OpenAPI result storage**
 └── utils/
     ├── __init__.py
     ├── migration_helpers.py             # Shared migration utilities
-    └── org_database_provisioner.py     # Org database creation helper
+    ├── org_database_provisioner.py     # Org database creation helper
+    └── task_seeding_helpers.py         # **NEW - Task definition seeding**
 ```
 
 ## Alembic Configuration
@@ -933,3 +942,365 @@ This comprehensive Alembic migration strategy provides:
 6. **Production-ready patterns** for database lifecycle management
 
 The strategy ensures that both shared metadata and per-organization databases evolve consistently while maintaining data isolation and migration safety.
+
+## Enhanced Migration Examples for Dynamic Task System
+
+### Dynamic Task Foundation Migration
+
+```python
+# alembic/versions/metadata/005_add_dynamic_task_foundation.py
+"""Add dynamic task system foundation
+
+Revision ID: 005_meta
+Revises: 004_meta
+Create Date: 2025-09-22 10:00:00.000000
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers
+revision = '005_meta'
+down_revision = '004_meta'
+branch_labels = None
+depends_on = None
+
+def upgrade():
+    """Add dynamic task system tables."""
+
+    # Create health_status enum for task services
+    op.execute("CREATE TYPE health_status AS ENUM ('healthy', 'unhealthy', 'starting', 'unknown')")
+
+    # Task definitions table (core of dynamic task system)
+    op.create_table(
+        'task_definitions',
+        sa.Column('task_definition_id', postgresql.UUID(as_uuid=True),
+                 primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column('org_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('task_id', sa.String(100), nullable=False),
+        sa.Column('version', sa.String(20), nullable=False, server_default='1.0.0'),
+        sa.Column('metadata', postgresql.JSONB, nullable=False, server_default='{}'),
+        sa.Column('interface_spec', postgresql.JSONB, nullable=False),  # OpenAPI 3.0 spec
+        sa.Column('service_config', postgresql.JSONB, nullable=False, server_default='{}'),
+        sa.Column('is_active', sa.Boolean, nullable=False, server_default='true'),
+        sa.Column('is_system', sa.Boolean, nullable=False, server_default='false'),
+        sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+
+        # Foreign keys
+        sa.ForeignKeyConstraint(['org_id'], ['organizations.org_id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['created_by'], ['users.user_id'], ondelete='SET NULL'),
+
+        # Unique constraints
+        sa.UniqueConstraint('org_id', 'task_id', 'version', name='uq_task_org_id_version')
+    )
+
+    # Task services table (service discovery)
+    op.create_table(
+        'task_services',
+        sa.Column('service_id', postgresql.UUID(as_uuid=True),
+                 primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column('task_definition_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('service_url', sa.String(500), nullable=False),
+        sa.Column('pod_name', sa.String(200), nullable=True),
+        sa.Column('node_name', sa.String(200), nullable=True),
+        sa.Column('health_status',
+                 sa.Enum('healthy', 'unhealthy', 'starting', 'unknown', name='health_status'),
+                 nullable=False, server_default='unknown'),
+        sa.Column('last_health_check', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('resources_used', postgresql.JSONB, nullable=False, server_default='{}'),
+        sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+
+        # Foreign keys
+        sa.ForeignKeyConstraint(['task_definition_id'], ['task_definitions.task_definition_id'],
+                               ondelete='CASCADE'),
+
+        # Unique constraints
+        sa.UniqueConstraint('task_definition_id', 'service_url', name='uq_task_service_url')
+    )
+
+    # Create performance indexes
+    op.create_index('idx_task_definitions_org_active', 'task_definitions',
+                   ['org_id', 'is_active'])
+    op.create_index('idx_task_definitions_task_id', 'task_definitions', ['task_id'])
+    op.create_index('idx_task_definitions_metadata_gin', 'task_definitions', ['metadata'],
+                   postgresql_using='gin')
+    op.create_index('idx_task_definitions_interface_gin', 'task_definitions', ['interface_spec'],
+                   postgresql_using='gin')
+    op.create_index('idx_task_services_health', 'task_services', ['health_status'])
+    op.create_index('idx_task_services_last_check', 'task_services', ['last_health_check'])
+
+def downgrade():
+    """Remove dynamic task system tables."""
+    op.drop_table('task_services')
+    op.drop_table('task_definitions')
+    op.execute('DROP TYPE IF EXISTS health_status CASCADE')
+```
+
+### Pipeline Templates Migration
+
+```python
+# alembic/versions/metadata/006_add_pipeline_templates.py
+"""Add pipeline template system
+
+Revision ID: 006_meta
+Revises: 005_meta
+Create Date: 2025-09-22 11:00:00.000000
+"""
+
+def upgrade():
+    """Add pipeline template and composition tables."""
+
+    # Pipeline templates table (composable workflows)
+    op.create_table(
+        'pipeline_templates',
+        sa.Column('template_id', postgresql.UUID(as_uuid=True),
+                 primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column('org_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('name', sa.String(100), nullable=False),
+        sa.Column('display_name', sa.String(100), nullable=False),
+        sa.Column('description', sa.Text, nullable=True),
+        sa.Column('category', sa.String(50), nullable=False),
+        sa.Column('workflow_definition', postgresql.JSONB, nullable=False),
+        sa.Column('default_parameters', postgresql.JSONB, nullable=False, server_default='{}'),
+        sa.Column('is_public', sa.Boolean, nullable=False, server_default='false'),
+        sa.Column('is_system', sa.Boolean, nullable=False, server_default='false'),
+        sa.Column('version', sa.String(20), nullable=False, server_default='1.0.0'),
+        sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+
+        # Foreign keys
+        sa.ForeignKeyConstraint(['org_id'], ['organizations.org_id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['created_by'], ['users.user_id'], ondelete='SET NULL'),
+
+        # Unique constraints
+        sa.UniqueConstraint('org_id', 'name', 'version', name='uq_pipeline_org_name_version')
+    )
+
+    # Pipeline task steps table (task composition)
+    op.create_table(
+        'pipeline_task_steps',
+        sa.Column('step_id', postgresql.UUID(as_uuid=True),
+                 primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column('template_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('task_definition_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('step_name', sa.String(100), nullable=False),
+        sa.Column('step_order', sa.Integer, nullable=False),
+        sa.Column('depends_on', postgresql.JSONB, nullable=False, server_default='[]'),
+        sa.Column('parameter_overrides', postgresql.JSONB, nullable=False, server_default='{}'),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+
+        # Foreign keys
+        sa.ForeignKeyConstraint(['template_id'], ['pipeline_templates.template_id'],
+                               ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['task_definition_id'], ['task_definitions.task_definition_id'],
+                               ondelete='CASCADE')
+    )
+
+    # Indexes for performance
+    op.create_index('idx_pipeline_templates_org_category', 'pipeline_templates',
+                   ['org_id', 'category'])
+    op.create_index('idx_pipeline_templates_public', 'pipeline_templates',
+                   ['is_public', 'category'])
+    op.create_index('idx_pipeline_steps_template', 'pipeline_task_steps', ['template_id'])
+    op.create_index('idx_pipeline_steps_order', 'pipeline_task_steps',
+                   ['template_id', 'step_order'])
+
+def downgrade():
+    """Remove pipeline template tables."""
+    op.drop_table('pipeline_task_steps')
+    op.drop_table('pipeline_templates')
+```
+
+### Results Database Enhancement Migration
+
+```python
+# alembic/versions/results/005_enhance_task_executions.py
+"""Enhance task executions for dynamic task system
+
+Revision ID: 005_results
+Revises: 004_results
+Create Date: 2025-09-22 12:00:00.000000
+"""
+
+def upgrade():
+    """Enhance task execution tracking for dynamic tasks."""
+
+    # Add dynamic task fields to existing task_executions table
+    op.add_column('task_executions',
+                 sa.Column('task_definition_id', sa.String(100), nullable=True))
+    op.add_column('task_executions',
+                 sa.Column('service_url', sa.String(500), nullable=True))
+    op.add_column('task_executions',
+                 sa.Column('execution_metadata', postgresql.JSONB,
+                          nullable=False, server_default='{}'))
+
+    # Dynamic task results table
+    op.create_table(
+        'dynamic_task_results',
+        sa.Column('result_id', postgresql.UUID(as_uuid=True),
+                 primary_key=True, server_default=sa.text("gen_random_uuid()")),
+        sa.Column('exec_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('result_schema_version', sa.String(20), nullable=False),
+        sa.Column('result_data', postgresql.JSONB, nullable=False),
+        sa.Column('validation_errors', postgresql.JSONB, nullable=True),
+        sa.Column('confidence_score', sa.Float, nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
+
+        # Foreign keys
+        sa.ForeignKeyConstraint(['exec_id'], ['task_executions.exec_id'], ondelete='CASCADE')
+    )
+
+    # Indexes for performance
+    op.create_index('idx_dynamic_results_exec', 'dynamic_task_results', ['exec_id'])
+    op.create_index('idx_dynamic_results_confidence', 'dynamic_task_results',
+                   ['confidence_score'], postgresql_where=sa.text('confidence_score IS NOT NULL'))
+    op.create_index('idx_dynamic_results_data_gin', 'dynamic_task_results', ['result_data'],
+                   postgresql_using='gin')
+    op.create_index('idx_task_exec_definition', 'task_executions', ['task_definition_id'])
+    op.create_index('idx_task_exec_service', 'task_executions', ['service_url'])
+
+def downgrade():
+    """Remove dynamic task enhancements."""
+    op.drop_table('dynamic_task_results')
+    op.drop_column('task_executions', 'execution_metadata')
+    op.drop_column('task_executions', 'service_url')
+    op.drop_column('task_executions', 'task_definition_id')
+```
+
+### System Task Seeding Migration
+
+```python
+# alembic/versions/metadata/007_seed_system_tasks.py
+"""Seed system task definitions
+
+Revision ID: 007_meta
+Revises: 006_meta
+Create Date: 2025-09-22 13:00:00.000000
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.orm import Session
+import json
+from uuid import uuid4
+
+def upgrade():
+    """Seed system task definitions."""
+    bind = op.get_bind()
+    session = Session(bind=bind)
+
+    try:
+        # Get default organization (assumes one exists from previous migrations)
+        result = session.execute(sa.text("SELECT org_id FROM organizations LIMIT 1"))
+        org_row = result.fetchone()
+
+        if not org_row:
+            print("Warning: No organization found for system task seeding")
+            return
+
+        org_id = org_row[0]
+
+        # System task definitions
+        system_tasks = [
+            {
+                'task_id': 'molecular-docking',
+                'version': '1.0.0',
+                'metadata': json.dumps({
+                    'title': 'Molecular Docking',
+                    'description': 'Protein-ligand docking using AutoDock Vina',
+                    'category': 'Analysis',
+                    'tags': ['docking', 'protein', 'ligand', 'vina'],
+                    'icon': 'fas fa-molecule'
+                }),
+                'interface_spec': json.dumps({
+                    'openapi': '3.0.0',
+                    'info': {'title': 'Molecular Docking API', 'version': '1.0.0'},
+                    'paths': {
+                        '/execute': {
+                            'post': {
+                                'requestBody': {
+                                    'required': True,
+                                    'content': {
+                                        'application/json': {
+                                            'schema': {
+                                                'type': 'object',
+                                                'required': ['protein_file', 'ligand_file'],
+                                                'properties': {
+                                                    'protein_file': {'type': 'string', 'format': 'uri'},
+                                                    'ligand_file': {'type': 'string', 'format': 'uri'},
+                                                    'engine_params': {
+                                                        'type': 'object',
+                                                        'properties': {
+                                                            'exhaustiveness': {'type': 'integer', 'default': 8},
+                                                            'num_modes': {'type': 'integer', 'default': 9}
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }),
+                'service_config': json.dumps({
+                    'docker_image': 'algentics/molecular-docking:v1.0.0',
+                    'resources': {'cpu': '2000m', 'memory': '4Gi'},
+                    'environment': {'VINA_BINARY': '/usr/local/bin/vina'}
+                })
+            }
+        ]
+
+        # Insert system tasks
+        for task_data in system_tasks:
+            # Check if task already exists
+            existing = session.execute(sa.text("""
+                SELECT task_definition_id FROM task_definitions
+                WHERE org_id = :org_id AND task_id = :task_id AND version = :version
+            """), {
+                'org_id': org_id,
+                'task_id': task_data['task_id'],
+                'version': task_data['version']
+            }).fetchone()
+
+            if not existing:
+                session.execute(sa.text("""
+                    INSERT INTO task_definitions
+                    (org_id, task_id, version, metadata, interface_spec, service_config, is_system, is_active)
+                    VALUES (:org_id, :task_id, :version, :metadata, :interface_spec, :service_config, true, true)
+                """), {
+                    'org_id': org_id,
+                    'task_id': task_data['task_id'],
+                    'version': task_data['version'],
+                    'metadata': task_data['metadata'],
+                    'interface_spec': task_data['interface_spec'],
+                    'service_config': task_data['service_config']
+                })
+
+                print(f"Seeded system task: {task_data['task_id']}")
+
+        session.commit()
+        print("System task seeding completed successfully")
+
+    except Exception as e:
+        session.rollback()
+        print(f"System task seeding failed: {e}")
+        raise
+    finally:
+        session.close()
+
+def downgrade():
+    """Remove system tasks (optional - usually keep for safety)."""
+    # Usually we don't remove system tasks in downgrade for safety
+    # but you could implement it if needed:
+    # bind = op.get_bind()
+    # session = Session(bind=bind)
+    # session.execute(sa.text("DELETE FROM task_definitions WHERE is_system = true"))
+    # session.commit()
+    pass
+```
