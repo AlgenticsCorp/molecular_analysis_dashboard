@@ -1,0 +1,20 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🏥 Production Support
+    url: https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions
+    about: For production issues, system outages, or urgent support needs
+  - name: 💬 General Questions
+    url: https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions
+    about: Ask questions about molecular analysis workflows, docking engines, or usage
+  - name: 🧬 Molecular Analysis Research
+    url: https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions
+    about: Discuss molecular analysis methodologies, research applications, or scientific use cases
+  - name: 🏗️ Architecture Discussions
+    url: https://github.com/AlgenticsCorp/molecular_analysis_dashboard/discussions
+    about: Discuss Clean Architecture patterns, design decisions, or technical architecture
+  - name: 📚 Documentation Portal
+    url: https://docs.algentics.com/molecular-analysis-dashboard
+    about: Browse comprehensive documentation, API references, and user guides
+  - name: 🔐 Security Vulnerability
+    url: mailto:security@algentics.com
+    about: Report security vulnerabilities privately (do not create public issues)
