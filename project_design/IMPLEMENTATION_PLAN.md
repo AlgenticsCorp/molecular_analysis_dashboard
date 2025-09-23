@@ -10,7 +10,7 @@ References: `ARCHITECTURE.md`, `FRAMEWORK_DESIGN.md`, `API_CONTRACT.md`, `ERD.md
 
 ---
 
-## Stage 0: Bootstrap API Health
+## Stage 0: Bootstrap API Health ✅ COMPLETED
 Goal: Minimal FastAPI app with `/health`. No DB, no broker.
 
 - Scope
@@ -19,10 +19,11 @@ Goal: Minimal FastAPI app with `/health`. No DB, no broker.
 - Quality gates
     - Build/lint pass (pre-commit if configured)
     - `curl http://localhost:8000/health` returns 200
+- **Status: COMPLETED** - Health endpoint functional and accessible
 - Rollback
     - Revert app init; keep only health check
 
-## Stage 1: Metadata DB + Alembic Baseline + Task Registry Foundation
+## Stage 1: Metadata DB + Alembic Baseline + Task Registry Foundation ✅ COMPLETED
 Goal: Add PostgreSQL connectivity, migrations with core identity/RBAC, and dynamic task system foundation.
 
 - Scope
@@ -34,11 +35,12 @@ Goal: Add PostgreSQL connectivity, migrations with core identity/RBAC, and dynam
     - Alembic upgrade/downgrade succeed locally
     - `/ready` returns `ready` when DB up and task registry accessible
     - **Task definition CRUD operations work via database**
+- **Status: COMPLETED** - Database schema established, migrations functional, ready endpoint operational
 - Rollback
     - Downgrade migration; disable DB wiring
     - Fall back to static task definitions if needed
 
-## Stage 2: Dynamic Task Registry + Basic Task Management
+## Stage 2: Dynamic Task Registry + Basic Task Management ✅ COMPLETED
 Goal: Database-driven task definitions with OpenAPI specifications.
 
 - Scope
@@ -50,37 +52,43 @@ Goal: Database-driven task definitions with OpenAPI specifications.
     - **Tasks can be defined in database without code changes**
     - **Frontend can load task list from API dynamically**
     - **OpenAPI specifications validate correctly**
+- **Status: COMPLETED** - Task registry API implemented with:
+    - FastAPI endpoints with Pydantic schemas (`/api/v1/tasks`)
+    - Task transformer services for data conversion
+    - Frontend TaskService with API client and fallback mechanism
+    - Static task data fallback for high availability
+    - Feature flag system for controlled rollout
+    - React hooks integration (useTasks, useTaskDetail, useTaskCategories)
+    - Comprehensive test coverage (30 unit tests, 17 integration tests, 74% coverage)
 - Rollback
     - Fall back to hardcoded task definitions; keep schema (non-breaking)
 
-## Stage 2: Dynamic Task Registry + Basic Task Management
-Goal: Database-driven task definitions with OpenAPI specifications.
+## Stage 3: Complete Containerization + Molecules & Artifacts 🔄 PARTIALLY COMPLETED
+Goal: Deploy each system component as separate secure containers; implement molecule upload functionality.
 
 - Scope
-    - **Task Registry API**: `GET /api/v1/task-registry/tasks`, `POST /api/v1/task-registry/tasks`
-    - **OpenAPI Interface Loading**: Task definitions include full OpenAPI 3.0 specifications
-    - **System Task Seeding**: Insert built-in molecular docking tasks into database
-    - **Basic Service Discovery**: Track running task services in `task_services` table
+    - **Complete Service Containerization**:
+        - Frontend Service: React/Vite container with Nginx for production serving
+        - Storage Service: Dedicated file storage container with volume management
+        - Gateway Service: Reverse proxy for service coordination and security
+        - Enhanced Security: Non-root users, minimal images, network isolation
+    - **Molecule Management**:
+        - Tables: `molecules`, optional `artifacts`
+        - Storage adapter: Container-based LocalFS (dev) with configurable root; presigned URL stub
+        - Endpoints: `POST /api/v1/molecules/upload`, optional `GET /api/v1/artifacts/{uri}`
+    - **Service Discovery Foundation**: Prepare infrastructure for Stage 4 task service orchestration
 - Quality gates
-    - **Tasks can be defined in database without code changes**
-    - **Frontend can load task list from API dynamically**
-    - **OpenAPI specifications validate correctly**
-- Rollback
-    - Fall back to hardcoded task definitions; keep schema (non-breaking)
-
-## Stage 3: Molecules & Artifacts + Storage Adapter
-Goal: Upload molecules; persist metadata and file URIs.
-
-- Scope
-    - Tables: `molecules`, optional `artifacts`
-    - Storage adapter: LocalFS (dev) with configurable root; presigned URL stub
-    - Endpoints: `POST /api/v1/molecules/upload`, optional `GET /api/v1/artifacts/{uri}`
-- Quality gates
+    - **Each service deployable as independent container** with health checks
+    - **Services can be scaled independently** (horizontal scaling ready)
+    - **Network isolation and security** enforced between services
+    - **Volume management** for persistent data and file storage
     - Upload small file -> DB row exists; file present at storage path; downloadable via URL/presign
+- **Status: PARTIALLY COMPLETED** - Backend services containerized, frontend and storage containers needed
+- **Pending: Frontend containerization, storage service, molecule upload API endpoints**
 - Rollback
-    - Revert endpoints; keep schema (non-breaking)
+    - Revert new containers; keep existing containerized services; disable new endpoints (non-breaking)
 
-## Stage 4: Dynamic Task Execution + Service Orchestration
+## Stage 4: Dynamic Task Execution + Service Orchestration ⏳ PENDING
 Goal: Execute tasks defined in database via containerized services.
 
 - Scope
@@ -92,10 +100,11 @@ Goal: Execute tasks defined in database via containerized services.
     - **Tasks execute via HTTP calls to containerized services**
     - **Task parameters validate against database-stored OpenAPI schemas**
     - **Service discovery routes requests to healthy instances**
+- **Status: PENDING** - Task definitions ready, execution layer needs implementation
 - Rollback
     - Fall back to hardcoded task execution; keep enhanced tracking tables
 
-## Stage 5: Results DB Provisioning + Pipeline Templates
+## Stage 5: Results DB Provisioning + Pipeline Templates ⏳ PENDING
 Goal: Establish per-org Results DB and pipeline composition system.
 
 - Scope
@@ -107,10 +116,11 @@ Goal: Establish per-org Results DB and pipeline composition system.
     - Job creation writes to both DBs idempotently; status is retrievable
     - **Pipeline templates can be composed from available tasks**
     - **Pipeline instantiation creates executable workflow**
+- **Status: PENDING** - Foundation ready, pipeline composition needs implementation
 - Rollback
     - Drop org results DB (dev only); disable pipeline composition
 
-## Stage 6: Frontend Dynamic Interface Generation
+## Stage 6: Frontend Dynamic Interface Generation 🔄 PARTIALLY COMPLETED
 Goal: Auto-generate task forms and interfaces from database specifications.
 
 - Scope
@@ -122,6 +132,8 @@ Goal: Auto-generate task forms and interfaces from database specifications.
     - **Frontend loads and renders new tasks without code deployment**
     - **Form validation follows OpenAPI schema from database**
     - **Task execution status updates in real-time**
+- **Status: PARTIALLY COMPLETED** - TaskLibrary component dynamically loads tasks from API with fallback, but form generation needs implementation
+- **Pending: Dynamic form generation, task execution UI, pipeline builder**
 - Rollback
     - Fall back to static task forms; keep API integration
 
@@ -220,31 +232,70 @@ Goal: Production-ready dynamic task system with comprehensive monitoring.
 ---
 
 ## Per-Stage Deliverables (Enhanced Summary)
-- Stage 0: FastAPI app, `/health`
-- Stage 1: DB engine, Alembic, `/ready`, identity/RBAC tables, **task registry foundation**
-- Stage 2: **Dynamic task registry API**, **OpenAPI-based task definitions**, system task seeding
-- Stage 3: `molecules`/`artifacts`, storage adapter, upload endpoint
-- Stage 4: **Dynamic task execution API**, **service discovery integration**, HTTP-based task adapters
-- Stage 5: Results DB provisioning, **pipeline templates**, composable workflows
-- Stage 6: **Dynamic frontend interfaces**, **auto-generated forms**, real-time task UI
-- Stage 7: Celery/Redis coordination, **task service orchestration**, workflow execution
-- Stage 8: **Legacy engine integration**, enhanced docking results, molecular analysis tools
-- Stage 9: **Intelligent caching**, confidence-based result reuse, task-aware optimization
-- Stage 10: Enhanced event tracking, **task service logging**, centralized log aggregation
-- Stage 11: **Task-level permissions**, organization task scoping, enhanced RBAC
-- Stage 12: **Production task infrastructure**, auto-scaling, performance analytics, resource quotas
+- Stage 0: FastAPI app, `/health` ✅ **COMPLETED**
+- Stage 1: DB engine, Alembic, `/ready`, identity/RBAC tables, **task registry foundation** ✅ **COMPLETED**
+- Stage 2: **Dynamic task registry API**, **OpenAPI-based task definitions**, system task seeding ✅ **COMPLETED**
+- Stage 3: **Complete containerization**, `molecules`/`artifacts`, storage adapter, upload endpoint 🔄 **PARTIALLY COMPLETED**
+- Stage 4: **Dynamic task execution API**, **service discovery integration**, HTTP-based task adapters ⏳ **PENDING**
+- Stage 5: Results DB provisioning, **pipeline templates**, composable workflows ⏳ **PENDING**
+- Stage 6: **Dynamic frontend interfaces**, **auto-generated forms**, real-time task UI 🔄 **PARTIALLY COMPLETED**
+- Stage 7: Celery/Redis coordination, **task service orchestration**, workflow execution ⏳ **PENDING**
+- Stage 8: **Legacy engine integration**, enhanced docking results, molecular analysis tools ⏳ **PENDING**
+- Stage 9: **Intelligent caching**, confidence-based result reuse, task-aware optimization ⏳ **PENDING**
+- Stage 10: Enhanced event tracking, **task service logging**, centralized log aggregation ⏳ **PENDING**
+- Stage 11: **Task-level permissions**, organization task scoping, enhanced RBAC ⏳ **PENDING**
+- Stage 12: **Production task infrastructure**, auto-scaling, performance analytics, resource quotas ⏳ **PENDING**
 
 ## Enhanced Test Matrix
-- 0: `/health` 200
-- 1: `/ready` 200 with DB + task registry; migrations ok
-- 2: **Tasks definable in database; OpenAPI specs validate; frontend loads dynamically**
-- 3: molecule upload persists row + file; presign valid
-- 4: **Dynamic task execution via HTTP; service discovery routing; parameter validation**
-- 5: **Pipeline templates compose tasks; workflow instantiation works**
-- 6: **Frontend generates forms from database specs; real-time task monitoring**
-- 7: **Pipeline workflows execute with dependencies; task services scale on demand**
-- 8: **Legacy engines accessible as database tasks; enhanced result tracking**
-- 9: **Intelligent cache hits across task versions; confidence-based decisions**
-- 10: **Task service logs aggregated; enhanced event context tracking**
-- 11: **Task permissions enforced; organization custom task scoping**
-- 12: **Auto-scaling operational; performance monitoring active; quotas enforced**
+- 0: `/health` 200 ✅ **PASSING**
+- 1: `/ready` 200 with DB + task registry; migrations ok ✅ **PASSING**
+- 2: **Tasks definable in database; OpenAPI specs validate; frontend loads dynamically** ✅ **PASSING**
+- 3: **All services containerized and scalable; molecule upload persists row + file; presign valid** 🔄 **NEEDS IMPLEMENTATION**
+- 4: **Dynamic task execution via HTTP; service discovery routing; parameter validation** ⏳ **PENDING**
+- 5: **Pipeline templates compose tasks; workflow instantiation works** ⏳ **PENDING**
+- 6: **Frontend generates forms from database specs; real-time task monitoring** 🔄 **PARTIAL - TaskLibrary loads dynamically**
+- 7: **Pipeline workflows execute with dependencies; task services scale on demand** ⏳ **PENDING**
+- 8: **Legacy engines accessible as database tasks; enhanced result tracking** ⏳ **PENDING**
+- 9: **Intelligent cache hits across task versions; confidence-based decisions** ⏳ **PENDING**
+- 10: **Task service logs aggregated; enhanced event context tracking** ⏳ **PENDING**
+- 11: **Task permissions enforced; organization custom task scoping** ⏳ **PENDING**
+- 12: **Auto-scaling operational; performance monitoring active; quotas enforced** ⏳ **PENDING**
+
+---
+
+## Current Implementation Status (Updated September 23, 2025)
+
+### ✅ COMPLETED FEATURES
+1. **Task Registry API with Frontend Integration**
+   - FastAPI endpoints: `GET /api/v1/tasks`, `GET /api/v1/tasks/{task_id}`, `GET /api/v1/tasks/categories`
+   - Pydantic schemas for type-safe task definitions
+   - Task transformer services for data conversion between database and API formats
+   - Frontend TaskService with HTTP client, retry logic, and 5-minute caching
+   - Automatic fallback to static data when API unavailable
+   - Feature flag system for controlled rollout (API vs static data)
+   - React hooks integration: `useTasks`, `useTaskDetail`, `useTaskCategories`
+   - Performance optimizations: memoized parameters, infinite re-render loop fixes
+   - Comprehensive test coverage: 30 unit tests, 17 integration tests, 74% coverage
+
+2. **Frontend Task Library**
+   - TaskLibrary component dynamically loads tasks from API
+   - Graceful degradation to static task data (3 comprehensive task templates)
+   - Search and filtering capabilities
+   - Loading states, error handling, and user feedback
+   - Feature flag debugging interface
+   - API health monitoring with status indicators
+
+3. **Infrastructure Foundation**
+   - Database schema with task_definitions, task_services, pipeline_templates
+   - Alembic migrations for version control
+   - Health (`/health`) and readiness (`/ready`) endpoints
+   - Clean Architecture compliance with proper separation of concerns
+
+### 🔄 PARTIALLY COMPLETED
+1. **Stage 3**: Backend services containerized (API, Worker, DB, Redis), but frontend container, storage service, and molecule upload endpoints need implementation
+2. **Stage 6**: Task loading is dynamic but form generation needs implementation
+
+### ⏳ NEXT PRIORITIES
+1. **Stage 4**: Dynamic task execution API with containerized service communication
+2. **Stage 6**: Auto-generated forms from OpenAPI specifications
+3. **Stage 3**: Molecule upload and file management endpoints
