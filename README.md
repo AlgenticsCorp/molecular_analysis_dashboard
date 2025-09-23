@@ -949,64 +949,224 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Built with ❤️ by the Algentics team for the molecular analysis community.
 
-## � Project Structure
+## 🗂️ Project Structure & Component Location Guide
 
+This repository follows Clean Architecture principles with clear component organization. Here's where to find and how to document each type of component:
+
+### 📁 **Repository Layout**
 ```
 molecular_analysis_dashboard/
-├── frontend/                   # React TypeScript application
+├── 📚 docs/                          # ✨ ALL DOCUMENTATION LIVES HERE
+│   ├── 🏗️ architecture/             # System design & patterns
+│   │   ├── system-design/           # Core architecture docs
+│   │   ├── backend/                 # Backend architecture
+│   │   ├── frontend/                # UI/UX architecture
+│   │   └── integration/             # Service integration
+│   ├── 🗄️ database/                # Database design & management
+│   │   ├── design/                  # Schema, ERD, data models
+│   │   ├── management/              # Migrations, performance
+│   │   ├── connection-routing/      # Multi-tenant patterns
+│   │   └── testing/                 # Database testing strategies
+│   ├── 🔗 api/                     # API documentation
+│   │   ├── contracts/               # REST API specifications
+│   │   ├── gateway/                 # API gateway documentation
+│   │   └── schemas/                 # Data schemas
+│   ├── 🚀 deployment/              # Deployment guides
+│   │   ├── environments/            # Environment configurations
+│   │   ├── docker/                  # Container orchestration
+│   │   └── cloud/                   # Cloud deployment strategies
+│   ├── 👩‍💻 development/             # Developer resources
+│   │   ├── getting-started/         # Onboarding guides
+│   │   ├── guides/                  # Development guides
+│   │   ├── workflows/               # Git, CI/CD, testing workflows
+│   │   └── tools/                   # Development tools
+│   ├── 🚀 implementation/          # Implementation tracking
+│   │   └── phases/                  # Phase-based development progress
+│   ├── 🔒 security/                # Security documentation
+│   └── ⚙️ operations/              # Operational procedures
+├── 🎨 frontend/                     # React TypeScript Application
 │   ├── src/
-│   │   ├── components/        # Reusable UI components
-│   │   ├── pages/            # Application pages/routes
-│   │   ├── services/         # API client services
-│   │   ├── types/            # TypeScript definitions
-│   │   └── utils/            # Utility functions
-│   ├── package.json          # Frontend dependencies
-│   └── vite.config.ts        # Build configuration
-├── src/molecular_analysis_dashboard/  # Backend source code
-│   ├── domain/               # Business entities (Molecule, Job, Pipeline)
-│   ├── use_cases/            # Application services (CreateJob, RunDocking)
-│   ├── ports/                # Abstract interfaces (Repository, DockingEngine)
-│   ├── adapters/             # Concrete implementations (PostgreSQL, Vina)
-│   ├── infrastructure/       # Framework setup (Celery, FastAPI, Config)
-│   ├── presentation/         # API routes and schemas
-│   └── shared/               # Cross-cutting utilities
-├── tests/                    # Test suite
-│   ├── unit/                 # Unit tests
-│   ├── integration/          # Integration tests
-│   └── e2e/                  # End-to-end tests
-├── project_design/           # Design documentation
-│   ├── ARCHITECTURE.md       # System architecture
-│   ├── FRONTEND_ARCHITECTURE.md  # UI architecture
-│   ├── DEPLOYMENT_DOCKER.md  # Deployment guide
-│   └── *.md                  # Additional design docs
-├── docker-compose.yml        # Local development environment
-├── Dockerfile               # Container definition
-├── pyproject.toml           # Python project configuration
-└── README.md               # This file
+│   │   ├── components/              # Reusable UI components
+│   │   ├── pages/                   # Application pages/routes
+│   │   ├── services/                # API client services
+│   │   ├── types/                   # TypeScript definitions
+│   │   └── utils/                   # Utility functions
+│   ├── package.json                # Frontend dependencies
+│   └── vite.config.ts              # Build configuration
+├── 🔧 src/molecular_analysis_dashboard/  # Backend Clean Architecture
+│   ├── 🏛️ domain/                  # Business entities & domain services
+│   │   ├── entities/                # Core business objects (Molecule, Job)
+│   │   ├── services/                # Domain business logic
+│   │   └── exceptions/              # Domain-specific exceptions
+│   ├── 💼 use_cases/               # Application services (business workflows)
+│   │   ├── commands/                # Write operations (CreateJob, StartPipeline)
+│   │   └── queries/                 # Read operations (GetMolecule, ListJobs)
+│   ├── 🔌 ports/                   # Abstract interfaces (dependency inversion)
+│   │   ├── repository/              # Data persistence abstractions
+│   │   ├── external/                # External service interfaces
+│   │   └── messaging/               # Message queue abstractions
+│   ├── 🔧 adapters/                # Concrete implementations
+│   │   ├── database/                # PostgreSQL, SQLAlchemy implementations
+│   │   ├── external/                # Docking engines (Vina, Smina, Gnina)
+│   │   ├── messaging/               # Celery, Redis implementations
+│   │   └── storage/                 # File storage implementations
+│   ├── 🏗️ infrastructure/          # Framework & configuration
+│   │   ├── database/                # DB session management
+│   │   ├── messaging/               # Celery configuration
+│   │   ├── security/                # JWT, authentication
+│   │   └── config/                  # Application settings
+│   ├── 🌐 presentation/            # Web layer (FastAPI)
+│   │   ├── api/                     # REST endpoints
+│   │   ├── schemas/                 # Request/response models
+│   │   └── middleware/              # HTTP middleware
+│   └── 🔄 shared/                  # Cross-cutting utilities
+│       ├── utils/                   # Common utilities
+│       ├── constants/               # Application constants
+│       └── exceptions/              # Shared exceptions
+├── 🧪 tests/                       # Test Suite
+│   ├── unit/                        # Fast, isolated business logic tests
+│   ├── integration/                 # Service integration tests
+│   └── e2e/                        # Full system end-to-end tests
+├── 🐳 docker/                      # Container configurations
+│   ├── Dockerfile.api              # Backend API container
+│   ├── Dockerfile.frontend         # Frontend container
+│   ├── Dockerfile.worker           # Celery worker container
+│   └── nginx.conf                  # Nginx configuration
+├── 📊 database/                    # Database operations
+│   ├── alembic/                    # Database migrations
+│   ├── models/                     # SQLAlchemy models
+│   ├── scripts/                    # Database utility scripts
+│   └── seeds/                      # Test data seeding
+├── 🔧 tools/                       # Development & build tools
+│   ├── extract_schema.py           # API schema extraction
+│   ├── health_check.py             # System health verification
+│   └── render_graphs.py            # Dependency visualization
+├── 📋 project_management/          # Project tracking (if needed)
+├── 🐳 docker-compose.yml           # Local development environment
+├── ⚙️ pyproject.toml               # Python project configuration
+└── 📖 README.md                    # This guide
 ```
 
-## 📚 Documentation
+### 🎯 **Where to Add New Components**
 
-- Architecture Overview: `project_design/ARCHITECTURE.md`
-- Framework Design & Diagrams: `project_design/FRAMEWORK_DESIGN.md`
-- Tools & Workflow: `project_design/TOOLS_AND_WORKFLOW.md`
-- Deployment & Scaling: `project_design/DEPLOYMENT_DOCKER.md`
-- Implementation Plan: `project_design/IMPLEMENTATION_PLAN.md`
-- Users & Roles: `project_design/USERS_AND_ROLES.md`
-- Use Cases: `project_design/USE_CASES.md`
-- Databases & Tenancy: `project_design/DATABASES.md`
-- API Contract: `project_design/API_CONTRACT.md`
-- Component Map (Repo ↔ Containers): `project_design/REPO_COMPONENT_MAP.md`
-- Configuration Reference: `project_design/CONFIGURATION.md`
-- Security Architecture: `project_design/SECURITY_ARCH.md`
-- Operations Runbook: `project_design/RUNBOOK.md`
-- Task Queue Design: `project_design/QUEUE_DESIGN.md`
-- Data Model ERD: `project_design/ERD.md`
-- Schema Proposal (DDL): `project_design/SCHEMA_PROPOSAL.md`
-- Developer Guide: [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md)
-- API Docs (local): `mkdocs serve`
-- Code Atlas: `docs/atlas/` (dependency graphs)
-- API Schema: `docs/schema.json` (machine-readable)
+| **Component Type** | **Location** | **Documentation** |
+|-------------------|-------------|------------------|
+| **New Business Entity** | `src/domain/entities/` | `docs/architecture/system-design/` |
+| **New Use Case** | `src/use_cases/commands/` or `queries/` | `docs/architecture/system-design/use-cases.md` |
+| **New Docking Engine** | `src/adapters/external/` | `docs/architecture/backend/docking-engines.md` |
+| **New API Endpoint** | `src/presentation/api/` | `docs/api/contracts/rest-api.md` |
+| **New Database Table** | `database/alembic/versions/` | `docs/database/design/schema.md` |
+| **New Frontend Page** | `frontend/src/pages/` | `docs/architecture/frontend/` |
+| **New React Component** | `frontend/src/components/` | Component-level JSDoc comments |
+| **New Storage Adapter** | `src/adapters/storage/` | `docs/architecture/backend/storage-adapters.md` |
+| **New Authentication Method** | `src/infrastructure/security/` | `docs/security/architecture.md` |
+| **New Deployment Environment** | `docker/` + docs | `docs/deployment/environments/` |
+| **New Database Migration** | `database/alembic/versions/` | `docs/database/management/migrations.md` |
+| **New Test Suite** | `tests/unit/`, `integration/`, `e2e/` | `docs/development/workflows/testing-workflows.md` |
+
+## 📚 Comprehensive Documentation
+
+> **🎯 All documentation is centrally organized in the [`docs/`](docs/) directory.** Start with the [**Documentation Hub**](docs/README.md) for complete navigation.
+
+### 🚀 **Quick Access by Role**
+
+| **Role** | **Start Here** | **Key Documents** |
+|----------|---------------|------------------|
+| **🆕 New Developer** | [Getting Started](docs/development/getting-started/setup.md) | Setup → Architecture → Workflow |
+| **🏗️ System Architect** | [Architecture Hub](docs/architecture/README.md) | System Design → Clean Architecture → Patterns |
+| **🎨 Frontend Developer** | [Frontend Architecture](docs/architecture/frontend/architecture.md) | React Patterns → Components → UI/UX |
+| **⚙️ Backend Developer** | [Backend Architecture](docs/architecture/backend/docking-engines.md) | APIs → Domain Logic → Integrations |
+| **🗄️ Database Developer** | [Database Design](docs/database/README.md) | Schema → Migrations → Multi-tenancy |
+| **🚀 DevOps Engineer** | [Deployment Guides](docs/deployment/docker/setup.md) | Docker → CI/CD → Cloud Deployment |
+| **📊 Project Manager** | [Implementation Status](docs/implementation/README.md) | Phase Progress → Planning → Roadmap |
+| **🔒 Security Engineer** | [Security Architecture](docs/security/architecture.md) | Auth → Data Protection → Compliance |
+
+### 📋 **Documentation Categories**
+
+#### 🏗️ **[Architecture & Design](docs/architecture/README.md)**
+- **[System Overview](docs/architecture/system-design/overview.md)** - High-level architecture
+- **[Clean Architecture](docs/architecture/system-design/clean-architecture.md)** - SOLID principles implementation
+- **[API Gateway Design](docs/architecture/integration/gateway.md)** - Service integration patterns
+- **[Domain Model](docs/architecture/system-design/use-cases.md)** - Business logic organization
+- **[Docking Engines](docs/architecture/backend/docking-engines.md)** - Molecular computation integration
+
+#### 👩‍💻 **[Development Resources](docs/development/README.md)**
+- **[Setup Guide](docs/development/getting-started/setup.md)** - Environment setup and first steps
+- **[Developer Guide](docs/development/guides/developer-guide.md)** - Comprehensive development handbook
+- **[Git Workflow](docs/development/workflows/git-workflow.md)** - Branching strategy and commit standards
+- **[Testing Workflows](docs/development/workflows/testing-workflows.md)** - Testing strategies and automation
+- **[CI/CD Pipeline](docs/development/workflows/cicd-pipeline.md)** - Automated quality gates and deployment
+
+#### 🗄️ **[Database Documentation](docs/database/README.md)**
+- **[Schema Design](docs/database/design/schema.md)** - Data models and relationships
+- **[Multi-tenant Architecture](docs/database/connection-routing/multi-tenant.md)** - Organization-based isolation
+- **[Migration Strategy](docs/database/management/migrations.md)** - Database evolution patterns
+- **[Performance Optimization](docs/database/management/performance.md)** - Query optimization and scaling
+
+#### 🔗 **[API Documentation](docs/api/README.md)**
+- **[REST API Contracts](docs/api/contracts/rest-api.md)** - Complete endpoint specifications
+- **[Interactive API Docs](http://localhost:8000/docs)** - Swagger/OpenAPI interface (when running)
+- **[Authentication Flows](docs/security/architecture.md)** - JWT and authorization patterns
+
+#### 🚀 **[Deployment & Operations](docs/deployment/docker/setup.md)**
+- **[Docker Setup](docs/deployment/docker/setup.md)** - Containerized deployment guide
+- **[Environment Configuration](docs/deployment/environments/configuration.md)** - Settings and environment variables
+- **[Cloud Deployment](docs/deployment/cloud/production.md)** - Production deployment strategies
+- **[Operations Runbook](docs/operations/runbook.md)** - Troubleshooting and maintenance
+
+### 📖 **Documentation Standards & How to Document New Components**
+
+#### ✍️ **When Adding New Components**
+
+1. **📍 Choose the Right Location** (see Component Location Guide above)
+2. **📝 Write Component Documentation** following these standards:
+   - **Business Logic**: Document in relevant `docs/architecture/` section
+   - **API Changes**: Update `docs/api/contracts/rest-api.md`
+   - **Database Changes**: Update `docs/database/design/schema.md` + create migration docs
+   - **Deployment Changes**: Update relevant `docs/deployment/` guides
+
+#### 📐 **Documentation Format Standards**
+
+```markdown
+# Component Name
+
+*Brief description of purpose and role in system*
+
+## Overview
+[What this component does and why it exists]
+
+## Architecture
+[How it fits into the Clean Architecture]
+
+## Implementation
+[Key implementation details and patterns]
+
+## Usage Examples
+[Code examples and common use cases]
+
+## Testing
+[How to test this component]
+
+## Related Components
+- [Link to related documentation]
+- [Cross-references to dependent components]
+```
+
+#### 🔄 **Keeping Documentation Updated**
+
+- **Before Code Changes**: Read relevant docs to understand current design
+- **During Development**: Update documentation as you implement
+- **Pull Request Reviews**: Documentation updates are required for architectural changes
+- **Cross-References**: Always update related documentation sections
+
+#### 🎯 **Documentation Quality Gates**
+
+- ✅ **New APIs**: Must update API contracts and provide examples
+- ✅ **New Database Tables**: Must update schema docs and provide migration guide
+- ✅ **New Components**: Must document architecture integration and testing approach
+- ✅ **Breaking Changes**: Must provide migration guide and update all affected docs
+
+**📖 See the [Contributing Guide](docs/development/guides/contributing.md) for detailed documentation requirements.**
 
 ## 🧪 Testing Strategy
 
@@ -1105,12 +1265,30 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes following the established patterns
-4. Ensure all quality gates pass: `pre-commit run --all-files`
-5. Add/update tests and documentation
-6. Submit a pull request
+We welcome contributions! Please follow our comprehensive contribution guidelines:
+
+### 🚀 **Quick Start for Contributors**
+1. **📚 Read First**: [Contributing Guide](docs/development/guides/contributing.md) - Complete process and standards
+2. **🏗️ Understand Architecture**: [Architecture Overview](docs/architecture/system-design/overview.md)
+3. **⚙️ Setup Environment**: [Development Setup](docs/development/getting-started/setup.md)
+4. **🌿 Follow Workflow**: [Git Workflow](docs/development/workflows/git-workflow.md)
+
+### 📋 **Contribution Process**
+1. **Fork & Branch**: `git checkout -b feature/amazing-feature`
+2. **Follow Patterns**: Use existing architectural patterns (see [Clean Architecture Guide](docs/architecture/system-design/clean-architecture.md))
+3. **Quality Gates**: `pre-commit run --all-files` (see [Testing Workflows](docs/development/workflows/testing-workflows.md))
+4. **Documentation**: Update relevant docs using our [Documentation Standards](#-documentation-standards--how-to-document-new-components)
+5. **Testing**: Add tests following [Testing Guidelines](docs/development/workflows/testing-workflows.md)
+6. **Pull Request**: Follow [PR Process](docs/development/workflows/pull-request-process.md)
+
+### 🎯 **Areas for Contribution**
+- **🧬 New Docking Engines**: Add support for additional molecular docking tools ([Backend Architecture](docs/architecture/backend/docking-engines.md))
+- **📊 Visualization Features**: Enhance 3D molecular visualization ([Frontend Architecture](docs/architecture/frontend/architecture.md))
+- **🔬 Analysis Tools**: Implement new computational chemistry algorithms ([Use Cases](docs/architecture/system-design/use-cases.md))
+- **🎨 UI/UX Improvements**: Enhance user experience and accessibility ([Frontend Guides](docs/architecture/frontend/))
+- **⚡ Performance Optimization**: Improve computation and rendering performance ([Performance Docs](docs/database/management/performance.md))
+
+**💡 Before starting major work, please create an issue to discuss the approach and ensure alignment with project goals.**
 
 ## 🙏 Acknowledgments
 
