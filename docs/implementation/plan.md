@@ -1,6 +1,6 @@
 # Implementation Plan (Enhanced with Dynamic Task System)
 
-This plan ensures the system is runnable at the end of every stage. Each stage defines a small goal, strict scope, quality gates, and rollback. **Enhanced to include dynamic task system for scalable computational workflows.**
+This plan ensures the system is runnable at the end of every phase. Each phase defines a small goal, strict scope, quality gates, and rollback. **Enhanced to include dynamic task system for scalable computational workflows.**
 
 Deployment steps per stage live in:
 - Local (Compose): `project_design/DEPLOYMENT_PLAN_LOCAL.md`

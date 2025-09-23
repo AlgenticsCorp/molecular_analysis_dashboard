@@ -165,9 +165,9 @@ The Molecular Analysis Dashboard implementation is organized into **4 major phas
 
 ### **Documentation**
 - [Phase 4 Planning](phase-4/planning.md)
-- [Phase 4A Implementation Plan](phase-4/stage-4a/implementation-plan.md)
-- [Phase 4B Implementation Plan](phase-4/stage-4b/implementation-plan.md)
-- [Phase 4C Implementation Plan](phase-4/stage-4c/implementation-plan.md)
+- [Phase 4A Implementation Plan](phase-4/phase-4a/implementation-plan.md)
+- [Phase 4B Implementation Plan](phase-4/phase-4b/implementation-plan.md)
+- [Phase 4C Implementation Plan](phase-4/phase-4c/implementation-plan.md)
 
 ---
 
