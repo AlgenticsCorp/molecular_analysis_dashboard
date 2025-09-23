@@ -93,7 +93,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ["bash", "-lc", "alembic upgrade head"]
+    command: ["bash", "-lc", "cd database && python scripts/migrate.py --upgrade"]
     restart: "no"
     networks: [appnet]
 

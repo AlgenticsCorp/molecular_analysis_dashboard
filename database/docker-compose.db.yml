@@ -1,0 +1,114 @@
+version: "3.9"
+
+# Database services only - for independent database deployment
+services:
+  postgres:
+    image: postgres:16
+    container_name: mad-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mad}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mad_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mad}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_extensions.sql:/docker-entrypoint-initdb.d/01_extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mad} -d ${POSTGRES_DB:-mad}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - database
+
+  redis:
+    image: redis:7-alpine
+    container_name: mad-redis
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - database
+
+  # Database migration service
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: mad-migrate
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mad}:${POSTGRES_PASSWORD:-mad_password}@postgres:5432/${POSTGRES_DB:-mad}
+      ALEMBIC_BRANCH: ${ALEMBIC_BRANCH:-metadata}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "scripts/migrate.py", "--upgrade"]
+    volumes:
+      - ./:/app/database
+    working_dir: /app/database
+    networks:
+      - database
+    restart: "no"
+
+  # Data seeding service
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: mad-seed
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mad}:${POSTGRES_PASSWORD:-mad_password}@postgres:5432/${POSTGRES_DB:-mad}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["python", "scripts/seed.py", "--force"]
+    volumes:
+      - ./:/app/database
+    working_dir: /app/database
+    networks:
+      - database
+    restart: "no"
+
+  # Database health check service
+  healthcheck:
+    build:
+      context: .
+      dockerfile: Dockerfile.db
+    container_name: mad-healthcheck
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-mad}:${POSTGRES_PASSWORD:-mad_password}@postgres:5432/${POSTGRES_DB:-mad}
+      REDIS_URL: redis://redis:6379/0
+      RESULTS_DB_TEMPLATE: postgresql+asyncpg://${POSTGRES_USER:-mad}:${POSTGRES_PASSWORD:-mad_password}@postgres:5432/mad_results_{org_id}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["python", "scripts/health_check.py", "--continuous"]
+    volumes:
+      - ./:/app/database
+    working_dir: /app/database
+    networks:
+      - database
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  database:
+    driver: bridge
