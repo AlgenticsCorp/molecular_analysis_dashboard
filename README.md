@@ -219,25 +219,298 @@ mkdocs serve
 
 ## 🚀 Deployment
 
-### Local Development
+### 🐳 Containerized Deployment (Recommended)
+
+The molecular analysis dashboard is fully containerized for easy deployment across environments. All services run as secure, isolated containers with proper health checks and networking.
+
+#### Prerequisites
+- Docker 20.10+ with Docker Compose
+- 4GB+ RAM available for containers
+- 10GB+ disk space for images and data
+
+#### Complete Stack Deployment
+
 ```bash
+# 1. Clone and configure
+git clone https://github.com/AlgenticsCorp/molecular_analysis_dashboard.git
+cd molecular_analysis_dashboard
+cp .env.example .env
+
+# 2. Start all services
 docker compose up -d
+
+# 3. Run database migrations
+docker compose run --rm migrate
+
+# 4. Verify deployment
+curl http://localhost:3000/health
 ```
 
-### Production Deployment
+**Service Access:**
+- **🌐 Frontend Application**: http://localhost:3000
+- **📊 API Documentation**: http://localhost:3000/api/docs (proxied)
+- **🔍 Health Check**: http://localhost:3000/health
+- **📈 Worker Monitoring**: http://localhost:5555 (Flower UI)
+
+#### Individual Service Management
+
 ```bash
-# Scale services
+# Scale services independently
 docker compose up -d --scale api=3 --scale worker=5
 
-# Monitor services
-docker compose logs -f api worker
+# Monitor service logs
+docker compose logs -f frontend api worker
+
+# Restart specific services
+docker compose restart frontend api
+
+# View service status
+docker compose ps
 ```
 
-### Cloud Deployment
-- Kubernetes manifests available in `k8s/`
-- Helm charts for easy deployment
-- Multi-environment configuration
-- Auto-scaling based on job queue length
+#### Container Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Frontend      │    │      API        │    │     Worker      │
+│   (Nginx)       │    │   (FastAPI)     │    │   (Celery)      │
+│   Port: 3000    │────│   Port: 8000    │    │   Background    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+         ┌─────────────────┐    ┌─────────────────┐
+         │   PostgreSQL    │    │     Redis       │
+         │   Port: 5432    │    │   Port: 6379    │
+         └─────────────────┘    └─────────────────┘
+```
+
+#### Security Features
+
+- **🔒 Non-root containers**: All services run with minimal privileges
+- **🛡️ Network isolation**: Services communicate via internal networks only
+- **🚪 Single entry point**: Frontend acts as reverse proxy for all traffic
+- **📋 Health monitoring**: Comprehensive health checks for all containers
+- **🔧 Resource limits**: Configurable CPU and memory constraints
+
+#### Environment Configuration
+
+**Development Environment:**
+```bash
+# Start with development overrides
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# Enable hot reloading for frontend development
+cd frontend && npm run dev  # Runs outside container for faster iteration
+```
+
+**Production Environment:**
+```bash
+# Use production optimizations
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+
+# Enable SSL/TLS with reverse proxy
+# See project_design/DEPLOYMENT_DOCKER.md for HTTPS setup
+```
+
+#### Volume Management
+
+```bash
+# Persistent data volumes
+docker volume ls | grep molecular_analysis
+
+# Backup database
+docker compose exec postgres pg_dump -U user molecular_db > backup.sql
+
+# Backup uploaded files
+docker compose exec frontend tar -czf /tmp/uploads.tar.gz /usr/share/nginx/html/uploads
+
+# View storage usage
+docker system df
+docker compose exec frontend df -h /usr/share/nginx/html
+```
+
+#### Performance Tuning
+
+**Horizontal Scaling:**
+```bash
+# Scale API for high traffic
+docker compose up -d --scale api=5
+
+# Scale workers for computational load
+docker compose up -d --scale worker=10
+
+# Monitor resource usage
+docker stats
+```
+
+**Resource Allocation:**
+```yaml
+# Add to docker-compose.override.yml
+services:
+  api:
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+  worker:
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+```
+
+#### Troubleshooting
+
+**Common Issues:**
+
+1. **Frontend not accessible**: Check container health and port mapping
+   ```bash
+   docker compose ps frontend
+   docker compose logs frontend
+   curl -I http://localhost:3000
+   ```
+
+2. **API proxy errors**: Verify network connectivity between containers
+   ```bash
+   docker compose exec frontend nslookup api
+   docker compose logs api
+   ```
+
+3. **Build failures**: Clear Docker cache and rebuild
+   ```bash
+   docker compose down
+   docker system prune -f
+   docker compose build --no-cache
+   docker compose up -d
+   ```
+
+4. **Performance issues**: Monitor resource usage and scale appropriately
+   ```bash
+   docker stats --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+   ```
+
+**Health Check Debugging:**
+```bash
+# Check all service health
+docker compose ps
+
+# View health check logs
+docker inspect $(docker compose ps -q frontend) | jq '.[0].State.Health'
+
+# Manual health check
+docker compose exec frontend curl -f http://localhost:3000/health
+```
+
+#### CI/CD Integration
+
+**GitHub Actions Example:**
+```yaml
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy to production
+        run: |
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+          docker compose run --rm migrate
+```
+
+**Rolling Updates:**
+```bash
+# Zero-downtime frontend updates
+docker compose build frontend
+docker compose up -d --no-deps frontend
+
+# Blue-green API deployment
+docker compose up -d --scale api=6  # Start new instances
+# Wait for health checks to pass
+docker compose up -d --scale api=3  # Remove old instances
+```
+
+### 🌩️ Cloud Deployment
+
+#### Docker Swarm
+```bash
+# Initialize swarm
+docker swarm init
+
+# Deploy stack
+docker stack deploy -c docker-compose.yml molecular-dashboard
+
+# Scale services
+docker service scale molecular-dashboard_api=3
+```
+
+#### Kubernetes
+```bash
+# Using provided manifests
+kubectl apply -f k8s/
+
+# Using Helm chart
+helm install molecular-dashboard ./helm/molecular-dashboard
+```
+
+#### Cloud Platforms
+
+**AWS ECS:**
+- Task definitions provided in `deploy/aws/`
+- ALB configuration for load balancing
+- RDS for managed PostgreSQL
+- ElastiCache for managed Redis
+
+**Google Cloud Run:**
+- Cloud Build configuration
+- Managed database integration
+- Auto-scaling based on traffic
+
+**Azure Container Instances:**
+- ARM templates for infrastructure
+- Container groups for service orchestration
+- Managed PostgreSQL integration
+
+### 📊 Monitoring and Observability
+
+#### Application Metrics
+```bash
+# View service metrics
+docker compose exec frontend curl http://localhost:3000/metrics
+
+# API performance metrics
+docker compose exec api curl http://localhost:8000/metrics
+
+# Worker queue metrics
+docker compose exec flower curl http://localhost:5555/api/workers
+```
+
+#### Log Aggregation
+```bash
+# Centralized logging
+docker compose logs -f --tail=100
+
+# Service-specific logs
+docker compose logs -f frontend
+docker compose logs -f api --since=1h
+```
+
+#### Health Monitoring
+```bash
+# Continuous health monitoring
+watch -n 5 'docker compose ps'
+
+# Automated health checks
+# See monitoring/healthcheck.sh for automated monitoring script
+```
+
+For detailed cloud deployment guides, see `project_design/DEPLOYMENT_DOCKER.md` and platform-specific documentation in the `deploy/` directory.
 
 ## 📊 Monitoring and Observability
 
