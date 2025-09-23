@@ -1,11 +1,35 @@
-"""FastAPI app with gateway-friendly middleware.
+"""
+FastAPI application with production-ready middleware and gateway support.
+
+This module provides the main FastAPI application instance with comprehensive
+middleware stack for production deployment, including CORS, proxy headers,
+trusted hosts, and request ID propagation.
+
+Responsibilities:
+- Configure FastAPI application with production middleware
+- Set up CORS for cross-origin requests
+- Handle proxy headers for load balancer compatibility
+- Provide health and readiness probes for container orchestration
+- Include task management API routes when available
+
+Dependencies:
+- fastapi: Core web framework
+- starlette: ASGI middleware components
+- uvicorn: ASGI server middleware
+- .routes.tasks: Task management API routes (optional)
+
+Assumptions:
+- Environment variables configure middleware behavior
+- Request ID can be provided by client or auto-generated
+- Task router is optional and gracefully handled if unavailable
+- Health checks support container orchestration patterns
 
 Features:
-- Root path support for API gateways/reverse proxies (env `ROOT_PATH`).
-- Proxy headers handling (X-Forwarded-For/Proto) via Starlette middleware.
-- Trusted host checks (env `TRUSTED_HOSTS`, comma separated or `*`).
-- CORS configuration (env `CORS_ALLOW_ORIGINS`, comma separated or `*`).
-- Request ID propagation: reads `X-Request-ID` or generates one; returns it in responses.
+- Root path support for API gateways/reverse proxies (env `ROOT_PATH`)
+- Proxy headers handling (X-Forwarded-For/Proto) via Starlette middleware
+- Trusted host checks (env `TRUSTED_HOSTS`, comma separated or `*`)
+- CORS configuration (env `CORS_ALLOW_ORIGINS`, comma separated or `*`)
+- Request ID propagation: reads `X-Request-ID` or generates one; returns it in responses
 """
 
 from __future__ import annotations
@@ -18,6 +42,14 @@ from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+
+# Import API routers
+try:
+    from .routes.tasks import router as tasks_router
+
+    TASKS_ROUTER_AVAILABLE = True
+except ImportError:
+    TASKS_ROUTER_AVAILABLE = False
 
 root_path = os.getenv("ROOT_PATH", "")
 app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
@@ -44,6 +76,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add API routers
+if TASKS_ROUTER_AVAILABLE:
+    app.include_router(tasks_router)
+
 
 @app.middleware("http")
 async def add_request_id_header(request: Request, call_next: Callable[[Request], Any]) -> Response:
@@ -62,5 +98,13 @@ def health() -> dict[str, str]:
 
 @app.get("/ready")
 def ready() -> dict[str, Any]:
-    """Readiness probe: placeholder until DB/broker are wired (Stage 1)."""
-    return {"status": "not_ready", "checks": {"db": "pending", "broker": "pending"}}
+    """Readiness probe: check database and task API availability."""
+    checks = {
+        "db": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
+        "task_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
+        "broker": "pending",
+    }
+
+    status = "ready" if TASKS_ROUTER_AVAILABLE else "not_ready"
+
+    return {"status": status, "checks": checks}

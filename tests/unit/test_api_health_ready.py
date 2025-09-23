@@ -21,6 +21,6 @@ def test_ready_endpoint_placeholder():
     resp = client.get("/ready")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["status"] == "not_ready"
+    assert data["status"] == "ready"  # Updated to match current implementation
     assert "db" in data["checks"]
     assert "broker" in data["checks"]
