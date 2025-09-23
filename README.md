@@ -277,13 +277,162 @@ docker compose ps
 │   Port: 3000    │────│   Port: 8000    │    │   Background    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
-         └───────────────────────┼───────────────────────┘
+         │              ┌─────────────────┐               │
+         │              │    Storage      │               │
+         │──────────────│   (Nginx)       │───────────────│
+                        │   Port: 8080    │
+                        └─────────────────┘
                                  │
          ┌─────────────────┐    ┌─────────────────┐
          │   PostgreSQL    │    │     Redis       │
          │   Port: 5432    │    │   Port: 6379    │
          └─────────────────┘    └─────────────────┘
 ```
+
+#### 📁 Storage Service Container
+
+The storage service is a dedicated Nginx-based container that handles all molecular file operations with enhanced security and performance.
+
+**🔧 Key Features:**
+- **Dedicated file server**: Isolated container for molecular file management
+- **Volume management**: Persistent storage with organized directory structure
+- **Security hardening**: Non-root execution, CORS handling, content validation
+- **Health monitoring**: Built-in health checks and monitoring endpoints
+- **Organization isolation**: Secure per-organization file separation
+- **Format support**: PDB, SDF, MOL2, and other molecular formats
+
+**📂 Storage Structure:**
+```
+/storage/
+├── uploads/          # User-uploaded molecular files
+│   └── {org-id}/     # Per-organization isolation
+│       └── molecules/# Organized by type
+├── results/          # Docking computation results
+│   └── {org-id}/     # Per-organization results
+│       └── jobs/     # Job-specific outputs
+└── temp/             # Temporary processing files
+    └── {session-id}/ # Session-based cleanup
+```
+
+**🚀 Storage Service Management:**
+
+```bash
+# Check storage service status
+docker compose ps storage
+docker compose logs storage
+
+# Monitor storage usage
+docker compose exec storage df -h /storage
+docker compose exec storage du -sh /storage/*
+
+# Access storage endpoints
+curl http://localhost:8080/health              # Health check
+curl http://localhost:8080/uploads/            # Browse uploads
+curl http://localhost:8080/results/            # Browse results
+
+# Storage service configuration
+docker compose exec storage cat /etc/nginx/conf.d/default.conf
+```
+
+**🔒 Security Features:**
+
+- **Non-root execution**: Runs as nginx user (UID 101)
+- **Read-only filesystem**: Only storage volumes are writable
+- **CORS configuration**: Proper cross-origin request handling
+- **Content-Type validation**: Strict MIME type enforcement
+- **Directory traversal protection**: Path sanitization and validation
+- **Access logging**: Comprehensive request logging
+
+**⚡ Performance Optimization:**
+
+```bash
+# Scale storage for high I/O workloads
+docker compose up -d --scale storage=2
+
+# Monitor storage performance
+docker stats storage
+docker compose exec storage iostat -x 1
+
+# Optimize for large files
+# Edit docker-compose.yml:
+services:
+  storage:
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+```
+
+**🛠️ File Upload API Integration:**
+
+The storage service integrates with the FastAPI backend for seamless molecular file operations:
+
+```bash
+# Upload molecule via API (proxied through frontend)
+curl -X POST http://localhost:3000/api/v1/molecules/upload \
+  -F "file=@molecule.pdb" \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+
+# Direct storage access (for debugging)
+curl -X PUT http://localhost:8080/uploads/org-123/molecules/test.pdb \
+  --data-binary @molecule.pdb \
+  -H "Content-Type: chemical/x-pdb"
+```
+
+**🔍 Storage Health Monitoring:**
+
+```bash
+# Comprehensive health check
+curl -s http://localhost:8080/health | jq '.'
+{
+  "status": "healthy",
+  "service": "storage",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "version": "1.0.0"
+}
+
+# Monitor storage metrics
+docker compose exec storage cat /var/log/nginx/access.log
+docker compose exec storage cat /var/log/nginx/error.log
+```
+
+**🐛 Storage Service Troubleshooting:**
+
+1. **Permission Issues:**
+   ```bash
+   # Fix volume permissions
+   docker compose exec storage chown -R nginx:nginx /storage
+   docker compose restart storage
+   ```
+
+2. **Upload Failures:**
+   ```bash
+   # Check upload directory permissions
+   docker compose exec storage ls -la /storage/uploads/
+
+   # Verify CORS headers
+   curl -I -X OPTIONS http://localhost:8080/uploads/
+   ```
+
+3. **File Not Found Errors:**
+   ```bash
+   # Check file organization
+   docker compose exec storage find /storage -name "*.pdb" -ls
+
+   # Verify API connectivity
+   docker compose exec frontend nslookup storage
+   ```
+
+4. **Performance Issues:**
+   ```bash
+   # Monitor I/O usage
+   docker stats --format "table {{.Container}}\t{{.BlockIO}}"
+
+   # Check storage volume usage
+   docker volume inspect molecular_analysis_dashboard_uploads
+   ```
 
 #### Security Features
 

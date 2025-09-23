@@ -12,8 +12,9 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Copy project metadata and source, then install in editable mode
+# Copy project metadata, config, and source, then install in editable mode
 COPY pyproject.toml ./
+COPY docker/gunicorn_conf.py ./docker/gunicorn_conf.py
 COPY src ./src
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -e .

@@ -53,13 +53,54 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - results:${RESULTS_DIR}
       - uploads:${UPLOADS_DIR}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      - NODE_ENV=production
+      - VITE_API_BASE_URL=http://localhost:3000
+    depends_on:
+      api:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
+  storage:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.storage
+    environment:
+      - NGINX_USER=nginx
+      - STORAGE_ROOT=/storage
+    volumes:
+      - uploads:/storage/uploads
+      - results:/storage/results
+      - storage_temp:/storage/temp
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -115,6 +156,7 @@ volumes:
   redisdata:
   results:
   uploads:
+  storage_temp:
 
 networks:
   appnet:
