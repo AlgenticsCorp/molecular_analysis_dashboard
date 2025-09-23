@@ -65,20 +65,50 @@ services:
       retries: 5
     networks: [appnet]
 
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=1
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_ISSUER=${JWT_ISSUER:-mad.local}
+      - JWT_AUDIENCE=${JWT_AUDIENCE:-mad}
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+      storage:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      # - "443:443"  # Enable when SSL certificates are configured
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks: [appnet]
+
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
     environment:
       - NODE_ENV=production
-      - VITE_API_BASE_URL=http://localhost:3000
+      - VITE_API_BASE_URL=http://localhost
     depends_on:
       api:
         condition: service_healthy
       storage:
         condition: service_healthy
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 15s

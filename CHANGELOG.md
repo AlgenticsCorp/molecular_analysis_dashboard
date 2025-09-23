@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Phase 3A: API Gateway Implementation** (2025-09-23)
+  - Production-ready OpenResty container with Nginx + Lua scripting
+  - JWT authentication with user context propagation
+  - Multi-tier rate limiting (5-200 req/min based on endpoint)
+  - OWASP-compliant security headers and CORS configuration
+  - Request tracing with unique ID generation and propagation
+  - Service discovery foundation for Stage 4 task orchestration
+  - Comprehensive Docker Compose integration
 - Initial template release with Clean Architecture structure
 - AI agent optimization and comprehensive guides
 - Code visualization tools with clickable dependency graphs

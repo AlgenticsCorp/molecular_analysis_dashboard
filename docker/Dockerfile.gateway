@@ -1,0 +1,47 @@
+# API Gateway Container
+# OpenResty (Nginx + LuaJIT) for advanced scripting and dynamic configuration
+
+FROM openresty/openresty:1.25.3.1-alpine
+
+# Install basic dependencies
+RUN apk add --no-cache curl \
+    && rm -rf /var/cache/apk/*
+
+# Create directories for configuration and Lua scripts
+RUN mkdir -p /etc/nginx/conf.d \
+    /usr/local/openresty/lualib/gateway \
+    /var/log/nginx \
+    /etc/ssl/certs \
+    /var/cache/nginx
+
+# Copy gateway configuration files
+COPY docker/gateway/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY docker/gateway/conf.d/ /etc/nginx/conf.d/
+COPY docker/gateway/lua/ /usr/local/openresty/lualib/gateway/
+
+# Copy SSL configuration templates
+COPY docker/gateway/templates/ /etc/nginx/templates/
+
+# Set up non-root user for security
+RUN addgroup -g 101 -S nginx && \
+    adduser -S -D -H -u 101 -h /var/cache/nginx -s /sbin/nologin -G nginx -g nginx nginx
+
+# Set proper permissions
+RUN chown -R nginx:nginx /var/log/nginx /var/cache/nginx /etc/nginx
+
+# Create health check script
+RUN echo '#!/bin/sh\ncurl -f http://localhost/health || exit 1' > /usr/local/bin/health_check.sh && \
+    chmod +x /usr/local/bin/health_check.sh
+
+# Switch to non-root user
+USER nginx
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD /usr/local/bin/health_check.sh
+
+# Expose HTTP and HTTPS ports
+EXPOSE 80 443
+
+# Start OpenResty
+CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]

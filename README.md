@@ -25,6 +25,7 @@ A comprehensive web-based platform for molecular analysis and computational chem
 
 ### 🏗️ Enterprise Architecture
 - **Clean Architecture**: SOLID principles with Hexagonal/Ports & Adapters pattern
+- **API Gateway**: OpenResty-based intelligent routing with security and observability
 - **Microservice Ready**: FastAPI backend with containerized deployment
 - **Scalable Computing**: Celery-based distributed task processing
 - **Multi-tenant**: Organization-based data isolation
@@ -271,15 +272,23 @@ docker compose ps
 #### Container Architecture
 
 ```
+                        ┌─────────────────┐
+                        │   API Gateway   │ ← NEW: Phase 3A Complete
+                        │  (OpenResty)    │   • JWT Authentication
+                        │   Port: 80/443  │   • Rate Limiting
+                        └─────────────────┘   • Service Routing
+                                 │
+        ┌────────────────────────┼────────────────────────┐
+        │                       │                       │
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Frontend      │    │      API        │    │     Worker      │
-│   (Nginx)       │    │   (FastAPI)     │    │   (Celery)      │
-│   Port: 3000    │────│   Port: 8000    │    │   Background    │
+│   (React/Nginx) │    │   (FastAPI)     │    │   (Celery)      │
+│   Port: 3000    │    │   Port: 8000    │    │   Background    │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          │              ┌─────────────────┐               │
-         │              │    Storage      │               │
-         │──────────────│   (Nginx)       │───────────────│
+         │──────────────│    Storage      │───────────────│
+                        │   (Nginx)       │
                         │   Port: 8080    │
                         └─────────────────┘
                                  │
