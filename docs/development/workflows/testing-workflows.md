@@ -407,7 +407,7 @@ k6 run --out json=api-results.json scripts/performance/api-load-test.js
 echo "Testing frontend performance..."
 cd frontend
 npm run build
-npx lighthouse http://localhost:3000 --output json --output-path lighthouse-results.json --chrome-flags="--headless"
+npx lighthouse http://localhost --output json --output-path lighthouse-results.json --chrome-flags="--headless"
 
 # Database performance testing
 echo "Testing database performance..."

@@ -78,8 +78,14 @@ DEBUG=true
 LOG_LEVEL=DEBUG
 
 # Frontend
-VITE_API_BASE_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000
+# Frontend environment (.env.local)
+# Gateway-based API access (recommended)
+VITE_API_BASE_URL=http://localhost/api
+VITE_WS_URL=ws://localhost/ws
+
+# For development debugging (direct API access)
+# VITE_API_BASE_URL=http://localhost:8000
+# VITE_WS_URL=ws://localhost:8000
 
 # Storage (local development)
 STORAGE_TYPE=local
@@ -147,8 +153,12 @@ class DevelopmentServerManager:
         )
 
         print("✅ All services started successfully!")
-        print("🌐 API: http://localhost:8000")
-        print("🌐 Frontend: http://localhost:5173")
+        print("� Gateway (Recommended): http://localhost")
+        print("📊 API Docs: http://localhost/api/docs")
+        print("")
+        print("🔧 Direct Service Access (Debug only):")
+        print("�🌐 API: http://localhost:8000")
+        print("⚛️ Frontend: http://localhost:5173")
         print("📚 API Docs: http://localhost:8000/docs")
 
     async def stop_services(self):

@@ -163,7 +163,8 @@ docker compose -f docker-compose.test.yml up --abort-on-container-exit
 
 # Test the feature manually
 docker compose up -d
-# Navigate to http://localhost:3000 and test
+# Navigate to http://localhost and test (gateway route)
+# Alternative: http://localhost:3000 for direct frontend access
 ```
 
 #### 2. Review Checklist

@@ -53,21 +53,17 @@ docker compose up -d postgres redis
 # Run database migrations
 docker compose run --rm migrate
 
-# Start API and worker services
-docker compose up -d api worker
+# Start all services including gateway
+docker compose up -d
 ```
 
-### 3. Start Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### 3. Access the Application
+- **Dashboard**: http://localhost (gateway routes to frontend)
+- **API Documentation**: http://localhost/api/docs
+- **API Health Check**: http://localhost/health
+- **System Status**: http://localhost/api/v1/health
 
-### 4. Access the Application
-- **Dashboard**: http://localhost:3000
-- **API Documentation**: http://localhost:8000/docs
-- **API Health Check**: http://localhost:8000/health
+> **🎯 Gateway Architecture**: All services now route through the gateway on port 80 for unified access.
 
 ## 📱 Application Overview
 

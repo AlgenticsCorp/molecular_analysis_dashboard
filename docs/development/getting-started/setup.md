@@ -8,7 +8,18 @@ This comprehensive guide will get you from zero to a fully functional developmen
 - **Python 3.9+** (3.11+ recommended)
 - **Node.js 18+** (for frontend development)
 - **Docker & Docker Compose** (for services)
-- **Git** (for version control)
+- **Git** (for versi# Frontend environment variables (.env.local)
+# Gateway-based API access (recommended for production-like development)
+VITE_API_BASE_URL=http://localhost/api
+VITE_WS_URL=ws://localhost/ws
+
+# Direct API access (for debugging)
+# VITE_API_BASE_URL=http://localhost:8000
+# VITE_WS_URL=ws://localhost:8000/ws
+
+# CORS settings for backend (.env)
+# Gateway handles CORS, but for direct API access:
+CORS_ORIGINS=http://localhost,http://localhost:3000,http://127.0.0.1:3000ontrol)
 
 ### **System Requirements**
 - **RAM**: 8GB minimum, 16GB recommended
@@ -189,34 +200,50 @@ npm run type-check  # TypeScript type checking
 
 ## 🚀 **Step 5: Start Development Services**
 
-### **Start Backend API**
+### **🐳 Start All Services with Docker Compose (Recommended)**
 ```bash
-# Navigate back to project root
-cd ..
+# Navigate to project root
+cd ../
 
+# Start infrastructure services first
+docker compose up -d postgres redis
+
+# Run database migrations
+docker compose run --rm migrate
+
+# Start all application services including gateway
+docker compose up -d
+```
+
+**All services are now accessible through the gateway:**
+- **🌐 Dashboard**: http://localhost (frontend through gateway)
+- **📊 API Documentation**: http://localhost/api/docs (API through gateway)
+- **🔍 Health Check**: http://localhost/health (gateway health status)
+- **⚙️ API Endpoints**: http://localhost/api/v1/* (all API routes)
+
+> **✅ Gateway Architecture**: All services route through port 80 for unified access
+
+### **🛠️ Alternative: Individual Service Development**
+
+For debugging specific services, you can also run them individually:
+
+#### **Backend API Only**
+```bash
 # Ensure virtual environment is activated
 source .venv/bin/activate
 
-# Start FastAPI development server
+# Start FastAPI development server (bypass gateway)
 uvicorn src.molecular_analysis_dashboard.presentation.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API will be available at:
-- **API**: http://localhost:8000
-- **Interactive Docs**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-
-### **Start Frontend Development Server**
+#### **Frontend Only**
 ```bash
 # In a new terminal, navigate to frontend
 cd frontend
 
 # Start React development server
-npm run dev
+npm run dev         # Starts on http://localhost:3000
 ```
-
-The frontend will be available at:
-- **Frontend**: http://localhost:3000
 
 ### **Start Background Workers (Optional)**
 ```bash
@@ -244,21 +271,31 @@ npm test
 
 ### **Test API Endpoints**
 ```bash
-# Test health endpoint
-curl http://localhost:8000/health
+# Test gateway health (recommended)
+curl http://localhost/health
+# Should return gateway status and service health
 
+# Test API through gateway
+curl http://localhost/api/v1/health
 # Should return: {"status": "ok"}
 
-# Test readiness endpoint
-curl http://localhost:8000/ready
+# Direct API access (if running individual services)
+curl http://localhost:8000/health
+# Should return: {"status": "ok"}
 
+curl http://localhost:8000/ready
 # Should return: {"status": "ready", "checks": {...}}
 ```
 
 ### **Test Frontend**
-1. Open http://localhost:3000 in your browser
+1. Open http://localhost in your browser (gateway-routed frontend)
 2. You should see the Molecular Analysis Dashboard interface
 3. Try navigating through different sections
+4. Test API integration by checking browser dev tools network tab
+
+**Alternative direct access (if running individual services):**
+- Frontend: http://localhost:3000
+- API Docs: http://localhost:8000/docs
 
 ### **End-to-End Verification**
 ```bash
