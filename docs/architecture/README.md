@@ -12,8 +12,8 @@ The Molecular Analysis Dashboard follows **Clean Architecture** (Ports & Adapter
 High-level architecture, patterns, and design principles
 - **[Overview](system-design/overview.md)** - System architecture overview
 - **[Clean Architecture](system-design/clean-architecture.md)** - Ports & Adapters implementation
-- **[Domain Model](system-design/domain-model.md)** - Core business entities and rules
-- **[Service Layer](system-design/service-layer.md)** - Application services and use cases
+- **[Framework Design](system-design/framework-design.md)** - Core business entities and framework patterns
+- **[Use Cases](system-design/use-cases.md)** - Application services and use cases
 
 ### **[Frontend](frontend/README.md)**
 React application architecture and patterns
@@ -32,9 +32,9 @@ Server-side architecture and computational engines
 ### **[Integration Architecture](integration/README.md)**
 External services, APIs, and system integration
 - **[Gateway](integration/gateway.md)** - API Gateway design and routing
-- **[External Services](integration/external-services.md)** - Third-party service integration
-- **[Message Queues](integration/message-queues.md)** - Async communication patterns
-- **[File Storage](integration/file-storage.md)** - Molecular file handling
+- **[Gateway Integration](integration/gateway.md)** - API Gateway and service integration
+- **[Queue Design](backend/queue-design.md)** - Async communication patterns
+- **[Integration Architecture](integration/README.md)** - Service integration and communication patterns
 
 ---
 
@@ -117,7 +117,7 @@ domain/ ← use_cases/ ← adapters/ ← infrastructure/
 ### **For New Developers**
 1. Start with [System Design Overview](system-design/overview.md)
 2. Review [Clean Architecture](system-design/clean-architecture.md)
-3. Explore [Domain Model](system-design/domain-model.md)
+3. Explore [Framework Design](system-design/framework-design.md)
 4. Choose Frontend or Backend architecture based on your role
 
 ### **For System Architects**
@@ -153,4 +153,4 @@ When proposing architectural changes:
 4. **Update related documentation** and diagrams
 5. **Get review** from technical leadership
 
-For detailed guidelines, see [Architecture Decision Process](../development/workflows/architecture-decisions.md).
+For detailed guidelines, see [Development Workflows](../development/workflows/README.md).

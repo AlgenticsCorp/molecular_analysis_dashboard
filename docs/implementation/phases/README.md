@@ -247,4 +247,4 @@ Based on business priorities, we can either:
 3. **Completion Report** - Summary of deliverables, lessons learned, metrics
 4. **Handoff** - Prepare for next phase or deployment
 
-For detailed phase management procedures, see [Phase Management Workflow](../tools-workflows/phase-management.md).
+For detailed phase management procedures, see [Implementation Management](../README.md).

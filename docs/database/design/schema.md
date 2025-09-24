@@ -572,5 +572,5 @@ CREATE INDEX CONCURRENTLY idx_jobs_priority ON jobs (priority DESC);
 
 For detailed migration procedures, see:
 - [Database Management](../management/migrations.md)
-- [Multi-Tenant Operations](../connection-routing/multi-tenant-routing.md)
-- [Performance Tuning](../design/performance.md)
+- [Multi-Tenant Operations](../connection-routing/README.md)
+- [Performance Tuning](../management/performance.md)

@@ -8,7 +8,7 @@ This section provides complete operational guides, monitoring strategies, and au
 
 ## Operations Components
 
-### **[Monitoring](monitoring.md)**
+### **[API Gateway](api-gateway.md)**
 Comprehensive monitoring and observability implementation
 - Application performance monitoring (APM) setup
 - Infrastructure monitoring and alerting strategies
@@ -16,7 +16,7 @@ Comprehensive monitoring and observability implementation
 - Dashboard configuration and key performance indicators
 - Incident detection and automated response procedures
 
-### **[Logging](logging.md)**
+### **[Operations Runbook](runbook.md)**
 Centralized logging strategies and log analysis
 - Structured logging implementation across all services
 - Log aggregation and centralized analysis setup
@@ -24,7 +24,7 @@ Centralized logging strategies and log analysis
 - Performance debugging through log correlation
 - Log retention policies and storage management
 
-### **[Backup and Recovery](backup-recovery.md)**
+### **[Gateway Management](api-gateway.md)**
 Data protection and disaster recovery procedures
 - Automated backup strategies for multi-tenant databases
 - Point-in-time recovery procedures and testing
@@ -32,7 +32,7 @@ Data protection and disaster recovery procedures
 - Disaster recovery runbooks and recovery time objectives
 - Data integrity validation and recovery procedures
 
-### **[Maintenance](maintenance.md)**
+### **[Operational Procedures](runbook.md)**
 Routine maintenance procedures and automation
 - Database maintenance and optimization procedures
 - Container image updates and security patching

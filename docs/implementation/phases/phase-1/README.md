@@ -81,4 +81,4 @@ Phase 1 provides the foundation for:
 
 ---
 
-**Next Phase:** [Phase 2: Core Development](../phase-2/README.md)
+**Next Phase:** Phase 2: Core Development (Documentation in progress)

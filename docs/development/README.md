@@ -36,10 +36,10 @@ Development processes and automation
 
 ### **[Tools](tools/README.md)**
 Development tools and utilities
-- **[Pre-commit Hooks](tools/pre-commit.md)** - Code quality automation
-- **[Debugging Tools](tools/debugging.md)** - Debugging strategies and tools
-- **[Performance Profiling](tools/profiling.md)** - Performance analysis tools
-- **[Code Analysis](tools/analysis.md)** - Static analysis and metrics
+- **[Development Tools](tools/development-tools.md)** - Code quality and development automation
+- **[Development Tools](tools/development-tools.md)** - Debugging and development strategies
+- **[Development Tools](tools/development-tools.md)** - Performance and analysis tools
+- **[Development Tools](tools/development-tools.md)** - Code analysis and quality metrics
 
 ---
 
@@ -246,7 +246,7 @@ pytest --cov=src --cov-report=html
 2. **Set Up Environment**: Follow [Setup Guide](getting-started/setup.md)
 3. **Understand Architecture**: Review [Architecture Overview](getting-started/architecture.md)
 4. **Make Changes**: Follow [Developer Guide](guides/developer-guide.md)
-5. **Test Thoroughly**: Use [Testing Guide](guides/testing.md)
-6. **Submit PR**: Follow [PR Process](workflows/pull-request.md)
+5. **Test Thoroughly**: Use [Testing Workflows](workflows/testing-workflows.md)
+6. **Submit PR**: Follow [PR Process](workflows/pull-request-process.md)
 
 For detailed information on any aspect of development, explore the specific sections above or start with the [Getting Started](getting-started/setup.md) guide.

@@ -34,33 +34,28 @@ Client Applications
 
 ## 🗂️ **API Documentation Sections**
 
-### **[Contracts](contracts/README.md)**
+### **[REST API Contracts](contracts/rest-api.md)**
 REST API specifications and endpoint definitions
 - **[REST API](contracts/rest-api.md)** - Complete API contract with all endpoints
-- **[Authentication](contracts/authentication.md)** - JWT and OAuth2 authentication flows
-- **[Error Handling](contracts/error-handling.md)** - Standardized error responses
-- **[Rate Limiting](contracts/rate-limiting.md)** - API usage limits and quotas
+- **[API Authentication](contracts/rest-api.md#authentication)** - JWT and OAuth2 authentication flows
+- **[Error Handling](contracts/rest-api.md#error-handling)** - Standardized error responses
+- **[Rate Limiting](contracts/rest-api.md#rate-limiting)** - API usage limits and quotas
 
-### **[Gateway](gateway/README.md)**
+### **[API Gateway](../architecture/integration/gateway.md)**
 API gateway configuration and routing
-- **[Routing Configuration](gateway/routing.md)** - Service routing and load balancing
-- **[Security Policies](gateway/security.md)** - Authentication and authorization
-- **[Rate Limiting](gateway/rate-limiting.md)** - Multi-tier rate limiting implementation
-- **[Health Checks](gateway/health.md)** - Service health monitoring
+- **[Gateway Design](../architecture/integration/gateway.md)** - Service routing and load balancing
+- **[Gateway Security](../architecture/integration/gateway.md#security)** - Authentication and authorization
+- **[Gateway Features](../architecture/integration/gateway.md#features)** - Rate limiting and health monitoring
 
-### **[Schemas](schemas/README.md)**
+### **[API Schemas](contracts/rest-api.md)**
 Data models and validation schemas
-- **[OpenAPI Specification](schemas/openapi.md)** - Complete API schema
-- **[Request/Response Models](schemas/models.md)** - Pydantic model definitions
-- **[Dynamic Task Schemas](schemas/dynamic-tasks.md)** - Runtime task interface generation
-- **[Validation Rules](schemas/validation.md)** - Input validation and constraints
+- **[API Specification](contracts/rest-api.md)** - Complete API schema and models
+- **[Input Validation](contracts/rest-api.md#validation)** - Request validation and constraints
 
-### **[Integration](integration/README.md)**
+### **[API Integration](contracts/rest-api.md)**
 Client libraries and integration patterns
-- **[Python Client](integration/python-client.md)** - Official Python SDK
-- **[JavaScript Client](integration/javascript-client.md)** - TypeScript/JavaScript SDK
-- **[WebSocket Integration](integration/websockets.md)** - Real-time updates
-- **[Webhook Configuration](integration/webhooks.md)** - Event notifications
+- **[Client Integration](contracts/rest-api.md#clients)** - SDK usage and examples
+- **[Real-time Features](contracts/rest-api.md#websockets)** - WebSocket and webhook integration
 
 ---
 

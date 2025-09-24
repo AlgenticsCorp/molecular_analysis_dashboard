@@ -691,4 +691,4 @@ python docs/implementation/tools/update-status.py --phase "3B" --status "Complet
 # 4. Project management tools (GitHub milestones, etc.)
 ```
 
-For detailed schedules and dependencies, see [Release Management](../development/workflows/release-management.md).
+For detailed schedules and dependencies, see [Development Workflows](../development/workflows/README.md).

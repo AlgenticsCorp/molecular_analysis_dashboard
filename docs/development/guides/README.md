@@ -8,7 +8,7 @@ This section provides essential development guides, workflows, and best practice
 
 ## Development Guide Components
 
-### **[Local Development Setup](local-setup.md)**
+### **[Development Setup Guide](../getting-started/setup.md)**
 Complete guide for setting up the development environment
 - Docker-based development environment configuration
 - Database setup and migration procedures
@@ -16,7 +16,7 @@ Complete guide for setting up the development environment
 - Environment variable configuration and secrets management
 - Development tools and IDE configuration
 
-### **[Testing Strategies](testing.md)**
+### **[Testing Workflows](../workflows/testing-workflows.md)**
 Comprehensive testing methodologies and implementation
 - Unit testing patterns for Clean Architecture layers
 - Integration testing for multi-service workflows
@@ -24,7 +24,7 @@ Comprehensive testing methodologies and implementation
 - Performance testing and benchmarking strategies
 - Test data management and fixture creation
 
-### **[Code Quality Standards](code-quality.md)**
+### **[Developer Guide](developer-guide.md)**
 Code quality enforcement and best practices
 - Linting configuration (Black, isort, flake8, ESLint)
 - Type checking with mypy and TypeScript
@@ -32,7 +32,7 @@ Code quality enforcement and best practices
 - Pre-commit hooks and automated quality checks
 - Documentation standards and requirements
 
-### **[Debugging Techniques](debugging.md)**
+### **[Contributing Guide](contributing.md)**
 Advanced debugging strategies for molecular analysis workflows
 - Docker container debugging and log analysis
 - Async/await debugging in FastAPI and Celery

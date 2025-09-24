@@ -6,10 +6,10 @@ This project template implements **Clean Architecture** principles with comprehe
 
 - **[Getting Started](getting-started/quick-start.md)** - Set up your development environment
 - **[Architecture Guide](getting-started/architecture.md)** - Understand the project structure
-- **[Developer Guide](DEVELOPER_GUIDE.md)** - Development workflow and standards
+- **[Developer Guide](development/guides/developer-guide.md)** - Development workflow and standards
 - **[LLM Agent Guide](LLM_AGENT_GUIDE.md)** - AI agent development instructions
 - **[API Reference](api.md)** - Generated API documentation
-- **[Contributing](CONTRIBUTING.md)** - How to contribute to this project
+- **[Contributing](development/guides/contributing.md)** - How to contribute to this project
 
 ## 🏗️ Architecture Overview
 

@@ -8,7 +8,7 @@ This section documents the multi-tenant connection routing architecture that ena
 
 ## Connection Routing Components
 
-### **[Multi-Tenant Architecture](multi-tenant.md)**
+### **[Multi-Tenant Design](../design/schema.md)**
 Comprehensive multi-tenant database connection and data isolation strategies
 - Organization-based connection routing patterns
 - Row-level security implementation

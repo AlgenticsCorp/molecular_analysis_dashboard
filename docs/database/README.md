@@ -31,15 +31,15 @@ Metadata DB (Shared)     Results DBs (Per-Org)
 ### **[Design](design/README.md)**
 Database schema, ERD, and architectural patterns
 - **[Schema Overview](design/schema.md)** - Complete database schema with ERD diagrams
-- **[Multi-Tenant Design](design/multi-tenant.md)** - Hybrid multi-tenancy implementation
-- **[Performance Design](design/performance.md)** - Indexing, partitioning, and optimization
-- **[Data Types](design/data-types.md)** - Custom types, constraints, and validation
+- **[Database Schema](design/schema.md)** - Schema design including multi-tenancy
+- **[Performance Optimization](management/performance.md)** - Indexing, partitioning, and optimization
+- **[Schema Design](design/schema.md)** - Complete schema with constraints and validation
 
 ### **[Management](management/README.md)**
 Database operations, migrations, and maintenance
 - **[Migration Guide](management/migrations.md)** - Alembic migrations for multi-database setup
 - **[Seeding Data](management/seeding.md)** - Initial data population and fixtures
-- **[Backup & Recovery](management/backup-recovery.md)** - Database backup strategies
+- **[Database Management](management/database-setup.md)** - Database administration and maintenance
 - **[Monitoring](management/monitoring.md)** - Health checks and performance monitoring
 
 ### **[Connection Routing](connection-routing/README.md)**
@@ -47,14 +47,12 @@ Multi-tenant database routing and connection management
 - **[Router Architecture](connection-routing/router.md)** - Database connection routing system
 - **[Session Management](connection-routing/sessions.md)** - Async session handling
 - **[Organization Isolation](connection-routing/isolation.md)** - Data isolation strategies
-- **[Performance Tuning](connection-routing/performance.md)** - Connection pooling and optimization
+- **[Connection Routing](connection-routing/README.md)** - Multi-tenant connection management
 
 ### **[Testing](testing/README.md)**
 Database testing strategies and utilities
-- **[Test Database Setup](testing/setup.md)** - Isolated test database configuration
-- **[Migration Testing](testing/migrations.md)** - Migration up/down cycle testing
-- **[Load Testing](testing/load-testing.md)** - Database performance under load
-- **[Data Integrity](testing/integrity.md)** - Constraint and consistency testing
+- **[Integration Testing](testing/integration.md)** - Database integration testing
+- **[Performance Testing](management/performance.md)** - Database performance and optimization
 
 ---
 
@@ -232,4 +230,4 @@ make health-continuous
 
 ---
 
-For questions about database operations or architecture, refer to the specific documentation sections above or the [troubleshooting guide](management/troubleshooting.md).
+For questions about database operations or architecture, refer to the specific documentation sections above or the [database management guide](management/README.md).

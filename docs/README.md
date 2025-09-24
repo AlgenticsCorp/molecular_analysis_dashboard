@@ -110,7 +110,7 @@ Operational procedures, maintenance, and troubleshooting
 - [Implementation Phases](implementation/phases/README.md)
 - [Current Progress](implementation/README.md)
 - [Completion Reports](implementation/phases/phase-3/completion-reports/)
-- [Timeline & Milestones](implementation/strategies/rollout-strategy.md)
+- [Release Management](development/workflows/release-management.md)
 
 ---
 

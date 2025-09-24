@@ -341,9 +341,9 @@ export default ExampleComponent;
 
 ### **Related Documentation**
 - [Phase Planning Document](./planning.md)
-- [Architecture Documentation](../../architecture/)
-- [API Documentation](../../api/)
-- [Development Guidelines](../../development/guides/)
+- [Architecture Documentation](../../../architecture/)
+- [API Documentation](../../../api/)
+- [Development Guidelines](../../../development/guides/)
 
 ### **External Resources**
 - [Relevant external documentation]

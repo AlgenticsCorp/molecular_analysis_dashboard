@@ -8,7 +8,7 @@ This section provides comprehensive documentation for development tools, utiliti
 
 ## Development Tool Components
 
-### **[Build Tools](build-tools.md)**
+### **[Development Tools](development-tools.md)**
 Build system configuration and automation
 - Docker build optimization and multi-stage builds
 - Frontend build pipeline with Vite and TypeScript
@@ -16,7 +16,7 @@ Build system configuration and automation
 - Development vs production build configurations
 - Asset optimization and bundling strategies
 
-### **[Testing Tools](testing-tools.md)**
+### **[Testing & Development Tools](development-tools.md)**
 Test automation and quality assurance utilities
 - Pytest configuration and custom fixtures
 - Test data generation and molecular structure creation
@@ -24,7 +24,7 @@ Test automation and quality assurance utilities
 - Performance testing and benchmarking tools
 - Mock services for external docking engines
 
-### **[Development Scripts](scripts.md)**
+### **[LLM Agent Guide](llm-agent-guide.md)**
 Automation scripts for common development tasks
 - Environment setup and teardown scripts
 - Database management and migration utilities
@@ -32,7 +32,7 @@ Automation scripts for common development tasks
 - Data seeding and fixture creation scripts
 - Docker container management automation
 
-### **[Code Quality Tools](quality-tools.md)**
+### **[Development Tools](development-tools.md)**
 Code quality enforcement and analysis utilities
 - Linting and formatting tool configuration
 - Type checking setup and validation

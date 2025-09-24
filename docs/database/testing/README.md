@@ -16,7 +16,7 @@ Database integration testing strategies and implementation
 - Database constraint and validation testing
 - Cross-service data consistency verification
 
-### **[Performance Tests](performance.md)**
+### **[Performance Testing](../management/performance.md)**
 Database performance testing and optimization validation
 - Load testing for concurrent molecular analysis workflows
 - Query performance benchmarking and optimization

@@ -8,7 +8,7 @@ This section provides complete deployment strategies, infrastructure configurati
 
 ## Deployment Components
 
-### **[Cloud Deployment](cloud/README.md)**
+### **[Cloud Deployment](cloud.md)**
 Cloud infrastructure deployment strategies and configurations
 - AWS deployment with ECS/EKS and RDS
 - Azure deployment with Container Instances and PostgreSQL
@@ -16,7 +16,7 @@ Cloud infrastructure deployment strategies and configurations
 - Multi-cloud deployment strategies and considerations
 - Auto-scaling and load balancing configurations
 
-### **[Docker Deployment](docker/README.md)**
+### **[Local Development](local.md)**
 Containerized deployment strategies and Docker configurations
 - Multi-stage Docker build optimization
 - Container orchestration with Docker Compose
@@ -24,7 +24,7 @@ Containerized deployment strategies and Docker configurations
 - Container security and resource management
 - Development vs production container differences
 
-### **[Environment Configuration](environments/README.md)**
+### **[Cloud Configuration](cloud.md)**
 Environment-specific deployment configurations and management
 - Development environment setup and configuration
 - Staging environment deployment procedures
@@ -32,7 +32,7 @@ Environment-specific deployment configurations and management
 - Environment-specific secrets and configuration management
 - CI/CD pipeline integration for different environments
 
-### **[Operations](operations/README.md)**
+### **[Operations](../operations/README.md)**
 Operational procedures and deployment automation
 - Continuous integration and deployment pipelines
 - Blue-green and rolling deployment strategies
@@ -863,7 +863,7 @@ async def metrics_endpoint():
 
 ## Related Documentation
 
-- **[Operations Guide](operations/README.md)** - Operational procedures and automation
+- **[Operations Guide](../operations/README.md)** - Operational procedures and automation
 - **[Security Configuration](../security/README.md)** - Security policies and implementation
 - **[Database Management](../database/management/README.md)** - Database deployment procedures
 - **[Development Guides](../development/guides/README.md)** - Development to deployment workflow
