@@ -1,10 +1,10 @@
-"""Use cases layer - application services.
+"""Command use cases for the molecular analysis dashboard.
 
-This module contains the application's use cases, which orchestrate
-domain entities and coordinate with external systems via ports.
+This module contains command use cases that modify system state,
+including task execution, job management, and data processing operations.
 """
 
-from .commands import (
+from .execute_docking_task import (
     DockingTaskExecution,
     DockingTaskExecutionError,
     DockingTaskRequest,

@@ -30,13 +30,29 @@ import os
 # Import database models
 import sys
 from typing import List, Optional, Sequence
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ....adapters.external.ligand_prep_adapter import RDKitLigandPrepAdapter
+from ....adapters.external.neurosnap_adapter import NeuroSnapAdapter
+from ....domain.entities.docking_job import MolecularStructure
 from ....infrastructure.database import get_metadata_session
+from ....use_cases.commands.execute_docking_task import (
+    DockingTaskExecution,
+    DockingTaskRequest,
+    ExecuteDockingTaskUseCase,
+)
+from ..schemas.task_execution import (
+    DockingPoseSchema,
+    DockingResultsSchema,
+    JobStatusSchema,
+    TaskExecutionRequest,
+    TaskExecutionResponse,
+    TaskExecutionStatusResponse,
+)
 from ..schemas.tasks import ErrorResponse, TaskDetailResponse, TaskListResponse
 from ..services.task_transformer import (
     extract_api_specification,
@@ -303,3 +319,276 @@ async def list_task_categories(
         # SECURITY: Never expose database errors to API consumers
         # NOTE: Return default categories on any error for reliability
         return default_categories
+
+
+# Task Execution Endpoints
+
+
+@router.post(
+    "/{task_id}/execute",
+    response_model=TaskExecutionResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Invalid request parameters"},
+        404: {"model": ErrorResponse, "description": "Task not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+    summary="Execute a molecular task",
+    description="Submit a molecular task for execution (GNINA docking, analysis, etc.)",
+)
+async def execute_task(
+    task_id: str,
+    request: TaskExecutionRequest = Body(...),
+    org_id: Optional[str] = Query(None, description="Organization ID"),
+) -> TaskExecutionResponse:
+    """Execute a molecular analysis task.
+
+    Submits a molecular task for execution using the appropriate engine
+    (GNINA for molecular docking). Supports both immediate and asynchronous
+    execution depending on the task type and complexity.
+
+    Args:
+        task_id: Task identifier (e.g., 'gnina-molecular-docking')
+        request: Task execution parameters and configuration
+        org_id: Organization ID for multi-tenant access control
+
+    Returns:
+        TaskExecutionResponse: Execution tracking information with job ID
+
+    Raises:
+        HTTPException: 400 for invalid parameters, 404 for unknown task, 500 for execution errors
+
+    Example:
+        POST /api/v1/tasks/gnina-molecular-docking/execute
+        {
+            "receptor": {"name": "EGFR", "format": "pdb", "data": "HEADER..."},
+            "ligand": "osimertinib",
+            "binding_site": {"center_x": 25.5, "center_y": 10.2, "center_z": 15.8, ...}
+        }
+    """
+    try:
+        # Validate task exists and is supported
+        if task_id not in ["gnina-molecular-docking", "molecular-docking", "docking"]:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": {
+                        "code": "TASK_NOT_FOUND",
+                        "message": f"Task '{task_id}' not found or not supported",
+                        "details": {
+                            "supported_tasks": ["gnina-molecular-docking", "molecular-docking"],
+                            "requested_task": task_id,
+                        },
+                    }
+                },
+            )
+
+        # Convert request to use case format
+        # Handle receptor conversion
+        if isinstance(request.receptor, dict):
+            receptor_structure = MolecularStructure(
+                name=request.receptor.get("name", "receptor"),
+                format=request.receptor.get("format", "pdb"),
+                data=request.receptor.get("data", ""),
+            )
+        else:
+            # Convert Pydantic model to domain entity
+            receptor_structure = MolecularStructure(
+                name=request.receptor.name,
+                format=request.receptor.format,
+                data=request.receptor.data,
+                properties=request.receptor.properties or {},
+            )
+
+        # Handle ligand conversion
+        ligand_input = request.ligand
+        if isinstance(request.ligand, str):
+            # String (drug name) - pass as is
+            ligand_input = request.ligand
+        elif isinstance(request.ligand, dict):
+            # Dictionary - convert to domain entity
+            ligand_input = MolecularStructure(
+                name=request.ligand.get("name", "ligand"),
+                format=request.ligand.get("format", "sdf"),
+                data=request.ligand.get("data", ""),
+                properties=request.ligand.get("properties", {}),
+            )
+        else:
+            # Pydantic model - convert to domain entity
+            ligand_input = MolecularStructure(
+                name=request.ligand.name,
+                format=request.ligand.format,
+                data=request.ligand.data,
+                properties=request.ligand.properties or {},
+            )
+
+        # Create use case request
+        use_case_request = DockingTaskRequest(
+            receptor=receptor_structure,
+            ligand=ligand_input,
+            binding_site=request.binding_site.dict() if request.binding_site else None,
+            job_note=request.job_note,
+            max_poses=request.max_poses,
+            energy_range=request.energy_range,
+            exhaustiveness=request.exhaustiveness,
+            timeout_minutes=request.timeout_minutes,
+            organization_id=org_id or request.organization_id,
+            user_id=request.user_id,
+            task_metadata=request.task_metadata or {},
+        )
+
+        # Initialize adapters (in production, these would be injected as dependencies)
+        api_key = os.getenv("NEUROSNAP_API_KEY")
+        if not api_key:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "error": {
+                        "code": "CONFIGURATION_ERROR",
+                        "message": "NeuroSnap API key not configured",
+                        "details": {"required_env_var": "NEUROSNAP_API_KEY"},
+                    }
+                },
+            )
+
+        neurosnap_adapter = NeuroSnapAdapter(api_key=api_key)
+        ligand_prep_adapter = RDKitLigandPrepAdapter()
+
+        # Initialize and execute use case
+        use_case = ExecuteDockingTaskUseCase(
+            docking_adapter=neurosnap_adapter,
+            ligand_prep_adapter=ligand_prep_adapter,
+            neurosnap_adapter=neurosnap_adapter,
+        )
+
+        # Execute the task
+        execution = await use_case.execute(use_case_request)
+
+        # Convert results to API format
+        results_schema = None
+        if execution.results:
+            poses = [
+                DockingPoseSchema(
+                    rank=pose.rank,
+                    affinity=pose.affinity,
+                    rmsd_lb=pose.rmsd_lb,
+                    rmsd_ub=pose.rmsd_ub,
+                    confidence_score=pose.confidence_score,
+                    pose_data=pose.pose_data,
+                )
+                for pose in execution.results.poses
+            ]
+
+            best_pose_schema = None
+            if execution.results.best_pose:
+                best_pose_schema = DockingPoseSchema(
+                    rank=execution.results.best_pose.rank,
+                    affinity=execution.results.best_pose.affinity,
+                    rmsd_lb=execution.results.best_pose.rmsd_lb,
+                    rmsd_ub=execution.results.best_pose.rmsd_ub,
+                    confidence_score=execution.results.best_pose.confidence_score,
+                    pose_data=execution.results.best_pose.pose_data,
+                )
+
+            results_schema = DockingResultsSchema(
+                poses=poses,
+                best_pose=best_pose_schema,
+                execution_time=execution.results.execution_time,
+                engine_version=execution.results.engine_version,
+                parameters=execution.results.parameters,
+                metadata=execution.results.metadata,
+            )
+
+        # Calculate progress percentage
+        progress = 0.0
+        current_step = "pending"
+        if execution.status == JobStatusSchema.RUNNING:
+            progress = 50.0
+            current_step = "running"
+        elif execution.status == JobStatusSchema.COMPLETED:
+            progress = 100.0
+            current_step = "completed"
+        elif execution.status == JobStatusSchema.FAILED:
+            progress = 0.0
+            current_step = "failed"
+
+        response = TaskExecutionResponse(
+            execution_id=execution.execution_id,
+            job_id=execution.job_id,
+            status=JobStatusSchema(execution.status.value),
+            task_id=task_id,
+            started_at=execution.started_at,
+            completed_at=execution.completed_at,
+            estimated_completion=execution.estimated_completion,
+            results=results_schema,
+            error_message=execution.error_message,
+            retry_count=execution.retry_count,
+            progress_percentage=progress,
+            current_step=current_step,
+            organization_id=org_id or request.organization_id,
+            user_id=request.user_id,
+        )
+
+        # Clean up adapter connections
+        await neurosnap_adapter.close()
+
+        return response
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": {
+                    "code": "EXECUTION_ERROR",
+                    "message": f"Failed to execute task: {str(e)}",
+                    "details": {"task_id": task_id},
+                }
+            },
+        )
+
+
+@router.get(
+    "/executions/{execution_id}/status",
+    response_model=TaskExecutionStatusResponse,
+    responses={
+        404: {"model": ErrorResponse, "description": "Execution not found"},
+        500: {"model": ErrorResponse, "description": "Internal server error"},
+    },
+    summary="Get execution status",
+    description="Get the current status of a task execution",
+)
+async def get_execution_status(
+    execution_id: UUID,
+    org_id: Optional[str] = Query(None, description="Organization ID"),
+) -> TaskExecutionStatusResponse:
+    """Get current status of a task execution.
+
+    Retrieves the current status and progress information for a specific
+    task execution. Useful for monitoring long-running tasks.
+
+    Args:
+        execution_id: Unique execution identifier
+        org_id: Organization ID for access control
+
+    Returns:
+        TaskExecutionStatusResponse: Current execution status and progress
+
+    Raises:
+        HTTPException: 404 if execution not found, 500 for system errors
+    """
+    # TODO: Implement execution status retrieval from persistent storage
+    # For now, return a placeholder response
+    raise HTTPException(
+        status_code=404,
+        detail={
+            "error": {
+                "code": "NOT_IMPLEMENTED",
+                "message": "Execution status tracking not yet implemented",
+                "details": {
+                    "execution_id": str(execution_id),
+                    "note": "Status persistence will be added in next implementation phase",
+                },
+            }
+        },
+    )

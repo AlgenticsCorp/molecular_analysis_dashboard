@@ -48,6 +48,7 @@ services:
       PORT: ${PORT}
       WEB_CONCURRENCY: ${WEB_CONCURRENCY}
       UVICORN_WORKERS: ${UVICORN_WORKERS}
+      NEUROSNAP_API_KEY: ${NEUROSNAP_API_KEY}
     depends_on:
       postgres:
         condition: service_healthy
@@ -55,6 +56,8 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+    ports:
+      - "8000:8000"  # Temporary for Swagger UI access
     volumes:
       - results:${RESULTS_DIR}
       - uploads:${UPLOADS_DIR}

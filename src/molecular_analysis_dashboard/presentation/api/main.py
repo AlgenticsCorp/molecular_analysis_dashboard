@@ -45,6 +45,14 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 # Import API routers
 try:
+    from .routes.task_execution import router as task_execution_router
+
+    TASK_EXECUTION_ROUTER_AVAILABLE = True
+except ImportError:
+    TASK_EXECUTION_ROUTER_AVAILABLE = False
+
+# Try to import the full tasks router (with database dependencies)
+try:
     from .routes.tasks import router as tasks_router
 
     TASKS_ROUTER_AVAILABLE = True
@@ -77,6 +85,9 @@ app.add_middleware(
 )
 
 # Add API routers
+if TASK_EXECUTION_ROUTER_AVAILABLE:
+    app.include_router(task_execution_router)
+
 if TASKS_ROUTER_AVAILABLE:
     app.include_router(tasks_router)
 
@@ -100,11 +111,12 @@ def health() -> dict[str, str]:
 def ready() -> dict[str, Any]:
     """Readiness probe: check database and task API availability."""
     checks = {
-        "db": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
-        "task_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
+        "task_execution_api": "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_available",
+        "task_registry_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
         "broker": "pending",
     }
 
-    status = "ready" if TASKS_ROUTER_AVAILABLE else "not_ready"
+    # Consider ready if at least task execution is available
+    status = "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_ready"
 
     return {"status": status, "checks": checks}
