@@ -49,11 +49,76 @@
     },
     "phase-3b": {
       "name": "Service Implementation",
-      "status": "In Progress",
+      "status": "Ready to Start",
       "progress": 10,
       "start_date": "2025-09-23",
-      "target_completion": "2025-03-30",
-      "features": {}
+      "target_completion": "2025-09-30",
+      "features": {
+        "api_port_exposure_fix": {
+          "name": "API Port Exposure Fix",
+          "status": "Ready to Start",
+          "priority": "High",
+          "estimated_days": 2,
+          "created_date": "2025-09-24",
+          "notes": "Enable task API access through gateway"
+        },
+        "basic_task_execution": {
+          "name": "Basic Task Execution",
+          "status": "Ready to Start",
+          "priority": "High",
+          "estimated_days": 3,
+          "created_date": "2025-09-24",
+          "notes": "Create working task endpoints"
+        },
+        "docking_engine_stubs": {
+          "name": "Docking Engine Stubs",
+          "status": "Ready to Start",
+          "priority": "Medium",
+          "estimated_days": 2,
+          "created_date": "2025-09-24",
+          "notes": "Basic engine implementations"
+        },
+        "end_to_end_flow_testing": {
+          "name": "End-to-End Flow Testing",
+          "status": "Ready to Start",
+          "priority": "High",
+          "estimated_days": 1,
+          "created_date": "2025-09-24",
+          "notes": "Verify task creation to completion"
+        },
+        "gateway_integration": {
+          "name": "Gateway Integration",
+          "status": "Ready to Start",
+          "priority": "Medium",
+          "estimated_days": 2,
+          "created_date": "2025-09-24",
+          "notes": "Route configuration and service connectivity"
+        },
+        "service_discovery_setup": {
+          "name": "Service Discovery Setup",
+          "status": "Ready to Start",
+          "priority": "Medium",
+          "estimated_days": 2,
+          "created_date": "2025-09-24",
+          "notes": "Dynamic service registration"
+        },
+        "load_balancing": {
+          "name": "Load Balancing",
+          "status": "Ready to Start",
+          "priority": "Low",
+          "estimated_days": 1,
+          "created_date": "2025-09-24",
+          "notes": "Request distribution implementation"
+        },
+        "health_checks": {
+          "name": "Health Checks",
+          "status": "Ready to Start",
+          "priority": "Medium",
+          "estimated_days": 1,
+          "created_date": "2025-09-24",
+          "notes": "Service monitoring endpoints"
+        }
+      }
     },
     "phase-3c": {
       "name": "Security Framework",
@@ -75,8 +140,10 @@
     },
     "phase-4a": {
       "name": "Task Integration",
-      "status": "Not Started",
-      "progress": 0,
+      "status": "Planned",
+      "progress": 14,
+      "target_start": "2025-10-15",
+      "target_completion": "2025-11-01",
       "features": {
         "phase_4_planning_documentation": {
           "name": "Phase 4 Planning Documentation",
@@ -84,6 +151,53 @@
           "created_date": "2025-09-23",
           "last_updated": "2025-09-23",
           "notes": "Comprehensive planning, implementation guide, progress tracking, and completion template created"
+        },
+        "neurosnap_integration_plan": {
+          "name": "Neurosnap Integration Plan",
+          "status": "Complete",
+          "created_date": "2025-09-24",
+          "last_updated": "2025-09-24",
+          "notes": "API-first provider integration framework v3.0 completed"
+        },
+        "dynamic_task_definition_system": {
+          "name": "Dynamic Task Definition System",
+          "status": "Not Started",
+          "priority": "High",
+          "estimated_days": 5,
+          "created_date": "2025-09-24",
+          "notes": "Flexible task configuration system"
+        },
+        "molecular_docking_pipeline": {
+          "name": "Molecular Docking Pipeline",
+          "status": "Not Started",
+          "priority": "High",
+          "estimated_days": 7,
+          "created_date": "2025-09-24",
+          "notes": "Core docking workflow implementation"
+        },
+        "task_execution_engine": {
+          "name": "Task Execution Engine",
+          "status": "Not Started",
+          "priority": "High",
+          "estimated_days": 5,
+          "created_date": "2025-09-24",
+          "notes": "Async job processing system"
+        },
+        "result_storage_retrieval": {
+          "name": "Result Storage & Retrieval",
+          "status": "Not Started",
+          "priority": "Medium",
+          "estimated_days": 3,
+          "created_date": "2025-09-24",
+          "notes": "Output management system"
+        },
+        "external_provider_integration": {
+          "name": "External Provider Integration",
+          "status": "Not Started",
+          "priority": "High",
+          "estimated_days": 8,
+          "created_date": "2025-09-24",
+          "notes": "Third-party service support framework"
         }
       }
     },
