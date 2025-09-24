@@ -27,7 +27,7 @@ This document describes how frameworks and libraries are used across the Clean A
 ```mermaid
 flowchart TD
   subgraph Client
-    UI["React TypeScript UI<br/>Material-UI + 3Dmol.js<br/>Dynamic Task Forms"]
+    UI["React TypeScript UI Material-UI + 3Dmol.js. Dynamic Task Forms"]
   end
 
   subgraph API
