@@ -1,7 +1,9 @@
 # Molecular Analysis Dashboard - AI Coding Agent Instructions
 
 This is a **molecular analysis platform** built with **Clean Architecture** (Ports & Adapters), supporting pluggable docking engines (Vina/Smina/Gnina) with React TypeScript frontend and FastAPI backend.
-
+## Understanding the implemtation status of the current project
+ALWAYS read the implementation README first
+docs/implementation/README.md
 ## 🔄 Terminal & Process Management
 - **Reuse the last active integrated terminal** for commands
 - **Only open a new terminal** if the last active terminal is running a long-lived process (e.g., dev server, tail, watch). Detect by checking recent process output or known start commands (npm run dev, vite, uvicorn, flask, next dev, etc.)

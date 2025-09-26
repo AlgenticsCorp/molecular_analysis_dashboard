@@ -1,5 +1,5 @@
 {
-  "last_updated": "2025-09-24T18:05:56.917492",
+  "last_updated": "2025-09-26T19:33:20.170521",
   "phases": {
     "phase-1": {
       "name": "Foundation & Setup",
@@ -244,6 +244,71 @@
       "status": "Not Started",
       "progress": 0,
       "features": {}
+    },
+    "phase-5": {
+      "name": "GNINA Integration Reality Check",
+      "status": "Not Started",
+      "progress": 0,
+      "priority": "Critical",
+      "target_completion": "2025-10-15",
+      "features": {
+        "file_upload_apis": {
+          "name": "File Upload APIs",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Implement multipart file upload endpoints for PDB/SDF files with validation. API must accept raw file content and convert to JSON-embedded format for NeuroSnap submission pattern: {type:'pdb', name:'filename', data:'raw_content'}"
+        },
+        "storage_service_integration": {
+          "name": "Storage Service Integration",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Organize file storage with structure: /storage/uploads/{org_id}/{receptors|ligands}/{file_id}.{pdb|sdf}, /storage/results/{org_id}/{job_id}/. Fix container mounting permissions and implement cleanup policies."
+        },
+        "real_neurosnap_job_submission": {
+          "name": "Real NeuroSnap Job Submission",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Implement MultipartEncoder pattern from temp/scripts/submit_gnina_job.py. Submit PDB+SDF via multipart request to https://neurosnap.ai/api/job/submit/GNINA with X-API-KEY header. Handle response JSON with job_id for monitoring."
+        },
+        "result_download_and_processing": {
+          "name": "Result Download and Processing",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Parse NeuroSnap results format - CSV with columns: Model ID, Affinity (kcal/mol), CNN Pose Score, CNN Affinity. Also handle SDF pose files. Store in /storage/results/{job_id}/ with parsed JSON metadata for binding affinities."
+        },
+        "sample_file_integration": {
+          "name": "Sample File Integration",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Integrate temp/data/input/*.sdf (osimertinib, erlotinib, afatinib) and temp/data/work/alphafold3/pdb/*.pdb (EGFR variants: WT, L858R, L858R_T790M) for end-to-end testing. Validate against temp/data/work/gnina_output/ expected results."
+        },
+        "job_monitoring_system": {
+          "name": "Job Monitoring System",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Implement polling mechanism for NeuroSnap job status. Track job_id from submission response, poll for completion, handle status: submitted, running, completed, failed. Store job metadata and progress updates."
+        },
+        "molecular_file_validation": {
+          "name": "Molecular File Validation",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Validate uploaded PDB files (ATOM records, valid coordinates) and SDF files (molfile format, 3D coordinates). Implement file size limits, structure validation using RDKit/BioPython. Reject invalid molecular structures before API submission."
+        },
+        "external_provider_interface": {
+          "name": "External Provider Interface",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "TECHNICAL SPEC: Create abstract interface for external docking providers (NeuroSnap, future Vina/Smina). Define standard methods: submit_job, monitor_status, retrieve_results. Enable pluggable provider architecture for easy extension to other molecular docking services."
+        }
+      }
     }
   }
 }

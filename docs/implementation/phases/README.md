@@ -290,40 +290,350 @@ After completing Phase 3B, the team can choose:
 
 ---
 
-## 🎯 **Current Priority: Phase 3B Service Implementation** - **DEVELOPERS START HERE**
+## 🚨 **Phase 5: GNINA Integration Reality Check** (URGENT)
 
-> **Status**: Ready to Start (10% complete)
-> **Timeline**: 1-2 weeks
-> **Team Size**: 2-3 developers
+**Duration**: September 2025 (2-3 weeks)
+**Status**: Critical Priority - Immediate Action Required
+**Current Reality**: Existing GNINA "integration" is non-functional mock implementation
+
+> **⚠️ CRITICAL**: The current GNINA integration has fundamental gaps that make it unusable for real molecular docking. This phase addresses the reality gaps identified through testing.
+
+### **Phase 5A: File Handling Infrastructure** 🔴 **CRITICAL**
+**Status**: Must Start Immediately
+**Duration**: 3-4 days
+**Dependencies**: Storage service container setup
+
+#### **Problem Statement**
+Current Swagger UI only accepts JSON strings, but molecular docking requires actual file uploads (PDB, SDF, MOL2 files). Users cannot upload their molecular structure files.
+
+#### **Technical Requirements**
+
+##### **Task 5A.1: File Upload API Endpoints** ⏱️ 2 days
+**Skills**: FastAPI, multipart/form-data, file validation
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Replace JSON-only endpoints with multipart file upload
+- Add endpoints: `POST /api/v1/files/receptor` and `POST /api/v1/files/ligand`
+- Implement file validation for PDB/SDF/MOL2 formats
+- Add file size limits and security scanning
+- **Files to Create**: `src/molecular_analysis_dashboard/presentation/api/routes/file_upload.py`
+
+**Success Criteria**:
+```bash
+# Upload receptor file
+curl -X POST -F "file=@protein.pdb" http://localhost/api/v1/files/receptor
+# Returns: {"file_id": "uuid", "filename": "protein.pdb", "format": "pdb"}
+
+# Upload ligand file
+curl -X POST -F "file=@ligand.sdf" http://localhost/api/v1/files/ligand
+# Returns: {"file_id": "uuid", "filename": "ligand.sdf", "format": "sdf"}
+```
+
+##### **Task 5A.2: Storage Service Integration** ⏱️ 2 days
+**Skills**: Docker, Nginx, file system management
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Fix storage service container mounting and permissions
+- Implement file storage adapter with proper organization:
+  ```
+  /storage/
+  ├── uploads/
+  │   ├── receptors/{org_id}/{file_id}.pdb
+  │   └── ligands/{org_id}/{file_id}.sdf
+  ├── results/
+  │   └── docking/{org_id}/{job_id}/
+  └── temp/{session_id}/
+  ```
+- Add file cleanup policies and retention rules
+- **Files to Modify**: `docker-compose.yml`, `docker/storage.conf`
+
+**Success Criteria**:
+```bash
+# Storage service accessible
+curl http://localhost:8080/health
+# Files properly stored and retrievable
+ls /storage/uploads/receptors/
+```
+
+### **Phase 5B: Real NeuroSnap Integration** 🔴 **CRITICAL**
+**Status**: Must Start After 5A
+**Duration**: 4-5 days
+**Dependencies**: Working file upload system
+
+#### **Problem Statement**
+Current NeuroSnap integration is completely mocked. No real jobs have been submitted, monitored, or completed. All test results are fake.
+
+##### **Task 5B.1: Actual Job Submission Testing** ⏱️ 2 days
+**Skills**: Python, HTTP clients, NeuroSnap API
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Use provided sample files to test real NeuroSnap submissions
+- Test with actual EGFR PDB and osimertinib SDF files from `temp/` directory
+- Implement real job monitoring (not mocked)
+- Handle actual NeuroSnap response formats and errors
+- **Files to Fix**: `src/molecular_analysis_dashboard/adapters/external/neurosnap_adapter.py`
+
+**Success Criteria**:
+```bash
+# Submit real job using sample files
+python test_real_neurosnap_job.py
+# Monitor actual job status on NeuroSnap dashboard
+# Download and validate real docking results
+```
+
+##### **Task 5B.2: Result Download and Storage** ⏱️ 2 days
+**Skills**: File handling, result parsing, data validation
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Implement real result file download from NeuroSnap
+- Parse actual GNINA output formats (not mocked data)
+- Store result files in organized structure
+- Extract pose rankings, binding affinities, confidence scores
+- **Files to Create**: `src/molecular_analysis_dashboard/adapters/external/result_processor.py`
+
+**Success Criteria**:
+```bash
+# Download real results
+ls /storage/results/docking/{job_id}/
+# gnina_output.sdf  poses_ranked.json  summary.json
+
+# Validate result parsing
+python -c "from result_processor import parse_gnina_results; print(parse_gnina_results('job_id'))"
+```
+
+### **Phase 5C: Integration with Sample Files** 🟡 **HIGH**
+**Status**: After 5B completion
+**Duration**: 2-3 days
+**Dependencies**: Working NeuroSnap integration
+
+#### **Problem Statement**
+Sample files and working scripts in `temp/scripts/` were not integrated into the system. Need to use these for validation and testing.
+
+##### **Task 5C.1: Sample File Integration** ⏱️ 1 day
+**Skills**: File system, Python scripting
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Move sample files from `temp/` to proper locations
+- Create test datasets: EGFR + osimertinib, aspirin, caffeine
+- Integrate existing working scripts: `submit_gnina_job.py`, `prep_engine.py`
+- Create automated test suite using real sample data
+- **Files to Create**: `tests/fixtures/sample_molecules/`
+
+##### **Task 5C.2: End-to-End Workflow Testing** ⏱️ 2 days
+**Skills**: Integration testing, Python, cURL
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Test complete workflow: file upload → job submission → monitoring → results
+- Validate with multiple drug-protein combinations
+- Test error scenarios: invalid files, API failures, timeouts
+- Document actual execution times and success rates
+- **Files to Create**: `tests/e2e/test_real_docking_workflow.py`
+
+**Success Criteria**:
+```bash
+# Complete workflow test
+pytest tests/e2e/test_real_docking_workflow.py -v
+# Upload EGFR.pdb + osimertinib.sdf → Get real docking poses
+```
+
+### **Phase 5D: Developer Documentation** 🟡 **HIGH**
+**Status**: Parallel with other tasks
+**Duration**: 2-3 days
+**Dependencies**: Working implementations
+
+#### **Problem Statement**
+No documentation exists for developers to understand how to:
+- Add new docking engines (Vina, Smina)
+- Integrate new provider services
+- Test molecular docking workflows
+- Debug failed jobs
+
+##### **Task 5D.1: Provider Integration Guide** ⏱️ 1 day
+**Skills**: Technical writing, architecture documentation
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Create comprehensive guide for adding new docking engines
+- Document provider adapter interface contracts
+- Provide examples for Vina and Smina integration
+- Include testing strategies for new providers
+- **Files to Create**: `docs/developers/provider-integration-guide.md`
+
+##### **Task 5D.2: Operational Procedures** ⏱️ 2 days
+**Skills**: Technical writing, operational knowledge
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Document job monitoring and debugging procedures
+- Create troubleshooting guide for common failures
+- Document file handling and storage management
+- Include disaster recovery procedures
+- **Files to Create**:
+  - `docs/operations/job-monitoring.md`
+  - `docs/operations/troubleshooting.md`
+  - `docs/developers/file-handling-guide.md`
+
+### **Phase 5E: Configuration and Deployment Fix** 🟡 **MEDIUM**
+**Status**: After core functionality working
+**Duration**: 1-2 days
+**Dependencies**: Working GNINA integration
+
+##### **Task 5E.1: Configuration Validation** ⏱️ 1 day
+**Skills**: Docker, environment configuration
+**Owner**: Unassigned
+
+**Implementation Details**:
+- Fix docker-compose.yml for file handling capabilities
+- Validate environment variable configurations
+- Test storage volume mounting and permissions
+- Update .env.example with all required variables
+- **Files to Fix**: `docker-compose.yml`, `.env.example`
+
+**Success Criteria**:
+```bash
+# One-command setup works
+docker compose up -d
+# All services healthy with file handling
+curl http://localhost/health
+curl http://localhost:8080/health  # Storage service
+```
+
+---
+
+### **📊 Phase 5 Progress Tracking**
+
+| Sub-Phase | Priority | Duration | Status | Owner | Progress | Blockers |
+|-----------|----------|----------|---------|-------|----------|----------|
+| **5A: File Handling** | 🔴 Critical | 3-4 days | Ready | - | 0% | None |
+| 5A.1: File Upload APIs | 🔴 Critical | 2 days | Ready | - | 0% | None |
+| 5A.2: Storage Integration | 🔴 Critical | 2 days | Ready | - | 0% | None |
+| **5B: Real NeuroSnap** | 🔴 Critical | 4-5 days | Ready | - | 0% | 5A complete |
+| 5B.1: Job Submission | 🔴 Critical | 2 days | Ready | - | 0% | 5A complete |
+| 5B.2: Result Processing | 🔴 Critical | 2 days | Ready | - | 0% | 5B.1 complete |
+| **5C: Sample Integration** | 🟡 High | 2-3 days | Ready | - | 0% | 5B complete |
+| 5C.1: Sample Files | 🟡 High | 1 day | Ready | - | 0% | 5B complete |
+| 5C.2: E2E Testing | 🟡 High | 2 days | Ready | - | 0% | 5C.1 complete |
+| **5D: Documentation** | 🟡 High | 2-3 days | Ready | - | 0% | Can start anytime |
+| 5D.1: Provider Guide | 🟡 High | 1 day | Ready | - | 0% | None |
+| 5D.2: Operations Guide | 🟡 High | 2 days | Ready | - | 0% | None |
+| **5E: Config & Deploy** | 🟡 Medium | 1-2 days | Ready | - | 0% | 5A-5C complete |
+| 5E.1: Config Validation | 🟡 Medium | 1 day | Ready | - | 0% | 5A-5C complete |
+
+### **🎯 Phase 5 Success Criteria**
+
+**Must Have (Critical)**:
+- ✅ Users can upload PDB/SDF files via Swagger UI
+- ✅ Real NeuroSnap jobs submitted and monitored
+- ✅ Actual docking results downloaded and parsed
+- ✅ Sample files integrated and tested
+- ✅ Complete workflow: file upload → docking → results
+
+**Should Have (High)**:
+- ✅ Comprehensive developer documentation
+- ✅ End-to-end integration tests passing
+- ✅ Error handling and recovery procedures
+- ✅ Performance metrics and monitoring
+
+**Nice to Have (Medium)**:
+- ✅ One-command deployment setup
+- ✅ Automated testing with sample datasets
+- ✅ Operational dashboards and monitoring
+
+### **🚨 Critical Dependencies for Phase 5**
+
+1. **NeuroSnap API Access**: Valid API key and quota available
+2. **Sample Files**: Access to EGFR, osimertinib, and other test molecules
+3. **Storage Infrastructure**: Docker storage service properly configured
+4. **Development Environment**: Docker compose working with file uploads
+
+### **⚡ Getting Started with Phase 5**
+
+#### **For Immediate Start (Developer Onboarding)**:
+```bash
+# 1. Environment validation
+docker compose up -d
+curl http://localhost/health
+
+# 2. Check current file upload capability
+curl -X POST -F "file=@test.txt" http://localhost/api/v1/files/receptor
+# Expected: Should fail with "endpoint not found" - this is what we need to fix
+
+# 3. Claim Phase 5A task
+python3 docs/implementation/tools/update-status.py --phase "5A" --feature "File Upload APIs" --status "In Progress" --owner "$(whoami)"
+
+# 4. Start development
+git checkout -b feature/phase-5a-file-upload
+```
+
+#### **Weekly Progress Meetings**:
+- **Daily standups**: Share blockers and coordinate between sub-phases
+- **Wed/Fri demos**: Show working file uploads and NeuroSnap integration
+- **End of week**: Complete workflow demonstration
+
+### **🔗 Phase 5 Dependencies on Other Phases**
+
+- **Phase 3B completion NOT required**: Phase 5 can proceed independently
+- **Phase 4 can be delayed**: GNINA integration is higher priority
+- **Phase 5 can enable Phase 4B**: Real docking engines after file handling works
+
+**Recommended Approach**:
+1. Complete Phase 5A-5B (file handling + real NeuroSnap) FIRST
+2. Then decide: Continue Phase 5C-5E OR start Phase 3B in parallel
+3. Phase 4B (additional docking engines) becomes much easier after Phase 5
+
+---
+
+## 🎯 **Current Priority: Phase 5 GNINA Integration Reality Check** - **DEVELOPERS START HERE**
+
+> **Status**: Critical Priority (Phase 3B deprioritized until real GNINA works)
+> **Timeline**: 2-3 weeks
+> **Team Size**: 2-4 developers
 > **Prerequisites**: [Development Environment Setup](../../development/getting-started/setup.md) (15 minutes)
 
-### **🚀 Immediate Action Items for Developers**
+### **� Why Phase 5 Takes Priority Over Phase 3B**
+
+The current GNINA integration is fundamentally broken:
+- Swagger UI only accepts JSON, not actual molecular files (PDB/SDF)
+- No real NeuroSnap jobs have been submitted or completed
+- All test results are mocked/fake data
+- Sample files provided by user were not integrated
+- No working file upload/storage system
+
+**Phase 3B can wait** - we need molecular docking to actually work first.
+
+### **�🚀 Immediate Action Items for Developers**
 
 #### **Step 1: Environment Setup** (15 minutes)
 ```bash
 # Clone and setup development environment
 git clone [repository] && cd molecular_analysis_dashboard
-source .venv/bin/activate
-# Follow: docs/development/getting-started/setup.md
+# Verify current broken state:
+curl -X POST -F "file=@test.txt" http://localhost/api/v1/files/receptor
+# Expected: Should fail - this is what we're fixing
 ```
 
-#### **Step 2: Claim a Task** (Choose one)
+#### **Step 2: Claim a Phase 5 Task** (Choose based on skills)
 ```bash
-# Option A: API Port Exposure Fix (2 days, High Priority)
-python3 docs/implementation/tools/update-status.py --phase "3B" --feature "API Port Exposure Fix" --status "In Progress" --owner "$(whoami)"
+# Option A: File Upload Infrastructure (2 days, Critical)
+python3 docs/implementation/tools/update-status.py --phase "5A" --feature "File Upload APIs" --status "In Progress" --owner "$(whoami)"
 
-# Option B: Basic Task Execution (3 days, High Priority)
-python3 docs/implementation/tools/update-status.py --phase "3B" --feature "Basic Task Execution" --status "In Progress" --owner "$(whoami)"
+# Option B: Storage Service Fix (2 days, Critical)
+python3 docs/implementation/tools/update-status.py --phase "5A" --feature "Storage Integration" --status "In Progress" --owner "$(whoami)"
 
-# Option C: End-to-End Flow Testing (1 day, High Priority)
-python3 docs/implementation/tools/update-status.py --phase "3B" --feature "End-to-End Flow Testing" --status "In Progress" --owner "$(whoami)"
+# Option C: Real NeuroSnap Integration (2 days, Critical)
+python3 docs/implementation/tools/update-status.py --phase "5B" --feature "Job Submission Testing" --status "In Progress" --owner "$(whoami)"
 ```
 
 #### **Step 3: Start Development**
-- **Create Feature Branch**: `git checkout -b feature/MOL-3B-[task-name]`
-- **Follow Workflow**: [Git Workflow](../../development/workflows/git-workflow.md)
-- **Development Standards**: [Contributing Guide](../../development/guides/contributing.md)
-- **Testing Requirements**: [Testing Workflows](../../development/workflows/testing-workflows.md)
+- **Create Feature Branch**: `git checkout -b feature/phase-5a-file-upload`
+- **Focus on Phase 5A first**: File handling is blocking everything else
+- **Use Sample Files**: Test with EGFR and osimertinib files from `temp/` directory
 
 ---
 
@@ -333,11 +643,21 @@ python3 docs/implementation/tools/update-status.py --phase "3B" --feature "End-t
 - **Phase 1**: ████████████████████ 100% ✅
 - **Phase 2**: ████████████████████ 100% ✅
 - **Phase 3A**: ████████████████████ 100% ✅
-- **Phase 3B**: ██░░░░░░░░░░░░░░░░░░  10% 🚀 **ACTIVE**
-- **Phase 3C-3E**: ░░░░░░░░░░░░░░░░░░░░ 0% ⏳
-- **Phase 4**: █░░░░░░░░░░░░░░░░░░░  14% 📋 (Planning complete)
+- **Phase 3B**: ██░░░░░░░░░░░░░░░░░░  10% ⏸️ **DEPRIORITIZED**
+- **Phase 5**: █░░░░░░░░░░░░░░░░░░░   0% � **CRITICAL - ACTIVE**
+  - **Phase 5A**: ░░░░░░░░░░░░░░░░░░░░   0% 🔴 **IMMEDIATE START**
+  - **Phase 5B**: ░░░░░░░░░░░░░░░░░░░░   0% 🔴 **CRITICAL**
+  - **Phase 5C**: ░░░░░░░░░░░░░░░░░░░░   0% 🟡 **HIGH**
+- **Phase 3C-3E**: ░░░░░░░░░░░░░░░░░░░░ 0% ⏳ **ON HOLD**
+- **Phase 4**: █░░░░░░░░░░░░░░░░░░░  5% 📋 (Planning only)
 
-**Overall Project Progress: 31% Complete**
+**Overall Project Progress: 28% Complete** (reduced due to GNINA integration reality check)
+
+### **Revised Priority Order**
+1. 🚨 **Phase 5A-5B** (File handling + Real NeuroSnap) - **2 weeks**
+2. 🟡 **Phase 5C-5D** (Sample integration + Documentation) - **1 week**
+3. 🔄 **Phase 3B** (Service implementation) - **After GNINA works**
+4. ⏳ **Phase 4A-4B** (Task integration + Additional engines) - **Future**
 
 ---
 
