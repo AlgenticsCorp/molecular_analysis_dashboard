@@ -59,6 +59,22 @@ try:
 except ImportError:
     TASKS_ROUTER_AVAILABLE = False
 
+# Import molecules router for file upload
+try:
+    from .routes.molecules import router as molecules_router
+
+    MOLECULES_ROUTER_AVAILABLE = True
+except ImportError:
+    MOLECULES_ROUTER_AVAILABLE = False
+
+# Import docking router for molecular docking
+try:
+    from .routes.docking import router as docking_router
+
+    DOCKING_ROUTER_AVAILABLE = True
+except ImportError:
+    DOCKING_ROUTER_AVAILABLE = False
+
 root_path = os.getenv("ROOT_PATH", "")
 app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
 
@@ -90,6 +106,12 @@ if TASK_EXECUTION_ROUTER_AVAILABLE:
 
 if TASKS_ROUTER_AVAILABLE:
     app.include_router(tasks_router)
+
+if MOLECULES_ROUTER_AVAILABLE:
+    app.include_router(molecules_router)
+
+if DOCKING_ROUTER_AVAILABLE:
+    app.include_router(docking_router)
 
 
 @app.middleware("http")

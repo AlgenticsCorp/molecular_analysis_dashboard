@@ -1,5 +1,5 @@
 {
-  "last_updated": "2025-09-26T19:33:20.170521",
+  "last_updated": "2025-09-26T19:39:31.450999",
   "phases": {
     "phase-1": {
       "name": "Foundation & Setup",
@@ -257,7 +257,7 @@
           "status": "Not Started",
           "created_date": "2025-09-26",
           "last_updated": "2025-09-26",
-          "notes": "TECHNICAL SPEC: Implement multipart file upload endpoints for PDB/SDF files with validation. API must accept raw file content and convert to JSON-embedded format for NeuroSnap submission pattern: {type:'pdb', name:'filename', data:'raw_content'}"
+          "notes": "ENHANCED SPEC: Create FastAPI endpoints with UploadFile parameters for SwaggerUI testing. Support both direct file upload AND NeuroSnap multipart pattern: MultipartEncoder with JSON-embedded file data. Enable 'Try it out' functionality in Swagger for PDB/SDF uploads."
         },
         "storage_service_integration": {
           "name": "Storage Service Integration",
@@ -307,6 +307,27 @@
           "created_date": "2025-09-26",
           "last_updated": "2025-09-26",
           "notes": "TECHNICAL SPEC: Create abstract interface for external docking providers (NeuroSnap, future Vina/Smina). Define standard methods: submit_job, monitor_status, retrieve_results. Enable pluggable provider architecture for easy extension to other molecular docking services."
+        },
+        "professional_api_architecture": {
+          "name": "Professional API Architecture",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "LEARNED PATTERN: Implement NeuroSnap-style REST API structure: /api/services, /api/jobs, /api/job/submit/GNINA, /api/job/status/{id}, /api/job/files/{id}/{in|out}. Use header-based auth with X-API-KEY pattern for SwaggerUI integration."
+        },
+        "swaggerui_integration": {
+          "name": "SwaggerUI Integration",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "LEARNED PATTERN: Create FastAPI endpoints that support both multipart file uploads AND SwaggerUI testing. Use Form() parameters for files, add proper OpenAPI schemas, enable file upload testing directly in Swagger interface with 'Try it out' functionality."
+        },
+        "professional_job_lifecycle": {
+          "name": "Professional Job Lifecycle",
+          "status": "Not Started",
+          "created_date": "2025-09-26",
+          "last_updated": "2025-09-26",
+          "notes": "LEARNED PATTERN: Implement complete job lifecycle: submit \u2192 poll status \u2192 list files \u2192 download results. Job states: pending/running/completed/failed. Include job metadata (runtime, notes, service). Support both individual file download and batch file listing."
         }
       }
     }

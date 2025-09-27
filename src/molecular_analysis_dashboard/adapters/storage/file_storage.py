@@ -10,7 +10,7 @@ from uuid import UUID
 
 import aiofiles
 
-from ..ports.storage import StorageError, StoragePort
+from ...ports.storage import StorageError, StoragePort
 
 logger = logging.getLogger(__name__)
 

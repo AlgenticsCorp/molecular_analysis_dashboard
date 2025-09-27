@@ -43,6 +43,8 @@ dependencies = [
     # HTTP client dependencies
     "aiohttp>=3.8.0",
     "requests-toolbelt>=1.0.0",
+    # File upload dependencies
+    "python-multipart>=0.0.6",
     # Molecular analysis dependencies
     "rdkit>=2023.9.0",
     "biopython>=1.83",
