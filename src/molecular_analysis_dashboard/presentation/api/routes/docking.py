@@ -25,32 +25,39 @@ def get_api_key() -> str:
 
 
 async def call_neurosnap(receptor_file: UploadFile, ligand_file: UploadFile, note: str) -> str:
-    """Call NeuroSnap API exactly like the working script."""
+    """Call NeuroSnap API using the correct working format."""
 
-    # Read files
-    receptor_data = (await receptor_file.read()).decode("utf-8")
-    ligand_data = (await ligand_file.read()).decode("utf-8")
+    # Read receptor as binary (like the working example)
+    receptor_content = await receptor_file.read()
+    ligand_content = await ligand_file.read()
 
-    # Prepare data exactly like working script
+    # Decode ligand as text for JSON
+    try:
+        ligand_data = ligand_content.decode("utf-8")
+    except UnicodeDecodeError:
+        ligand_data = ligand_content.decode("latin-1")
+
+    print(f"DEBUG: Using correct GNINA format")
+    print(f"DEBUG: Receptor size: {len(receptor_content)} bytes")
+    print(f"DEBUG: Ligand size: {len(ligand_data)} chars")
+
+    # Use the EXACT format from the working example
     fields = {
-        "Input Receptor": json.dumps(
-            [
-                {
-                    "type": "pdb",
-                    "name": (
-                        receptor_file.filename.split(".")[0]
-                        if receptor_file.filename
-                        else "receptor"
-                    ),
-                    "data": receptor_data,
-                }
-            ]
-        ),
-        "Input Ligand": json.dumps([{"type": "sdf", "data": ligand_data}]),
+        # Receptor: tuple format (filename, binary_data) like working example
+        "Input Receptor": (receptor_file.filename or "structure.pdb", receptor_content),
+        # Ligand: JSON format with data first, then type (like working example)
+        "Input Ligand": json.dumps([{"data": ligand_data, "type": "sdf"}]),
     }
+
+    print(f"DEBUG: Field structure:")
+    print(f"  Input Receptor: tuple with filename '{fields['Input Receptor'][0]}'")
+    print(f"  Input Ligand: JSON array format")
 
     # Submit to NeuroSnap
     multipart_data = MultipartEncoder(fields=fields)
+
+    print(f"DEBUG: Submitting to GNINA with correct format")
+
     response = requests.post(
         f"https://neurosnap.ai/api/job/submit/GNINA?note={note}",
         headers={"X-API-KEY": get_api_key(), "Content-Type": multipart_data.content_type},
@@ -58,9 +65,13 @@ async def call_neurosnap(receptor_file: UploadFile, ligand_file: UploadFile, not
         timeout=30,
     )
 
+    print(f"DEBUG: NeuroSnap response status: {response.status_code}")
+    print(f"DEBUG: NeuroSnap response: {response.text}")
+
     if response.status_code == 200:
         return response.json()
     else:
+        logger.error(f"NeuroSnap API error: {response.status_code} - {response.text}")
         raise HTTPException(
             status_code=502, detail=f"NeuroSnap error: {response.status_code} - {response.text}"
         )

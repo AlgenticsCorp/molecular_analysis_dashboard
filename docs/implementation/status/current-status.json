@@ -1,5 +1,5 @@
 {
-  "last_updated": "2025-09-26T19:39:31.450999",
+  "last_updated": "2025-09-27T19:36:52.878908",
   "phases": {
     "phase-1": {
       "name": "Foundation & Setup",
@@ -131,6 +131,13 @@
           "last_updated": "2025-09-24",
           "owner": "AI-Assistant",
           "notes": "Depends on Basic Task Execution. Will validate complete task workflow from creation to completion."
+        },
+        "docking_ui_components": {
+          "name": "Docking UI Components",
+          "status": "Planning",
+          "created_date": "2025-09-27",
+          "last_updated": "2025-09-27",
+          "notes": "Frontend job submission and status dashboard"
         }
       }
     },
@@ -226,7 +233,7 @@
     "phase-4b": {
       "name": "Docking Engines",
       "status": "In Progress",
-      "progress": 10,
+      "progress": 40,
       "features": {
         "docking_engine_integration": {
           "name": "Docking Engine Integration",
@@ -235,6 +242,28 @@
           "last_updated": "2025-09-24",
           "owner": "AI-Assistant",
           "notes": "Critical molecular analysis gap: Implementing Vina, Smina, Gnina adapters with subprocess execution and result parsing"
+        },
+        "neurosnap_gnina_integration": {
+          "name": "NeuroSnap GNINA Integration",
+          "status": "Complete",
+          "created_date": "2025-09-27",
+          "last_updated": "2025-09-27",
+          "owner": "AssistantDeveloper",
+          "notes": "Successfully resolved NeuroSnap API format issues - working notebook and API integration with correct multipart format"
+        },
+        "job_status_polling_api": {
+          "name": "Job Status Polling API",
+          "status": "Planning",
+          "created_date": "2025-09-27",
+          "last_updated": "2025-09-27",
+          "notes": "Next critical feature - users need job progress visibility"
+        },
+        "result_retrieval_&_parsing": {
+          "name": "Result Retrieval & Parsing",
+          "status": "Planning",
+          "created_date": "2025-09-27",
+          "last_updated": "2025-09-27",
+          "notes": "Download and parse GNINA results from NeuroSnap"
         }
       },
       "start_date": "2025-09-24"
