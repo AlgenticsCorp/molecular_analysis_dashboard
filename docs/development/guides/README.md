@@ -32,6 +32,16 @@ Code quality enforcement and best practices
 - Pre-commit hooks and automated quality checks
 - Documentation standards and requirements
 
+### **[Service Integration Guide](service-integration-guide.md)** ⭐ **NEW**
+**Complete step-by-step guide for integrating new external services**
+- Comprehensive 8-phase integration process based on successful NeuroSnap patterns
+- Clean Architecture implementation with ports/adapters
+- Authentication patterns (API key, OAuth2, custom)
+- FastAPI route creation with SwaggerUI documentation
+- Testing strategies (unit, integration, end-to-end)
+- Production-ready error handling and retry logic
+- **Essential reading for any new service integration**
+
 ### **[Contributing Guide](contributing.md)**
 Advanced debugging strategies for molecular analysis workflows
 - Docker container debugging and log analysis
