@@ -209,3 +209,6 @@ Thumbs.db
 *_BROKEN.md
 *_BACKUP.md
 test_package*/
+
+# Temporary development folders
+temp/
