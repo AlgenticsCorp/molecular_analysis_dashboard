@@ -4,13 +4,27 @@ This section contains all architectural documentation for the Molecular Analysis
 
 ## 📋 **Overview**
 
-The Molecular Analysis Dashboard follows **Clean Architecture** (Ports & Adapters) principles with a microservices-oriented design for scalability and maintainability.
+The Molecular Analysis Dashboard follows **Clean Architecture** (Ports & Adapters) principles. The system currently implements **working molecular docking workflows** with real NeuroSnap integration, while maintaining a design that supports future expansion to dynamic task systems.
+
+### **Current State (As-Built)**
+- ✅ **Production-Ready Molecular Docking**: Complete GNINA workflow operational
+- ✅ **Real Integration**: NeuroSnap cloud API working with actual research data
+- ✅ **Interactive API**: Full SwaggerUI documentation and testing
+- ✅ **Clean Architecture**: Ports & Adapters implementation maintained
+- **📋 Details**: [Current State Architecture](system-design/current-state.md)
+
+### **Target Vision (To-Be)**
+- 🔄 **Dynamic Task System**: Runtime addition of computational workflows
+- 🔄 **Multi-Provider Support**: Local engines + multiple cloud services
+- 🔄 **Service Discovery**: Auto-scaling computational services
+- **📋 Details**: [Target Architecture Overview](system-design/overview.md)
 
 ## 🗂️ **Architecture Sections**
 
 ### **[System Design](system-design/README.md)**
 High-level architecture, patterns, and design principles
-- **[Overview](system-design/overview.md)** - System architecture overview
+- **[Overview](system-design/overview.md)** - Target architecture vision and design principles
+- **[Current State](system-design/current-state.md)** - As-built implementation documentation
 - **[Clean Architecture](system-design/clean-architecture.md)** - Ports & Adapters implementation
 - **[Framework Design](system-design/framework-design.md)** - Core business entities and framework patterns
 - **[Use Cases](system-design/use-cases.md)** - Application services and use cases

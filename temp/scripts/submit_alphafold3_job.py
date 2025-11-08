@@ -12,7 +12,7 @@ def submit_alphafold3_job(
     msa_mode: str = "mmseqs2_uniref_env",
     num_recycles: str = "6",
     sampling_steps: str = "200",
-    diffusion_samples: str = "5",
+    diffusion_samples: str = "3",
     step_scale: str = "1.638"
 ):
     # Load API key

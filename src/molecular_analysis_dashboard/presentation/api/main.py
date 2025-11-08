@@ -59,21 +59,29 @@ try:
 except ImportError:
     TASKS_ROUTER_AVAILABLE = False
 
-# Import molecules router for file upload
-try:
-    from .routes.molecules import router as molecules_router
-
-    MOLECULES_ROUTER_AVAILABLE = True
-except ImportError:
-    MOLECULES_ROUTER_AVAILABLE = False
-
-# Import docking router for molecular docking
+# Import the docking router
 try:
     from .routes.docking import router as docking_router
 
     DOCKING_ROUTER_AVAILABLE = True
 except ImportError:
     DOCKING_ROUTER_AVAILABLE = False
+
+# Import the folding router
+try:
+    from .routes.folding import router as folding_router
+
+    FOLDING_ROUTER_AVAILABLE = True
+except ImportError:
+    FOLDING_ROUTER_AVAILABLE = False
+
+# Import the unified NeuroSnap router
+try:
+    from .routes.neurosnap_unified import router as neurosnap_unified_router
+
+    NEUROSNAP_UNIFIED_ROUTER_AVAILABLE = True
+except ImportError:
+    NEUROSNAP_UNIFIED_ROUTER_AVAILABLE = False
 
 root_path = os.getenv("ROOT_PATH", "")
 app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
@@ -107,11 +115,14 @@ if TASK_EXECUTION_ROUTER_AVAILABLE:
 if TASKS_ROUTER_AVAILABLE:
     app.include_router(tasks_router)
 
-if MOLECULES_ROUTER_AVAILABLE:
-    app.include_router(molecules_router)
-
 if DOCKING_ROUTER_AVAILABLE:
     app.include_router(docking_router)
+
+if FOLDING_ROUTER_AVAILABLE:
+    app.include_router(folding_router)
+
+if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE:
+    app.include_router(neurosnap_unified_router)
 
 
 @app.middleware("http")
@@ -135,10 +146,15 @@ def ready() -> dict[str, Any]:
     checks = {
         "task_execution_api": "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_available",
         "task_registry_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
+        "docking_api": "ready" if DOCKING_ROUTER_AVAILABLE else "not_available",
         "broker": "pending",
     }
 
-    # Consider ready if at least task execution is available
-    status = "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_ready"
+    # Consider ready if at least one API is available
+    status = (
+        "ready"
+        if any([TASK_EXECUTION_ROUTER_AVAILABLE, TASKS_ROUTER_AVAILABLE, DOCKING_ROUTER_AVAILABLE])
+        else "not_ready"
+    )
 
     return {"status": status, "checks": checks}

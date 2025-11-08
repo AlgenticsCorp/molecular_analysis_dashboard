@@ -1,226 +1,270 @@
-"""
-Pydantic schemas for molecular docking API endpoints.
-
-This module defines request/response schemas for the professional docking API,
-following NeuroSnap-style patterns with proper OpenAPI documentation.
-"""
+"""Pydantic schemas for docking API endpoints."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from ....domain.entities.docking_job import JobStatus
 
 
-class FileUploadResponse(BaseModel):
-    """Response schema for file upload endpoints."""
+class JobStatusEnum(str, Enum):
+    """Job status enumeration for API responses."""
 
-    file_id: str = Field(..., description="Unique identifier for the uploaded file")
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELED = "canceled"
+
+
+class MolecularFileInfo(BaseModel):
+    """Information about an uploaded molecular file."""
+
     filename: str = Field(..., description="Original filename")
-    format: str = Field(..., description="File format (pdb, sdf, mol2)")
-    file_type: str = Field(..., description="File type (receptor, ligand)")
-    size_bytes: int = Field(..., description="File size in bytes")
-    validation_info: Dict[str, Any] = Field(..., description="File validation results")
-    storage_path: str = Field(..., description="Internal storage path")
-    name: str = Field(..., description="Display name for the file")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "file_id": "12345678-1234-5678-1234-123456789012",
-                "filename": "protein.pdb",
-                "format": "pdb",
-                "file_type": "receptor",
-                "size_bytes": 125432,
-                "validation_info": {"atom_count": 2456, "has_coordinates": True, "format": "pdb"},
-                "storage_path": "docking/receptors/org-id/file-id.pdb",
-                "name": "EGFR Kinase Domain",
-            }
-        }
-
-
-class JobSubmissionRequest(BaseModel):
-    """Request schema for submitting docking jobs."""
-
-    receptor_file_id: str = Field(..., description="File ID of uploaded receptor PDB")
-    ligand_file_id: str = Field(..., description="File ID of uploaded ligand SDF")
-    parameters: Optional[Dict[str, Any]] = Field(
-        default=None, description="Additional GNINA parameters (exhaustiveness, num_modes, etc.)"
-    )
-    job_name: Optional[str] = Field(None, description="Optional name for the job")
-    note: Optional[str] = Field(None, description="Optional job description/note")
+    format: str = Field(..., description="File format (pdb, sdf, mol2, etc.)")
+    size_bytes: Optional[int] = Field(None, description="File size in bytes")
 
     class Config:
         schema_extra = {
-            "example": {
-                "receptor_file_id": "12345678-1234-5678-1234-123456789012",
-                "ligand_file_id": "87654321-4321-8765-4321-210987654321",
-                "parameters": {"exhaustiveness": 8, "num_modes": 9, "energy_range": 3},
-                "job_name": "EGFR-Osimertinib Docking",
-                "note": "Testing drug resistance mutations",
-            }
+            "example": {"filename": "1HTM_receptor.pdb", "format": "pdb", "size_bytes": 245631}
         }
 
 
 class DirectJobSubmissionResponse(BaseModel):
-    """Response schema for direct job submission with file uploads."""
+    """Response from direct job submission to NeuroSnap."""
 
-    job_id: str = Field(..., description="Unique identifier for the submitted job")
-    status: JobStatus = Field(..., description="Initial job status")
-    message: str = Field(..., description="Submission confirmation message")
-    receptor_info: Dict[str, Any] = Field(..., description="Uploaded receptor file information")
-    ligand_info: Dict[str, Any] = Field(..., description="Uploaded ligand file information")
+    job_id: str = Field(..., description="NeuroSnap job ID")
+    status: JobStatusEnum = Field(..., description="Initial job status")
+    message: str = Field(..., description="Submission status message")
+    receptor_info: MolecularFileInfo = Field(..., description="Uploaded receptor information")
+    ligand_info: MolecularFileInfo = Field(..., description="Uploaded ligand information")
     job_name: str = Field(..., description="User-provided job name")
-    estimated_runtime: Optional[str] = Field(None, description="Estimated completion time")
-
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "job_id": "job-12345678-1234-5678-1234-123456789012",
-                "status": "pending",
-                "message": "GNINA docking job submitted successfully with uploaded files",
-                "receptor_info": {
-                    "filename": "egfr_kinase.pdb",
-                    "format": "pdb",
-                    "atom_count": 2456,
-                    "size_bytes": 125432,
-                },
-                "ligand_info": {"filename": "osimertinib.sdf", "format": "sdf", "size_bytes": 3421},
-                "job_name": "EGFR-Osimertinib Docking",
-                "estimated_runtime": "15-30 minutes",
-            }
-        }
-
-
-class JobSubmissionResponse(BaseModel):
-    """Response schema for job submission."""
-
-    job_id: str = Field(..., description="Unique identifier for the submitted job")
-    status: JobStatus = Field(..., description="Initial job status")
-    message: str = Field(..., description="Submission confirmation message")
-    receptor_file_id: str = Field(..., description="Receptor file ID used")
-    ligand_file_id: str = Field(..., description="Ligand file ID used")
-    parameters: Optional[Dict[str, Any]] = Field(None, description="Job parameters")
-    estimated_runtime: Optional[str] = Field(None, description="Estimated completion time")
+    estimated_runtime: str = Field(..., description="Estimated completion time")
+    submitted_at: Optional[datetime] = Field(default=None, description="Submission timestamp")
 
     class Config:
         schema_extra = {
             "example": {
-                "job_id": "job-12345678-1234-5678-1234-123456789012",
+                "job_id": "68d8615c545d2bb25a34dc95",
                 "status": "pending",
-                "message": "Job submitted successfully to GNINA queue",
-                "receptor_file_id": "12345678-1234-5678-1234-123456789012",
-                "ligand_file_id": "87654321-4321-8765-4321-210987654321",
-                "parameters": {"exhaustiveness": 8, "num_modes": 9},
-                "estimated_runtime": "5-10 minutes",
+                "message": "Job submitted to NeuroSnap successfully",
+                "receptor_info": {
+                    "filename": "1HTM_receptor.pdb",
+                    "format": "pdb",
+                    "size_bytes": 245631,
+                },
+                "ligand_info": {"filename": "erlotinib.sdf", "format": "sdf", "size_bytes": 3421},
+                "job_name": "EGFR-Erlotinib Docking",
+                "estimated_runtime": "15-30 minutes",
+                "submitted_at": "2025-09-27T10:30:00Z",
             }
         }
 
 
 class JobStatusResponse(BaseModel):
-    """Response schema for job status queries."""
+    """Response for job status queries."""
 
-    job_id: str = Field(..., description="Job identifier")
-    status: JobStatus = Field(..., description="Current job status")
-    progress: float = Field(..., description="Job progress (0.0 to 1.0)")
-    message: str = Field(..., description="Status message or error details")
-    created_at: str = Field(..., description="Job creation timestamp (ISO format)")
-    started_at: Optional[str] = Field(None, description="Job start timestamp")
-    completed_at: Optional[str] = Field(None, description="Job completion timestamp")
-    estimated_completion: Optional[str] = Field(None, description="Estimated completion time")
+    job_id: str = Field(..., description="NeuroSnap job ID")
+    status: JobStatusEnum = Field(..., description="Current job status")
+    progress_percentage: Optional[float] = Field(
+        None, description="Job progress (0-100)", ge=0, le=100
+    )
+    estimated_time_remaining: Optional[str] = Field(
+        None, description="Estimated time to completion"
+    )
+    status_message: Optional[str] = Field(None, description="Detailed status message")
+    started_at: Optional[datetime] = Field(None, description="Job start timestamp")
+    updated_at: Optional[datetime] = Field(None, description="Last status update timestamp")
 
     class Config:
         schema_extra = {
             "example": {
-                "job_id": "job-12345678-1234-5678-1234-123456789012",
+                "job_id": "68d8615c545d2bb25a34dc95",
                 "status": "running",
-                "progress": 0.65,
-                "message": "Docking in progress - evaluating poses",
-                "created_at": "2025-09-26T19:00:00Z",
-                "started_at": "2025-09-26T19:01:30Z",
-                "completed_at": None,
-                "estimated_completion": "2025-09-26T19:08:00Z",
+                "progress_percentage": 75.0,
+                "estimated_time_remaining": "5-8 minutes",
+                "status_message": "Processing docking poses...",
+                "started_at": "2025-09-27T10:32:15Z",
+                "updated_at": "2025-09-27T10:45:30Z",
             }
         }
 
 
-class DockingJobInfo(BaseModel):
-    """Information about a single docking job."""
+class DockingPoseSchema(BaseModel):
+    """Individual docking pose result."""
 
-    job_id: str = Field(..., description="Job identifier")
-    job_name: Optional[str] = Field(None, description="User-provided job name")
-    status: JobStatus = Field(..., description="Current job status")
-    receptor_name: str = Field(..., description="Receptor file name")
-    ligand_name: str = Field(..., description="Ligand file name")
-    created_at: str = Field(..., description="Job creation timestamp")
-    completed_at: Optional[str] = Field(None, description="Job completion timestamp")
-    runtime: Optional[str] = Field(None, description="Job runtime duration")
+    rank: int = Field(..., description="Pose ranking (1 = best)")
+    affinity: float = Field(..., description="Binding affinity (kcal/mol)")
+    rmsd_lb: Optional[float] = Field(None, description="RMSD lower bound")
+    rmsd_ub: Optional[float] = Field(None, description="RMSD upper bound")
+    confidence_score: Optional[float] = Field(None, description="CNN confidence score", ge=0, le=1)
+    coordinates_sdf: Optional[str] = Field(None, description="SDF format coordinates")
 
     class Config:
         schema_extra = {
             "example": {
-                "job_id": "job-12345678-1234-5678-1234-123456789012",
-                "job_name": "EGFR-Osimertinib Docking",
-                "status": "completed",
-                "receptor_name": "EGFR Kinase Domain",
-                "ligand_name": "Osimertinib",
-                "created_at": "2025-09-26T19:00:00Z",
-                "completed_at": "2025-09-26T19:07:45Z",
-                "runtime": "7m 45s",
+                "rank": 1,
+                "affinity": -8.7,
+                "rmsd_lb": 0.0,
+                "rmsd_ub": 2.1,
+                "confidence_score": 0.92,
+                "coordinates_sdf": "...\nSDF coordinate data\n...",
             }
         }
 
 
-class UserJobsResponse(BaseModel):
-    """Response schema for listing user jobs."""
+class DockingResultsResponse(BaseModel):
+    """Complete docking results for a completed job."""
 
-    jobs: List[DockingJobInfo] = Field(..., description="List of user's docking jobs")
-    total_jobs: int = Field(..., description="Total number of jobs")
+    job_id: str = Field(..., description="NeuroSnap job ID")
+    status: JobStatusEnum = Field(..., description="Final job status")
+    poses: List[DockingPoseSchema] = Field(..., description="All docking poses ranked by affinity")
+    best_pose: Optional[DockingPoseSchema] = Field(None, description="Best scoring pose")
+    execution_time: Optional[float] = Field(None, description="Total execution time in seconds")
+    engine_version: Optional[str] = Field(None, description="Docking engine version used")
+    parameters: Optional[Dict[str, Any]] = Field(None, description="Docking parameters used")
+    completed_at: Optional[datetime] = Field(None, description="Job completion timestamp")
+    download_urls: Optional[Dict[str, str]] = Field(
+        None, description="URLs for downloading result files"
+    )
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "job_id": "68d8615c545d2bb25a34dc95",
+                "status": "completed",
+                "poses": [
+                    {
+                        "rank": 1,
+                        "affinity": -8.7,
+                        "rmsd_lb": 0.0,
+                        "rmsd_ub": 2.1,
+                        "confidence_score": 0.92,
+                    },
+                    {
+                        "rank": 2,
+                        "affinity": -8.2,
+                        "rmsd_lb": 0.5,
+                        "rmsd_ub": 2.8,
+                        "confidence_score": 0.87,
+                    },
+                ],
+                "best_pose": {
+                    "rank": 1,
+                    "affinity": -8.7,
+                    "rmsd_lb": 0.0,
+                    "rmsd_ub": 2.1,
+                    "confidence_score": 0.92,
+                },
+                "execution_time": 1247.5,
+                "engine_version": "GNINA v1.0",
+                "completed_at": "2025-09-27T11:02:45Z",
+                "download_urls": {
+                    "results_sdf": "https://neurosnap.ai/download/...",
+                    "log_file": "https://neurosnap.ai/download/...",
+                },
+            }
+        }
+
+
+class JobSummary(BaseModel):
+    """Summary information for a docking job."""
+
+    job_id: str = Field(..., description="NeuroSnap job ID")
+    job_name: str = Field(..., description="User-provided job name")
+    status: JobStatusEnum = Field(..., description="Current job status")
+    receptor_filename: str = Field(..., description="Receptor filename")
+    ligand_filename: str = Field(..., description="Ligand filename")
+    submitted_at: datetime = Field(..., description="Job submission timestamp")
+    completed_at: Optional[datetime] = Field(None, description="Job completion timestamp")
+    best_affinity: Optional[float] = Field(None, description="Best binding affinity if completed")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "job_id": "68d8615c545d2bb25a34dc95",
+                "job_name": "EGFR-Erlotinib Docking",
+                "status": "completed",
+                "receptor_filename": "1HTM_receptor.pdb",
+                "ligand_filename": "erlotinib.sdf",
+                "submitted_at": "2025-09-27T10:30:00Z",
+                "completed_at": "2025-09-27T11:02:45Z",
+                "best_affinity": -8.7,
+            }
+        }
+
+
+class JobListResponse(BaseModel):
+    """Response for listing user's docking jobs."""
+
+    jobs: List[JobSummary] = Field(..., description="List of user's docking jobs")
+    total_count: int = Field(..., description="Total number of jobs")
+    page: int = Field(default=1, description="Current page number", ge=1)
+    page_size: int = Field(default=20, description="Number of jobs per page", ge=1, le=100)
+    filters: Optional[Dict[str, Any]] = Field(None, description="Applied filters")
 
     class Config:
         schema_extra = {
             "example": {
                 "jobs": [
                     {
-                        "job_id": "job-12345678-1234-5678-1234-123456789012",
-                        "job_name": "EGFR-Osimertinib Docking",
+                        "job_id": "68d8615c545d2bb25a34dc95",
+                        "job_name": "EGFR-Erlotinib Docking",
                         "status": "completed",
-                        "receptor_name": "EGFR Kinase Domain",
-                        "ligand_name": "Osimertinib",
-                        "created_at": "2025-09-26T19:00:00Z",
-                        "completed_at": "2025-09-26T19:07:45Z",
-                        "runtime": "7m 45s",
+                        "receptor_filename": "1HTM_receptor.pdb",
+                        "ligand_filename": "erlotinib.sdf",
+                        "submitted_at": "2025-09-27T10:30:00Z",
+                        "completed_at": "2025-09-27T11:02:45Z",
+                        "best_affinity": -8.7,
                     }
                 ],
-                "total_jobs": 1,
+                "total_count": 1,
+                "page": 1,
+                "page_size": 20,
+                "filters": {"status": "completed"},
             }
         }
 
 
-class DockingResultsResponse(BaseModel):
-    """Response schema for job results."""
+class JobFilterParams(BaseModel):
+    """Parameters for filtering job lists."""
 
-    job_id: str = Field(..., description="Job identifier")
-    status: JobStatus = Field(..., description="Job status")
-    results_available: bool = Field(..., description="Whether results are ready for download")
-    message: str = Field(..., description="Results status message")
-    download_urls: Dict[str, str] = Field(..., description="URLs for downloading result files")
-    summary: Optional[Dict[str, Any]] = Field(None, description="Result summary statistics")
+    status: Optional[JobStatusEnum] = Field(None, description="Filter by job status")
+    start_date: Optional[datetime] = Field(
+        None, description="Filter jobs submitted after this date"
+    )
+    end_date: Optional[datetime] = Field(None, description="Filter jobs submitted before this date")
+    job_name_contains: Optional[str] = Field(None, description="Filter by job name substring")
+    page: int = Field(default=1, description="Page number", ge=1)
+    page_size: int = Field(default=20, description="Number of jobs per page", ge=1, le=100)
 
     class Config:
         schema_extra = {
             "example": {
-                "job_id": "job-12345678-1234-5678-1234-123456789012",
                 "status": "completed",
-                "results_available": True,
-                "message": "Results ready for download",
-                "download_urls": {
-                    "poses_sdf": "/api/v1/docking/jobs/job-123/files/poses.sdf",
-                    "scores_csv": "/api/v1/docking/jobs/job-123/files/scores.csv",
-                    "summary_json": "/api/v1/docking/jobs/job-123/files/summary.json",
-                },
-                "summary": {"best_affinity": -9.2, "num_poses": 9, "runtime": "7m 45s"},
+                "start_date": "2025-09-01T00:00:00Z",
+                "end_date": "2025-09-30T23:59:59Z",
+                "job_name_contains": "EGFR",
+                "page": 1,
+                "page_size": 20,
+            }
+        }
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response format."""
+
+    error: Dict[str, Any] = Field(..., description="Error details")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "error": {
+                    "code": "JOB_NOT_FOUND",
+                    "message": "Job 'invalid-id' not found or not accessible",
+                    "details": {"job_id": "invalid-id", "timestamp": "2025-09-27T12:00:00Z"},
+                }
             }
         }

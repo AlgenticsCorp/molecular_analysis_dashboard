@@ -1,6 +1,124 @@
 # System Architecture Overview
 
-The Molecular Analysis Dashboard follows **Clean Architecture** (Ports & Adapters) principles with a dynamic task system enabling runtime addition of computational workflows without code deployment.
+The Molecular Analysis Dashboard follows **Clean Architecture** (Ports & Adapters) principles with a planned dynamic task system enabling runtime addition of computational workflows without code deployment.
+
+> **🎯 Documentation Structure**
+> This document describes the **target architecture vision**. For the current implementation details, see [Current State Architecture](current-state.md).
+
+## 📊 **Current vs. Target State Overview**
+
+| Aspect | Current Implementation | Target Architecture |
+|--------|----------------------|-------------------|
+| **Status** | ✅ **Operational** | 🔄 **Planned** |
+| **Architecture** | Monolithic + NeuroSnap API | Microservices + Dynamic Tasks |
+| **Task System** | Static GNINA docking only | Dynamic runtime task registration |
+| **Deployment** | Docker Compose | Kubernetes |
+| **Scaling** | Single service instances | Independent service scaling |
+| **Documentation** | [Current State](current-state.md) | This document |
+
+---
+
+## ✅ **Current Implementation (As-Built)**
+
+### **What's Actually Running (November 2025)**
+
+The system currently implements a **working molecular docking platform** with real NeuroSnap integration:
+
+```mermaid
+flowchart TD
+    User["👤 User"] --> Frontend["⚛️ React Frontend\n(http://localhost:5173)"]
+    Frontend --> Gateway["🚪 API Gateway\n(OpenResty/Nginx)"]
+    Gateway --> API["🐍 FastAPI Backend\n(http://localhost:8000)"]
+    API --> DB[("📊 PostgreSQL\nDatabase")]
+    API --> Redis[("⚡ Redis\nCache & Queue")]
+    API --> NeuroSnap["🧬 NeuroSnap API\n(GNINA Docking)"]]
+
+    subgraph "Current Services"
+        Gateway
+        API
+        DB
+        Redis
+    end
+
+    subgraph "External Services"
+        NeuroSnap
+    end
+
+    classDef implemented fill:#90EE90
+    classDef external fill:#FFB6C1
+
+    class User,Frontend,Gateway,API,DB,Redis implemented
+    class NeuroSnap external
+```
+
+### **Currently Operational Features**
+- ✅ **Complete Molecular Docking Workflow**: Submit → Monitor → Results → Download
+- ✅ **Real NeuroSnap Integration**: Live GNINA cloud docking execution
+- ✅ **Interactive API**: SwaggerUI at http://localhost:8000/docs
+- ✅ **Multi-file Support**: PDB receptors + SDF ligands
+- ✅ **Real-time Status**: Job progress tracking
+- ✅ **File Download**: CSV scores + SDF coordinates
+- ✅ **Clean Architecture**: Ports & Adapters implementation
+- ✅ **Docker Infrastructure**: Containerized development environment
+
+> **📋 For detailed current state documentation, see [Current State Architecture](current-state.md)**
+
+---
+
+## 🚀 **Target Architecture (Future Vision)**
+
+### **Future Vision: Dynamic Task System**
+
+This target architecture will expand beyond static docking to support **dynamic task registration** and **multi-provider workflows**:
+
+```mermaid
+flowchart TD
+    User["👤 User"] --> Frontend["⚛️ React Frontend\n(Dynamic Forms)"]
+    Frontend --> Gateway["🚪 API Gateway\n(Routing & Security)"]
+    Gateway --> API["🐍 FastAPI Core"]
+    API --> Registry["📋 Task Registry\n(Dynamic Tasks)"]
+    API --> Queue["📤 Celery Queue"]
+    Queue --> Worker["⚙️ Celery Workers"]
+    Worker --> TaskSvc1["🧬 GNINA Service"]
+    Worker --> TaskSvc2["🔬 AutoDock Vina"]
+    Worker --> TaskSvc3["⚗️ Custom Analysis"]
+    API --> DB[("📊 PostgreSQL")]
+    Worker --> Storage[("💾 S3/MinIO Storage")]
+
+    subgraph "Core Platform"
+        Gateway
+        API
+        Registry
+        Queue
+        Worker
+    end
+
+    subgraph "Dynamic Task Services"
+        TaskSvc1
+        TaskSvc2
+        TaskSvc3
+    end
+
+    subgraph "Data Layer"
+        DB
+        Storage
+    end
+
+    classDef future fill:#ADD8E6
+    classDef current fill:#90EE90
+
+    class Gateway,API,DB current
+    class Registry,Queue,Worker,TaskSvc1,TaskSvc2,TaskSvc3,Storage future
+```
+
+### **Planned Capabilities (Future)**
+- 🔄 **Dynamic Task Registration**: Add new computational workflows at runtime
+- 🔄 **Multi-Provider Support**: Local engines + cloud services
+- 🔄 **Workflow Orchestration**: Complex multi-step analysis pipelines
+- 🔄 **Service Discovery**: Auto-discovery of computational services
+- 🔄 **Horizontal Scaling**: Independent scaling of task services
+
+---
 
 ## 🏗️ **Core Architectural Principles**
 
@@ -97,28 +215,78 @@ The system operates with three distinct service types:
 
 ## 📊 **Data Flow Architecture**
 
+### **Current Data Flow (As-Built)**
+
 ```mermaid
-flowchart TD
-    Client[React Frontend] --> Gateway[API Gateway]
-    Gateway --> API[FastAPI Service]
-    API --> TaskRegistry[Task Registry]
-    API --> Queue[Redis Queue]
-    Queue --> Worker[Celery Worker]
-    Worker --> TaskService[Task Services]
-    Worker --> Database[PostgreSQL]
-    Worker --> Storage[File Storage]
-    TaskService --> Results[Computational Results]
+sequenceDiagram
+    participant U as 👤 User
+    participant F as ⚛️ Frontend
+    participant G as 🚪 Gateway
+    participant A as 🐍 API
+    participant N as 🧬 NeuroSnap
+    participant D as 📊 Database
+
+    U->>F: Submit docking job
+    F->>G: POST /api/v1/docking/submit
+    G->>A: Route to FastAPI
+    A->>A: Validate PDB/SDF files
+    A->>N: Submit to GNINA API
+    N-->>A: Job ID (e.g., 690f5c...)
+    A->>D: Store job metadata
+    A-->>F: Return job ID & status
+
+    loop Status Polling
+        F->>A: GET /api/v1/docking/status/{job_id}
+        A->>N: Query NeuroSnap status
+        N-->>A: Status (pending/running/completed)
+        A-->>F: Progress & time estimates
+    end
+
+    F->>A: GET /api/v1/docking/results/{job_id}
+    A->>N: List output files
+    N-->>A: File list (output.csv, output.sdf)
+    A-->>F: Download URLs
+
+    F->>A: GET /api/v1/docking/download/{job_id}/{file}
+    A->>N: Stream file content
+    N-->>A: File bytes
+    A-->>F: Direct file download
 ```
 
-### **Request Flow**
-1. **Client Request**: React frontend submits task through API gateway
-2. **Validation**: FastAPI validates request and checks authorization
-3. **Task Discovery**: System discovers available task services
-4. **Queue Submission**: Task queued for background execution
-5. **Worker Processing**: Celery worker coordinates task execution
-6. **Service Execution**: Containerized task service performs computation
-7. **Result Storage**: Results stored in database and file storage
-8. **Status Updates**: Real-time status via WebSocket to frontend
+### **Current Request Flow (Working)**
+1. **Client Request**: React frontend submits docking job through gateway
+2. **File Validation**: FastAPI validates PDB/SDF format and size
+3. **NeuroSnap Submission**: Direct API call to NeuroSnap GNINA service
+4. **Job Tracking**: Job ID returned for status monitoring
+5. **Status Polling**: Frontend polls for progress updates
+6. **Results Retrieval**: List available output files when complete
+7. **File Download**: Direct streaming of result files to user
+
+### **Future Data Flow (To-Be)**
+
+```mermaid
+sequenceDiagram
+    participant U as 👤 User
+    participant F as ⚛️ Frontend
+    participant A as 🐍 API
+    participant R as 📋 Registry
+    participant Q as 📤 Queue
+    participant W as ⚙️ Worker
+    participant T as 🧬 Task Service
+    participant S as 💾 Storage
+
+    U->>F: Define workflow
+    F->>A: POST /api/v1/workflows
+    A->>R: Discover available tasks
+    R-->>A: Task definitions
+    A->>Q: Queue workflow steps
+    Q-->>W: Assign to worker
+    W->>T: Execute task service
+    T->>S: Store intermediate results
+    T-->>W: Task completion
+    W->>A: Update workflow status
+    A-->>F: Real-time updates
+```
 
 ## 🔐 **Security Architecture**
 

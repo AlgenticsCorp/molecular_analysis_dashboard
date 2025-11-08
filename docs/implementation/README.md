@@ -2,106 +2,32 @@
 
 This section provides comprehensive implementation tracking, phase management, and developer tools for the Molecular Analysis Dashboard. It includes detailed phase documentation, progress tracking, and automated tools to help developers manage implementation status.
 
-## 👨‍💻 **Quick Start for Developers - Phase 5 GNINA Reality Check ACTIVE**
+## 👨‍💻 **Quick Start for Developers - Phase 3B Active**
 
-> **� CRITICAL PRIORITY CHANGE**: Phase 3B has been deprioritized. Phase 5 GNINA Integration Reality Check is now the immediate priority due to fundamental functionality gaps.
+> **🚀 Ready to contribute?** Phase 3B Service Implementation is ready for immediate development
 
 ### **⚡ Get Started in 15 Minutes**
 ```bash
 # 1. Setup environment (5 min)
 git clone [repo] && cd molecular_analysis_dashboard
-docker compose up -d
+source docs/development/getting-started/setup.md
 
-# 2. Verify current broken state (1 min)
-curl -X POST -F "file=@test.txt" http://localhost/api/v1/files/receptor
-# Expected: Should fail with 404 - this is what Phase 5 fixes
+# 2. View current tasks (1 min)
+python3 docs/implementation/tools/update-status.py --list-phases
 
-# 3. Claim a Phase 5 task (1 min)
-python3 docs/implementation/tools/update-status.py --phase "5A" --feature "File Upload APIs" --status "In Progress" --owner "$(whoami)"
+# 3. Claim a task (1 min)
+python3 docs/implementation/tools/update-status.py --phase "3B" --feature "API Port Exposure Fix" --status "In Progress" --owner "$(whoami)"
 
 # 4. Start development (follow git workflow)
-git checkout -b feature/phase-5a-file-upload
+git checkout -b feature/MOL-3B-api-port-exposure
 ```
 
 ### **🎯 Current Development Priorities**
-1. **🚨 Phase 5A: File Upload APIs** (2 days) - **IMMEDIATE START** - Critical blocker
-2. **🚨 Phase 5A: Storage Integration** (2 days) - **IMMEDIATE START** - Critical blocker
-3. **🔴 Phase 5B: Real NeuroSnap Jobs** (2 days) - **Week 2** - Core functionality
-4. **� Phase 5C: Sample File Integration** (1 day) - **Week 2** - Validation
+1. **✅ API Port Exposure Fix** (COMPLETE) - Gateway routing all services successfully
+2. **🔴 Basic Task Execution** (3 days) - **Next Priority** - Core functionality
+3. **🔴 End-to-End Flow Testing** (1 day) - Quality assurance
 
-**👀 See [Phase 5 Details](phases/phase-5/README.md) for complete task breakdown**
-
----
-
-## 🤖 **MANDATORY: AI Agent Workflow**
-
-> **⚠️ CRITICAL**: All AI agents (GitHub Copilot, Claude, etc.) MUST follow this workflow before making ANY changes to this project.
-
-### **🚫 BEFORE Making ANY Changes:**
-
-#### **Step 1: Read Implementation Status (MANDATORY)**
-```bash
-# 1. ALWAYS read the implementation README first
-cat docs/implementation/README.md
-
-# 2. Check current implementation status
-python3 docs/implementation/tools/generate-report.py --dashboard
-
-# 3. List all phases to understand what exists
-python3 docs/implementation/tools/update-status.py --list-phases
-```
-
-#### **Step 2: Validate Current Tracking (MANDATORY)**
-```bash
-# Check if any phase/feature needs to be added to tracking system
-python3 docs/implementation/tools/validate-documentation.py
-
-# Verify current status data integrity
-cat docs/implementation/status/current-status.json | jq .
-```
-
-#### **Step 3: Use Proper Tools (MANDATORY)**
-```bash
-# ❌ NEVER manually edit JSON status files
-# ❌ NEVER manually edit phase documentation without tools
-# ❌ NEVER add tasks without checking existing implementation plan
-
-# ✅ ALWAYS use update-status.py for status changes
-python3 docs/implementation/tools/update-status.py --phase "X" --feature "Feature Name" --status "Status"
-
-# ✅ ALWAYS use templates for new documentation
-cp docs/implementation/templates/phase-planning-template.md docs/implementation/phases/phase-X/planning.md
-```
-
-### **🔄 AI Agent Interaction Rules:**
-
-1. **READ FIRST**: Always examine existing implementation structure before proposing changes
-2. **TOOLS ONLY**: Use built-in management tools, never manual edits to tracking files
-3. **VALIDATE**: Verify changes work with status tools before concluding
-4. **TEMPLATES**: Use existing templates for consistency
-5. **STATUS SYNC**: Ensure all changes are reflected in tracking system
-
-### **❌ Common AI Agent Mistakes to Avoid:**
-- Adding tasks to documentation without updating tracking system
-- Manually editing `current-status.json` instead of using `update-status.py`
-- Creating new phases without following template structure
-- Bypassing validation tools
-- Not checking existing implementation priorities
-
-### **✅ Correct AI Agent Workflow:**
-```bash
-# 1. Always start here
-python3 docs/implementation/tools/generate-report.py --dashboard
-
-# 2. Check what needs to be done
-cat docs/implementation/README.md | grep -A 20 "Current Development Priorities"
-
-# 3. Use tools to make changes
-python3 docs/implementation/tools/update-status.py --phase "X" --feature "Y" --status "Z"
-
-# 4. Validate changes worked
-python3 docs/implementation/tools/generate-report.py --dashboard
-```
+**👀 See [Phase 3B Details](phases/README.md#phase-3b-service-implementation) for complete task breakdown**
 
 ---
 
@@ -159,26 +85,19 @@ python docs/implementation/tools/validate-documentation.py --phase phase-3b
 - ✅ Storage Implementation
 - ✅ Authentication System
 
-### **🔄 Phase 3: Gateway & Security** (Partially Complete - DEPRIORITIZED)
+### **🔄 Phase 3: Gateway & Security** (In Progress - 30% Complete)
 - ✅ **Phase 3A**: Gateway Architecture Design (Complete)
-- ⏸️ **Phase 3B**: Service Implementation (Deprioritized - 10% Complete)
-- ⏳ **Phase 3C**: Security Framework (On Hold)
-- ⏳ **Phase 3D**: Service Discovery (On Hold)
-- ⏳ **Phase 3E**: Production Hardening (On Hold)
+- 🏗️ **Phase 3B**: Service Implementation (In Progress - 25% Complete)
+- ⏳ **Phase 3C**: Security Framework (Not Started)
+- ⏳ **Phase 3D**: Service Discovery (Not Started)
+- ⏳ **Phase 3E**: Production Hardening (Not Started)
 
-### **🚨 Phase 5: GNINA Integration Reality Check** (CRITICAL PRIORITY)
-- 🔴 **Phase 5A**: File Handling Infrastructure (Ready to Start - CRITICAL)
-- 🔴 **Phase 5B**: Real NeuroSnap Integration (Ready - CRITICAL)
-- 🟡 **Phase 5C**: Sample File Integration (Ready - HIGH)
-- 🟡 **Phase 5D**: Developer Documentation (Ready - HIGH)
-- 🟡 **Phase 5E**: Configuration & Deployment (Ready - MEDIUM)
+### **⏳ Phase 4: Task Integration & Advanced Features** (Planned)
+- ⏳ **Phase 4A**: Task Integration (Not Started)
+- ⏳ **Phase 4B**: Docking Engines (Not Started)
+- ⏳ **Phase 4C**: Advanced Pipelines (Not Started)
 
-### **⏳ Phase 4: Task Integration & Advanced Features** (On Hold)
-- ⏳ **Phase 4A**: Task Integration (Waiting for Phase 5)
-- ⏳ **Phase 4B**: Docking Engines (Waiting for Phase 5)
-- ⏳ **Phase 4C**: Advanced Pipelines (Future)
-
-### **📊 Overall Progress**: ~25% Complete (reduced due to GNINA reality check)
+### **📊 Overall Progress**: ~33% Complete
 
 ---
 
@@ -188,9 +107,8 @@ python docs/implementation/tools/validate-documentation.py --phase phase-3b
 Detailed implementation phases with completion tracking, planning, and progress monitoring
 - **[Phase 1](phases/phase-1/)** - Foundation setup and clean architecture ✅
 - **[Phase 2](phases/phase-2/)** - Core API and frontend development ✅
-- **[Phase 3](phases/phase-3/)** - Gateway architecture and security ⏸️ (Deprioritized)
-- **[Phase 5](phases/phase-5/)** - GNINA Integration Reality Check � (CRITICAL ACTIVE)
-- **[Phase 4](phases/phase-4/)** - Task integration and advanced features ⏳ (After Phase 5)
+- **[Phase 3](phases/phase-3/)** - Gateway architecture and security 🔄
+- **[Phase 4](phases/phase-4/)** - Task integration and advanced features ⏳
 
 ### **[📝 Templates](templates/)**
 Standardized documentation templates for consistent phase management
@@ -368,33 +286,29 @@ python docs/implementation/tools/validate-documentation.py --fix
 
 ## 🎯 **Implementation Priorities**
 
-### **Current Focus: Phase 5 GNINA Integration Reality Check**
+### **Current Focus: Phase 3B Service Implementation**
 
-**🚨 CRITICAL ISSUES DISCOVERED:**
-1. **No File Upload Capability**: Current API only accepts JSON strings, not actual PDB/SDF files
-2. **Mock-Only Integration**: All NeuroSnap integration is fake - no real jobs submitted
-3. **Broken Storage**: File storage service not properly configured
-4. **Unused Sample Data**: Provided EGFR/osimertinib samples not integrated
-5. **False Test Results**: 87% test "pass rate" is meaningless - all mocked data
+**✅ Completed Tasks:**
+1. **API Port Exposure Fix** - Gateway successfully routing /health, /api/*, and frontend
 
-**✅ Immediate Tasks:**
-1. **File Upload APIs** (2 days) - Enable PDB/SDF file uploads via Swagger UI
-2. **Storage Service Fix** (2 days) - Proper file storage and retrieval
-3. **Real NeuroSnap Jobs** (2 days) - Submit actual molecular docking jobs
-4. **Sample Integration** (1 day) - Use provided EGFR/osimertinib for testing
+**🔄 Immediate Tasks:**
+1. **Basic Task Execution** (3 days) - Create working task endpoints
+2. **End-to-End Flow Testing** (1 day) - Verify task creation to completion
+3. **Docking Engine Stubs** (2 days) - Basic engine implementations
 
 **Success Criteria:**
-- ✅ Upload protein.pdb file → Submit real NeuroSnap job → Download actual results
-- ✅ Complete EGFR + osimertinib docking workflow working end-to-end
-- ✅ Developer guide for adding new docking engines (Vina, Smina)
+- ✅ Task creation via API
+- ✅ Job execution through Celery
+- ✅ Status tracking and results retrieval
+- ✅ Frontend task management UI
 
 ### **Next Phase: Task Integration (Phase 4A)**
 
-**After Phase 5 completion:**
+**Key Components:**
 - Dynamic task definition system
-- Multiple docking engine support
+- Molecular docking pipeline integration
+- Real docking engine implementations (Vina/Smina/Gnina)
 - Advanced result visualization
-- Frontend integration with real molecular docking
 
 ---
 

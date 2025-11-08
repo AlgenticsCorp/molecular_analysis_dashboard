@@ -20,7 +20,7 @@
 
 #### Current State:
 - ✅ Job submission working
-- ✅ Job status checking working  
+- ✅ Job status checking working
 - ✅ Result retrieval working
 - ✅ File download working
 - ✅ Complete API documentation

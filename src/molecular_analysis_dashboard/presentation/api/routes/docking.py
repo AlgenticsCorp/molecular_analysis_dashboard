@@ -4,16 +4,25 @@ import json
 import logging
 import os
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from pydantic import BaseModel
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+
+from ..services.neurosnap_service import (
+    download_job_file,
+    get_api_key,
+    get_job_results,
+    get_job_status,
+    get_progress_estimates,
+)
 
 # Setup
 logger = logging.getLogger(__name__)
 router = APIRouter(
-    prefix="/api/v1/docking", 
+    prefix="/api/v1/docking",
     tags=["Molecular Docking"],
     responses={
         401: {"description": "Authentication failed"},
@@ -21,13 +30,10 @@ router = APIRouter(
     },
 )
 
-# Response models for basic types (avoiding complex schemas for now)
-from pydantic import BaseModel
-from typing import Any, Dict
-
 
 class BasicJobResponse(BaseModel):
     """Basic job response model."""
+
     job_id: str
     status: str
     message: str
@@ -35,6 +41,7 @@ class BasicJobResponse(BaseModel):
 
 class BasicStatusResponse(BaseModel):
     """Basic status response model."""
+
     job_id: str
     status: str
     progress_percentage: Optional[float] = None
@@ -44,18 +51,11 @@ class BasicStatusResponse(BaseModel):
 
 class BasicResultsResponse(BaseModel):
     """Basic results response model."""
+
     job_id: str
     status: str
     files: List[str]
     download_urls: Dict[str, str]
-
-
-def get_api_key() -> str:
-    """Get NeuroSnap API key."""
-    key = os.getenv("NEUROSNAP_API_KEY")
-    if not key:
-        raise HTTPException(status_code=500, detail="API key not configured")
-    return key
 
 
 async def call_neurosnap(receptor_file: UploadFile, ligand_file: UploadFile, note: str) -> str:
@@ -120,7 +120,9 @@ async def call_neurosnap(receptor_file: UploadFile, ligand_file: UploadFile, not
 async def submit_job(
     receptor_file: UploadFile = File(..., description="Protein receptor structure in PDB format"),
     ligand_file: UploadFile = File(..., description="Ligand molecule structure in SDF format"),
-    job_name: str = Form(default="GNINA Docking", description="Human-readable name for the docking job"),
+    job_name: str = Form(
+        default="GNINA Docking", description="Human-readable name for the docking job"
+    ),
     note: str = Form(default="Docking analysis", description="Additional notes for the job"),
 ):
     """Submit docking job to NeuroSnap."""
@@ -146,170 +148,10 @@ async def submit_job(
         raise HTTPException(status_code=500, detail="Failed to submit job")
 
 
-@router.get(
-    "/status/{job_id}",
-    response_model=BasicStatusResponse,
-    summary="Get Job Status",
-    description="Check the current status and progress of a docking job.",
-)
-async def get_job_status(job_id: str):
-    """Get current status of a docking job."""
-    
-    try:
-        # Call NeuroSnap status API
-        response = requests.get(
-            f"https://neurosnap.ai/api/job/status/{job_id}",
-            headers={"X-API-KEY": get_api_key()},
-            timeout=30,
-        )
-        
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
-        elif response.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"NeuroSnap error: {response.status_code}")
-        
-        # Parse status response
-        status_data = response.json()
-        status = status_data if isinstance(status_data, str) else status_data.get("status", "unknown")
-        
-        # Calculate progress based on status
-        progress_map = {
-            "pending": 0.0,
-            "running": 50.0,
-            "completed": 100.0,
-            "failed": 0.0,
-        }
-        
-        time_remaining_map = {
-            "pending": "10-30 minutes",
-            "running": "5-15 minutes",
-            "completed": None,
-            "failed": None,
-        }
-        
-        return BasicStatusResponse(
-            job_id=job_id,
-            status=status,
-            progress_percentage=progress_map.get(status, 0.0),
-            estimated_time_remaining=time_remaining_map.get(status),
-            updated_at=datetime.utcnow(),
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Status check failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to check job status")
+# Status endpoint moved to /api/v1/neurosnap/status/{job_id} (unified)
 
 
-@router.get(
-    "/results/{job_id}",
-    response_model=BasicResultsResponse,
-    summary="Get Job Results",
-    description="Retrieve results for a completed docking job.",
-)
-async def get_job_results(job_id: str):
-    """Get results for a completed docking job."""
-    
-    try:
-        # First check if job is completed
-        status_response = requests.get(
-            f"https://neurosnap.ai/api/job/status/{job_id}",
-            headers={"X-API-KEY": get_api_key()},
-            timeout=30,
-        )
-        
-        if status_response.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"Job '{job_id}' not found")
-        
-        status_data = status_response.json()
-        status = status_data if isinstance(status_data, str) else status_data.get("status", "unknown")
-        
-        if status != "completed":
-            raise HTTPException(
-                status_code=425, 
-                detail=f"Job '{job_id}' is not completed (status: {status})"
-            )
-        
-        # Get job data (files and config) from NeuroSnap
-        data_response = requests.get(
-            f"https://neurosnap.ai/api/job/data/{job_id}/",
-            headers={"X-API-KEY": get_api_key()},
-            timeout=30,
-        )
-        
-        if data_response.status_code != 200:
-            raise HTTPException(status_code=502, detail="Failed to retrieve job data")
-        
-        data = data_response.json()
-        print(f"DEBUG: NeuroSnap data response: {data}")
-        
-        # NeuroSnap returns data in format: {'config': {...}, 'in': [...], 'out': [...]}
-        # Each file is [filename, size] - extract just the filenames from 'out' files
-        if isinstance(data, dict) and 'out' in data:
-            files = [file_info[0] for file_info in data['out'] if isinstance(file_info, list)]
-        else:
-            files = []
-        
-        print(f"DEBUG: Extracted files: {files}")
-        
-        # Generate download URLs
-        download_urls = {
-            filename: f"https://neurosnap.ai/api/job/file/{job_id}/out/{filename}"
-            for filename in files
-        }
-        
-        result = BasicResultsResponse(
-            job_id=job_id,
-            status=status,
-            files=files,
-            download_urls=download_urls,
-        )
-        
-        print(f"DEBUG: Created result response: {result}")
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Results retrieval failed: {e}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve results: {str(e)}")
+# Results endpoint moved to /api/v1/neurosnap/results/{job_id} (unified)
 
 
-@router.get(
-    "/download/{job_id}/{filename}",
-    summary="Download Result File",
-    description="Download a specific result file from a completed job.",
-)
-async def download_result_file(job_id: str, filename: str):
-    """Download a specific result file."""
-    
-    try:
-        # Download file from NeuroSnap
-        response = requests.get(
-            f"https://neurosnap.ai/api/job/file/{job_id}/out/{filename}",
-            headers={"X-API-KEY": get_api_key()},
-            timeout=60,
-        )
-        
-        if response.status_code == 404:
-            raise HTTPException(status_code=404, detail=f"File '{filename}' not found")
-        elif response.status_code != 200:
-            raise HTTPException(status_code=502, detail="Failed to download file")
-        
-        # Return file content with appropriate headers
-        from fastapi.responses import Response
-        
-        return Response(
-            content=response.content,
-            media_type="application/octet-stream",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"File download failed: {e}")
-        raise HTTPException(status_code=500, detail="Failed to download file")
+# Download endpoint moved to /api/v1/neurosnap/download/{job_id}/{filename} (unified)

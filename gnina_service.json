@@ -1,0 +1,92 @@
+{
+  "beta": false,
+  "title": "GNINA",
+  "resource_cost": 0.00025650000000000005,
+  "desc": "GNINA is an open-source molecular docking tool that integrates convolutional neural networks (CNNs) to enhance the accuracy of protein-ligand binding predictions. By leveraging deep learning, GNINA improves pose prediction and scoring, facilitating more reliable virtual screening and drug discovery processes.",
+  "desc_short": "Enhanced molecular docking with deep learning.",
+  "paper": "https://jcheminf.biomedcentral.com/articles/10.1186/s13321-021-00522-2",
+  "video": "",
+  "categories": [
+    "Ligand/Drug Design & Screening",
+    "Molecular Docking & Interactions"
+  ],
+  "tags": [
+    "Affinity Prediction",
+    "Protein–Ligand Docking",
+    "Virtual Screening"
+  ],
+  "features": [
+    "Integrates CNNs for improved scoring and optimization of ligand binding poses.",
+    "Outperforms traditional docking tools like AutoDock Vina in pose prediction accuracy.",
+    "Supports flexible receptor docking to account for protein flexibility during ligand binding.",
+    "Offers customizable scoring functions, including empirical and machine learning-based options."
+  ],
+  "citations": [
+    "McNutt, A.T., Francoeur, P., Aggarwal, R. et al. GNINA 1.0: molecular docking with deep learning. J Cheminform 13, 43 (2021). https://doi.org/10.1186/s13321-021-00522-2",
+    "Eberhardt, J., Santos-Martins, D., Tillack, A.F., Forli, S. (2021). AutoDock Vina 1.2.0: New Docking Methods, Expanded Force Field, and Python Bindings. Journal of Chemical Information and Modeling.",
+    "Trott, O., & Olson, A. J. (2010). AutoDock Vina: improving the speed and accuracy of docking with a new scoring function, efficient optimization, and multithreading. Journal of computational chemistry, 31(2), 455-461."
+  ],
+  "form": [
+    {
+      "field": {
+        "title": "Service Inputs"
+      },
+      "type": "FFHeading",
+      "is_input": false,
+      "optional": true
+    },
+    {
+      "field": {
+        "title": "Input Receptor",
+        "desc": "The PDB file containing the receptor protein structure to predict protein-ligand complex with.",
+        "min_entities": 1,
+        "max_entities": 1,
+        "max_models": 1,
+        "min_chains": 1,
+        "max_chains": 50,
+        "min_residues": 10,
+        "max_residues": 5000,
+        "allow_gaps": true,
+        "nucleotides": "remove",
+        "hetatoms": "remove",
+        "waters": "remove",
+        "filetypes": [
+          "pdb"
+        ]
+      },
+      "type": "FFProteinStructureList",
+      "is_input": true,
+      "optional": false
+    },
+    {
+      "field": {
+        "title": "Input Ligand",
+        "desc": "The ligand you want to predict in complex with the receptor protein. Supports small molecules, SMILES strings, and PDB files for small peptides only.",
+        "min_mols": 1,
+        "max_mols": 1,
+        "min_atoms": 2,
+        "max_atoms": 400,
+        "filetypes": [
+          "sdf",
+          "pdb"
+        ]
+      },
+      "type": "FFMolList",
+      "is_input": true,
+      "optional": false
+    }
+  ],
+  "statistics": {
+    "runtime_mean": 345,
+    "runtime_median": 28,
+    "runtime_std": 2518,
+    "runtime_90th_percentile": 255,
+    "runtime_max": 55409
+  },
+  "similar": [
+    "AutoDock Vina (smina)",
+    "DiffDock-L",
+    "DynamicBind",
+    "SPRINT"
+  ]
+}
