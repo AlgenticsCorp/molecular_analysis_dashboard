@@ -83,6 +83,14 @@ try:
 except ImportError:
     NEUROSNAP_UNIFIED_ROUTER_AVAILABLE = False
 
+# Import the molecular dynamics router
+try:
+    from .routes.molecular_dynamics import router as molecular_dynamics_router
+
+    MOLECULAR_DYNAMICS_ROUTER_AVAILABLE = True
+except ImportError:
+    MOLECULAR_DYNAMICS_ROUTER_AVAILABLE = False
+
 root_path = os.getenv("ROOT_PATH", "")
 app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
 
@@ -123,6 +131,9 @@ if FOLDING_ROUTER_AVAILABLE:
 
 if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE:
     app.include_router(neurosnap_unified_router)
+
+if MOLECULAR_DYNAMICS_ROUTER_AVAILABLE:
+    app.include_router(molecular_dynamics_router)
 
 
 @app.middleware("http")
