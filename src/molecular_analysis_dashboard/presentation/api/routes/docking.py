@@ -23,9 +23,10 @@ from ..services.neurosnap_service import (
 logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/v1/docking",
-    tags=["Molecular Docking"],
+    tags=["🎯 Molecular Docking", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},
+        402: {"description": "NeuroSnap API credits exhausted"},
         500: {"description": "Internal server error"},
     },
 )

@@ -48,7 +48,15 @@ from ..schemas.task_execution import (
 )
 
 # Create router
-router = APIRouter(prefix="/api/v1/tasks", tags=["task-execution"])
+router = APIRouter(
+    prefix="/api/v1/tasks", 
+    tags=["🔄 Task Framework"],
+    responses={
+        400: {"description": "Invalid request parameters"},
+        404: {"description": "Task not found"}, 
+        500: {"description": "Internal server error"},
+    },
+)
 
 
 # Available tasks response

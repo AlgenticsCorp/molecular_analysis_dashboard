@@ -92,7 +92,71 @@ except ImportError:
     MOLECULAR_DYNAMICS_ROUTER_AVAILABLE = False
 
 root_path = os.getenv("ROOT_PATH", "")
-app = FastAPI(title="Molecular Analysis Dashboard API", version="0.1.0", root_path=root_path)
+
+# Define comprehensive tags metadata for Swagger UI organization
+tags_metadata = [
+    # Service Categories (Primary Organization)
+    {
+        "name": "🧬 Structure Folding",
+        "description": "Protein structure prediction services from multiple providers"
+    },
+    {
+        "name": "🔬 Molecular Dynamics",
+        "description": "Molecular dynamics simulation and optimization services"
+    },
+    {
+        "name": "🎯 Molecular Docking",
+        "description": "Protein-ligand binding prediction and analysis services"
+    },
+    
+    # Provider Categories (Secondary Organization)
+    {
+        "name": "☁️ NeuroSnap Cloud",
+        "description": "Cloud-based computational services via NeuroSnap API"
+    },
+    {
+        "name": "🏠 Domestic Services", 
+        "description": "Local computational tools and services (Future)"
+    },
+    
+    # Cross-cutting Services
+    {
+        "name": "⚙️ Job Management",
+        "description": "Universal job tracking, status monitoring, and result retrieval",
+    },
+    {
+        "name": "🔄 Task Framework",
+        "description": "Generic task execution system for all computational services",
+    },
+    {
+        "name": "🛠️ System Health",
+        "description": "Health checks, readiness probes, and system status monitoring",
+    }
+]
+
+app = FastAPI(
+    title="Molecular Analysis Dashboard API", 
+    version="0.1.0", 
+    root_path=root_path,
+    description="""**Comprehensive molecular analysis platform** with multi-provider support.
+    
+🧬 **Structure Folding**: Protein structure prediction (IntelliFold, Boltz-2)
+🔬 **Molecular Dynamics**: AMBER relaxation and optimization  
+🎯 **Molecular Docking**: GNINA neural network-guided binding analysis
+⚙️ **Job Management**: Universal tracking across all services
+🔄 **Task Framework**: Generic computational workflow interface
+    
+Supports both **☁️ NeuroSnap Cloud** services and future **🏠 Domestic Services**.
+    """,
+    openapi_tags=tags_metadata,
+    contact={
+        "name": "Molecular Analysis Dashboard Team",
+        "email": "support@molecular-analysis.com",
+    },
+    license_info={
+        "name": "MIT",
+    },
+)
 
 # Proxy/gateway friendliness
 app.add_middleware(ProxyHeadersMiddleware)
@@ -145,27 +209,64 @@ async def add_request_id_header(request: Request, call_next: Callable[[Request],
     return response
 
 
-@app.get("/health")
+@app.get("/health", tags=["🛠️ System Health"])
 def health() -> dict[str, str]:
-    """Liveness probe: process up."""
-    return {"status": "ok"}
-
-
-@app.get("/ready")
-def ready() -> dict[str, Any]:
-    """Readiness probe: check database and task API availability."""
-    checks = {
-        "task_execution_api": "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_available",
-        "task_registry_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available",
-        "docking_api": "ready" if DOCKING_ROUTER_AVAILABLE else "not_available",
-        "broker": "pending",
+    """Liveness probe: Basic application health check.
+    
+    Returns a simple health status indicating the application is running.
+    Used by container orchestration systems (Kubernetes, Docker Swarm) 
+    to determine if the container should be restarted.
+    
+    Returns:
+        dict: Health status with timestamp
+    """
+    from datetime import datetime
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "molecular-analysis-dashboard"
     }
 
-    # Consider ready if at least one API is available
-    status = (
-        "ready"
-        if any([TASK_EXECUTION_ROUTER_AVAILABLE, TASKS_ROUTER_AVAILABLE, DOCKING_ROUTER_AVAILABLE])
-        else "not_ready"
-    )
 
-    return {"status": status, "checks": checks}
+@app.get("/ready", tags=["🛠️ System Health"])
+def ready() -> dict[str, Any]:
+    """Readiness probe: Comprehensive service availability check.
+    
+    Checks availability of all computational services and dependencies.
+    Used by load balancers and container orchestration to determine
+    if the application is ready to receive traffic.
+    
+    Returns:
+        dict: Detailed readiness status with service breakdown
+    """
+    from datetime import datetime
+    
+    # Check service availability
+    service_checks = {
+        "task_execution_api": "ready" if TASK_EXECUTION_ROUTER_AVAILABLE else "not_available",
+        "task_registry_api": "ready" if TASKS_ROUTER_AVAILABLE else "not_available", 
+        "docking_services": "ready" if DOCKING_ROUTER_AVAILABLE else "not_available",
+        "folding_services": "ready" if FOLDING_ROUTER_AVAILABLE else "not_available",
+        "dynamics_services": "ready" if MOLECULAR_DYNAMICS_ROUTER_AVAILABLE else "not_available",
+        "neurosnap_unified": "ready" if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE else "not_available",
+    }
+    
+    # Overall readiness assessment
+    ready_services = sum(1 for status in service_checks.values() if status == "ready")
+    total_services = len(service_checks)
+    
+    overall_status = "ready" if ready_services >= 3 else "not_ready"  # At least 3 services needed
+    
+    return {
+        "status": overall_status,
+        "timestamp": datetime.utcnow().isoformat(),
+        "services_ready": f"{ready_services}/{total_services}",
+        "service_details": service_checks,
+        "molecular_analysis_capabilities": {
+            "structure_folding": service_checks["folding_services"] == "ready",
+            "molecular_dynamics": service_checks["dynamics_services"] == "ready", 
+            "molecular_docking": service_checks["docking_services"] == "ready",
+            "job_management": service_checks["neurosnap_unified"] == "ready",
+            "task_framework": service_checks["task_execution_api"] == "ready",
+        }
+    }

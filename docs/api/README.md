@@ -4,32 +4,39 @@ This section contains comprehensive API documentation for the Molecular Analysis
 
 ## 🏗️ **API Architecture Overview**
 
-The Molecular Analysis Dashboard provides a **modern REST API** with:
-- **Dynamic Task System**: Runtime-configurable computational workflows
-- **Multi-Tenant Architecture**: Organization-scoped data and access
-- **OpenAPI Integration**: Self-documenting with automatic validation
-- **Gateway-Based Routing**: Centralized security and load balancing
+The Molecular Analysis Dashboard provides a **comprehensive molecular analysis platform** with:
+- **5 Integrated Computational Services**: Structure folding, molecular dynamics, docking, task framework, unified management
+- **Multi-Service REST API**: 15+ endpoints across molecular biology workflow categories
+- **NeuroSnap Cloud Integration**: Enterprise-grade computational engines via cloud APIs
+- **Multi-Tenant Architecture**: Organization-scoped data and access control
+- **OpenAPI Integration**: Self-documenting with interactive Swagger UI testing
+- **Gateway-Based Routing**: Centralized security, rate limiting, and load balancing
 
 ```
-Client Applications
+Research Applications
         │
-        │ HTTPS/JWT
-        │
-  ┌─────────────┐
-  │ API Gateway   │  ← Authentication, Rate Limiting, Routing
-  └─────────────┘
-        │
-        │ Internal
+        │ HTTPS/JWT Authentication
         │
   ┌─────────────┐
-  │ FastAPI Core  │  ← Business Logic, Task Orchestration
+  │ API Gateway   │  ← Authentication, Rate Limiting, Service Routing
   └─────────────┘
         │
-        │ Dynamic
+        │ Internal Service Mesh
         │
   ┌─────────────┐
-  │ Task Services │  ← Computational Engines (Docking, Analysis)
+  │ FastAPI Core  │  ← Multi-Service Orchestration, Business Logic
   └─────────────┘
+        │
+        │ NeuroSnap Cloud APIs
+        │
+  ┌──────────────────────────────────────┐
+  │ Molecular Analysis Services (5 Integrated)  │
+  │ • Structure Folding (IntelliFold/Boltz-2)     │
+  │ • Molecular Dynamics (AMBER Relaxation)     │
+  │ • Molecular Docking (GNINA)                │
+  │ • Task Execution Framework               │
+  │ • Unified Job Management                  │
+  └──────────────────────────────────────┘
 ```
 
 ## 🗂️ **API Documentation Sections**
@@ -112,46 +119,56 @@ curl -X GET "https://api.yourdomain.com/api/v1/executions/$EXECUTION_ID/results"
 
 ## 📋 **API Features Overview**
 
-### **Dynamic Task System**
-- ✅ **Runtime Task Registration**: Add new computational tasks without deployment
-- ✅ **OpenAPI Integration**: Self-documenting task interfaces
-- ✅ **Service Discovery**: Automatic discovery and load balancing of task services
-- ✅ **Version Management**: Support multiple task versions simultaneously
+### **🧬 Comprehensive Molecular Analysis**
+- ✅ **Structure Folding**: IntelliFold & Boltz-2 (AlphaFold3) protein structure prediction
+- ✅ **Molecular Dynamics**: AMBER relaxation and energy minimization
+- ✅ **Molecular Docking**: GNINA neural network-guided binding analysis
+- ✅ **Task Framework**: Generic computational workflow interface
+- ✅ **Unified Management**: Centralized job tracking and results retrieval
 
-### **Multi-Tenant Architecture**
-- ✅ **Organization Isolation**: Complete data separation per organization
-- ✅ **Role-Based Access**: Fine-grained permission system
-- ✅ **Resource Quotas**: Per-organization usage limits
-- ✅ **Audit Logging**: Comprehensive activity tracking
+### **🚀 Multi-Service Integration**
+- ✅ **15+ REST Endpoints**: Comprehensive coverage across 5 molecular analysis categories
+- ✅ **NeuroSnap Cloud APIs**: Enterprise-grade computational engines
+- ✅ **Multi-Format Support**: PDB, SDF, MOL2, FASTA, and custom molecular file formats
+- ✅ **Advanced Parameters**: Engine-specific optimization and configuration controls
+- ✅ **Real-time Monitoring**: Live job status tracking across all computational services
 
-### **Molecular Analysis Features**
-- ✅ **File Upload**: Support for PDB, SDF, MOL2, PDBQT formats
-- ✅ **Docking Engines**: AutoDock Vina, Smina, Gnina integration
-- ✅ **Pipeline Templates**: Reusable workflow definitions
+### **🏗️ Enterprise Architecture**
+- ✅ **Multi-Tenant Design**: Complete organization-based data isolation
+- ✅ **Role-Based Access**: Fine-grained permission system for research teams
+- ✅ **JWT Authentication**: Secure, stateless authentication with org scoping
+- ✅ **API Gateway Integration**: Centralized security, rate limiting, and routing
+- ✅ **OpenAPI Documentation**: Interactive Swagger UI with live endpoint testing
+
+### **🔍 Research Workflow Support**
+- ✅ **End-to-End Pipeline**: Sequence → Structure → Dynamics → Binding analysis
+- ✅ **Batch Processing**: Multiple job submission and management
 - ✅ **Result Caching**: Intelligent caching of computational results
-
-### **Performance & Reliability**
-- ✅ **Rate Limiting**: Multi-tier protection (endpoint/user/org)
-- ✅ **Async Processing**: Non-blocking task execution
-- ✅ **Health Monitoring**: Comprehensive service health checks
-- ✅ **Error Recovery**: Graceful error handling and retries
+- ✅ **File Management**: Secure upload, processing, and download of molecular data
 
 ## 📊 **API Statistics**
 
-### **Endpoint Categories**
-- **Authentication**: 3 endpoints (register, login, refresh)
-- **Task Registry**: 5 endpoints (list, create, interface, services)
-- **Task Execution**: 4 endpoints (execute, status, results, cancel)
-- **Molecules**: 3 endpoints (upload, list, download)
-- **Jobs**: 6 endpoints (create, status, results, events, files, cancel)
-- **Pipelines**: 4 endpoints (list templates, instantiate, status, results)
-- **Health**: 2 endpoints (health, ready)
+### **🎨 Service Categories**
+- **Task Execution Framework**: 2 endpoints (list tasks, execute tasks)
+- **Structure Folding Services**: 4 endpoints (IntelliFold, Boltz-2, simple variants)
+- **Molecular Dynamics**: 2 endpoints (AMBER relaxation, simple variant)
+- **Molecular Docking**: 4 endpoints (GNINA submission, status, results, download)
+- **Unified NeuroSnap Management**: 3 endpoints (status, results, download)
+- **System Health & Readiness**: 2 endpoints (health, ready)
+- **Total Endpoints**: **17 operational endpoints** across 6 service categories
 
-### **Response Formats**
-- **JSON**: Primary data format for all responses
-- **Binary**: File downloads and uploads
-- **Server-Sent Events**: Real-time status updates
-- **WebSocket**: Bidirectional communication for live monitoring
+### **🔬 Computational Capabilities**
+- **Structure Folding Engines**: IntelliFold (AlphaFold3), Boltz-2 (Advanced AlphaFold3)
+- **Molecular Dynamics Engines**: AMBER relaxation and optimization
+- **Molecular Docking Engines**: GNINA (neural network-guided docking)
+- **File Format Support**: PDB, SDF, MOL2, PDBQT, FASTA, custom formats
+- **Cloud Integration**: NeuroSnap enterprise computational platform
+
+### **📋 Response Formats**
+- **JSON**: Primary data format for all API responses
+- **Binary**: Molecular file downloads (PDB, SDF, CSV results)
+- **Multipart**: File uploads with metadata
+- **Streaming**: Large result file downloads
 
 ## 🔐 **Security Features**
 

@@ -16,9 +16,10 @@ from ..schemas.molecular_dynamics import AMBERRelaxationRequest, MolecularDynami
 logger = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/api/v1/molecular-dynamics",
-    tags=["Molecular Dynamics"],
+    tags=["🔬 Molecular Dynamics", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},
+        402: {"description": "NeuroSnap API credits exhausted"},
         500: {"description": "Internal server error"},
     },
 )

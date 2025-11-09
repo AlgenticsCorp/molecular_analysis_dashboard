@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/v1/neurosnap",
-    tags=["NeuroSnap Unified"],
+    tags=["⚙️ Job Management", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},
+        404: {"description": "Job not found"},
         500: {"description": "Internal server error"},
     },
 )

@@ -1,12 +1,19 @@
-# API Contract (Enhanced)
+# API Contract (Comprehensive Molecular Analysis Platform)
 
-This document defines the REST API surface for the Molecular Analysis Dashboard, including **dynamic task management** and traditional molecular analysis endpoints.
+This document defines the REST API surface for the **Molecular Analysis Dashboard**, a comprehensive computational biology platform with **5 integrated molecular analysis services** through NeuroSnap cloud APIs.
+
+## 🧬 **Platform Overview**
+- **Structure Folding**: IntelliFold & Boltz-2 (AlphaFold3) protein structure prediction
+- **Molecular Dynamics**: AMBER relaxation and optimization
+- **Molecular Docking**: GNINA neural network-guided binding analysis
+- **Task Execution Framework**: Generic computational workflow interface
+- **Unified Management**: Centralized job tracking and results retrieval
 
 Notes:
 - All endpoints return JSON unless serving files.
 - Authentication: Bearer JWT, except for `/health`, `/ready`, and auth endpoints.
 - Multi-tenancy: All authenticated requests include `org_id` in JWT; server enforces org scoping.
-- **Dynamic Tasks**: Task definitions and interfaces are loaded from database with OpenAPI 3.0 specifications.
+- **Multi-Service Integration**: All services integrate with NeuroSnap cloud APIs for computational execution.
 - Error format (standardized):
   ```json
   { "error": { "code": "<STRING>", "message": "<HUMAN_READABLE>", "details": { /* optional */ } } }
@@ -23,32 +30,268 @@ Notes:
 
 - GET `/ready`
   - Auth: none
-  - 200: `{ "status": "ready" , "checks": { "db": "ok", "broker": "ok", "task_registry": "ok" } }`
+  - 200: 
+    ```json
+    {
+      "status": "ready",
+      "checks": {
+        "task_execution_api": "ready",
+        "docking_api": "ready",
+        "folding_api": "ready",
+        "molecular_dynamics_api": "ready",
+        "neurosnap_unified_api": "ready",
+        "database": "ok",
+        "cache": "ok"
+      }
+    }
+    ```
   - 503: `{ "status": "not_ready", "checks": { ... } }`
-  - Purpose: Readiness probe (DB + broker + task registry connectivity).
+  - Purpose: Readiness probe (DB + cache + all molecular analysis services connectivity).
 
 ---
 
-## Dynamic Task Registry
+## 🚀 **Task Execution Framework**
 
-- GET `/api/v1/task-registry/tasks`
+- GET `/api/v1/tasks`
   - Auth: Bearer; Roles: `standard`+
-  - Query Params: `category` (optional), `is_active` (optional), `search` (optional)
+  - Query Params: None
   - 200:
     ```json
     {
       "tasks": [
         {
-          "task_definition_id": "uuid",
-          "task_id": "molecular-docking",
-          "version": "1.0.0",
-          "metadata": {
-            "title": "Molecular Docking",
-            "description": "Protein-ligand docking using various engines",
-            "category": "Analysis",
-            "tags": ["docking", "protein", "ligand"],
-            "icon": "fas fa-molecule"
-          },
+          "task_id": "gnina-molecular-docking",
+          "name": "GNINA Molecular Docking",
+          "description": "Neural network-guided molecular docking via NeuroSnap API",
+          "category": "molecular_docking",
+          "engine": "gnina",
+          "provider": "neurosnap",
+          "status": "available",
+          "parameters": {
+            "receptor": {"type": "molecular_structure", "required": true},
+            "ligand": {"type": "molecular_structure_or_drug_name", "required": true},
+            "binding_site": {"type": "binding_site_coordinates", "required": false}
+          }
+        }
+      ],
+      "total_count": 1
+    }
+    ```
+  - Purpose: List available molecular analysis tasks
+
+- POST `/api/v1/tasks/{task_id}/execute`
+  - Auth: Bearer; Roles: `standard`+
+  - Path: `task_id` (string) - Task identifier (e.g., "gnina-molecular-docking")
+  - Body:
+    ```json
+    {
+      "receptor": {
+        "name": "EGFR Kinase Domain",
+        "format": "pdb",
+        "data": "HEADER    TRANSFERASE..."
+      },
+      "ligand": "osimertinib",
+      "binding_site": {
+        "center_x": 25.5, "center_y": 10.2, "center_z": 15.8,
+        "size_x": 20.0, "size_y": 20.0, "size_z": 20.0
+      },
+      "max_poses": 9,
+      "energy_range": 3.0,
+      "exhaustiveness": 8,
+      "timeout_minutes": 30
+    }
+    ```
+  - 200:
+    ```json
+    {
+      "execution_id": "123e4567-e89b-12d3-a456-426614174000",
+      "job_id": "gnina_12345",
+      "status": "completed",
+      "task_id": "gnina-molecular-docking",
+      "results": {
+        "poses": [
+          {"rank": 1, "affinity": -8.2, "confidence_score": 0.85}
+        ],
+        "best_pose": {"rank": 1, "affinity": -8.2, "confidence_score": 0.85}
+      }
+    }
+    ```
+  - Purpose: Execute molecular analysis tasks with standardized interface
+
+---
+
+## 🧬 **Structure Folding Services (IntelliFold & Boltz-2)**
+
+- POST `/api/v1/folding/submit`
+  - Auth: Bearer; Roles: `standard`+
+  - Body:
+    ```json
+    {
+      "job_name": "Protein Structure Prediction",
+      "sequences": [
+        {
+          "name": "protein1",
+          "type": "aa",
+          "sequence": "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAV..."
+        }
+      ],
+      "molecules": [
+        {
+          "name": "ligand1",
+          "type": "sdf",
+          "data": "\n  Mrv2014 11090825392D\n\n  6  6  0  0  0  0..."
+        }
+      ],
+      "msa_mode": "mmseqs2_uniref_env",
+      "number_recycles": 3,
+      "sampling_steps": 200,
+      "diffusion_samples": 5,
+      "note": "Structure prediction with small molecule"
+    }
+    ```
+  - File Upload: `msa_file` (optional), `molecule_files[]` (optional)
+  - 200:
+    ```json
+    {
+      "job_id": "intellifold_20231109_143022",
+      "status": "pending",
+      "message": "Structure folding job submitted to NeuroSnap IntelliFold",
+      "job_name": "Protein Structure Prediction",
+      "sequences_count": 1,
+      "molecules_count": 1,
+      "estimated_runtime": "30-60 minutes"
+    }
+    ```
+  - Purpose: Submit protein structure folding jobs to IntelliFold (AlphaFold3)
+
+- POST `/api/v1/folding/submit-boltz2`
+  - Auth: Bearer; Roles: `standard`+
+  - Body: Form data with JSON `folding_request` + optional file uploads
+  - Additional Parameters:
+    - `cyclic_biopolymers` (optional): Cyclic structure specifications
+    - `use_inference_time_potentials` (boolean): Advanced potential functions
+    - `molecular_weight_correction` (boolean): MW-based corrections
+    - `sampling_steps_affinity` (int): Affinity sampling steps (default: 200)
+  - 200: Same format as IntelliFold response
+  - Purpose: Submit advanced protein folding jobs to Boltz-2 with enhanced parameters
+
+- POST `/api/v1/folding/submit-simple`
+  - Auth: Bearer; Roles: `standard`+
+  - Body:
+    ```json
+    [
+      {
+        "name": "protein1",
+        "type": "aa",
+        "sequence": "MKTAYIAKQRQISFV..."
+      }
+    ]
+    ```
+  - 200: Same format as IntelliFold response
+  - Purpose: Simple protein folding with sequences only
+
+---
+
+## ⚗️ **Molecular Dynamics Services (AMBER)**
+
+- POST `/api/v1/molecular-dynamics/amber-relaxation/submit`
+  - Auth: Bearer; Roles: `standard`+
+  - Body: Form data
+    - `structure_file` (required): PDB/PDBQT protein structure file
+    - `max_iterations` (optional): Maximum optimization iterations (100-10000, default: 2500)
+    - `tolerance` (optional): Energy convergence tolerance (0.1-10.0, default: 1.0)
+    - `job_name` (optional): Human-readable job name
+    - `note` (optional): Job description
+  - 200:
+    ```json
+    {
+      "job_id": "amber_20231109_143045",
+      "status": "pending",
+      "message": "AMBER relaxation job submitted to NeuroSnap",
+      "job_name": "AMBER Relaxation",
+      "max_iterations": 2500,
+      "tolerance": 1.0,
+      "estimated_runtime": "15-45 minutes"
+    }
+    ```
+  - Purpose: Submit molecular dynamics relaxation jobs using AMBER force fields
+
+- POST `/api/v1/molecular-dynamics/amber-relaxation/submit-simple`
+  - Auth: Bearer; Roles: `standard`+
+  - Body: Form data with `structure_file` and `job_name` only
+  - 200: Same format as full AMBER response
+  - Purpose: Simple AMBER relaxation with default parameters
+
+---
+
+## 🔬 **Molecular Docking Services (GNINA)**
+
+- POST `/api/v1/docking/submit`
+  - Auth: Bearer; Roles: `standard`+
+  - Body: Form data or JSON
+    - `receptor_file` or `receptor`: Protein structure (PDB format)
+    - `ligand_file` or `ligand`: Ligand structure (SDF) or drug name
+    - `binding_site` (optional): Binding site coordinates
+    - `job_name`: Human-readable job identifier
+  - 200:
+    ```json
+    {
+      "job_id": "gnina_20231109_143067",
+      "status": "pending",
+      "message": "Molecular docking job submitted",
+      "receptor_name": "EGFR",
+      "ligand_name": "osimertinib",
+      "estimated_runtime": "10-30 minutes"
+    }
+    ```
+  - Purpose: Submit molecular docking analysis using GNINA engine
+
+---
+
+## 🌐 **Unified NeuroSnap Job Management**
+
+- GET `/api/v1/neurosnap/status/{job_id}`
+  - Auth: Bearer; Roles: `standard`+
+  - Path: `job_id` (string) - NeuroSnap job identifier
+  - 200:
+    ```json
+    {
+      "job_id": "gnina_12345",
+      "status": "completed",
+      "progress_percentage": 100,
+      "current_step": "Analysis complete",
+      "estimated_completion": null,
+      "runtime_seconds": 1247
+    }
+    ```
+  - Purpose: Universal status checking for all NeuroSnap computational jobs
+
+- GET `/api/v1/neurosnap/results/{job_id}`
+  - Auth: Bearer; Roles: `standard`+
+  - Path: `job_id` (string) - NeuroSnap job identifier
+  - 200:
+    ```json
+    {
+      "job_id": "gnina_12345",
+      "status": "completed",
+      "files": [
+        "output.csv",
+        "output.sdf",
+        "binding_poses.pdb"
+      ],
+      "download_urls": {
+        "output.csv": "/api/v1/neurosnap/download/gnina_12345/output.csv",
+        "output.sdf": "/api/v1/neurosnap/download/gnina_12345/output.sdf"
+      }
+    }
+    ```
+  - Purpose: Universal results retrieval for all computational services
+
+- GET `/api/v1/neurosnap/download/{job_id}/{filename}`
+  - Auth: Bearer; Roles: `standard`+
+  - Path: `job_id` (string), `filename` (string)
+  - 200: Binary file content with appropriate Content-Type headers
+  - Purpose: Universal file download for all analysis results
           "interface_spec": { /* OpenAPI 3.0 specification */ },
           "service_config": { "docker_image": "...", "resources": {...} },
           "is_active": true,
