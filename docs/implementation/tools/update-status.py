@@ -134,6 +134,21 @@ class StatusManager:
                     "status": "Not Started",
                     "progress": 0,
                     "features": {}
+                },
+                "phase-5": {
+                    "name": "Production Validation",
+                    "status": "Complete",
+                    "progress": 100,
+                    "features": {}
+                },
+                "phase-6": {
+                    "name": "Pipeline Builder System",
+                    "status": "Not Started",
+                    "progress": 0,
+                    "priority": "Critical",
+                    "target_start": "2025-11-10",
+                    "target_completion": "2026-01-05",
+                    "features": {}
                 }
             }
         }
