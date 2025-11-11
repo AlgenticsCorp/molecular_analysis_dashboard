@@ -15,7 +15,7 @@ from ..schemas.folding import FoldingJobRequest, FoldingJobResponse, SequenceInp
 # Setup
 logger = logging.getLogger(__name__)
 router = APIRouter(
-    prefix="/api/v1/folding",
+    prefix="/api/v1/providers/neurosnap/folding",
     tags=["🧬 Structure Folding", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},

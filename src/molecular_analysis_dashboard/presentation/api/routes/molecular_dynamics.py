@@ -15,7 +15,7 @@ from ..schemas.molecular_dynamics import AMBERRelaxationRequest, MolecularDynami
 # Setup
 logger = logging.getLogger(__name__)
 router = APIRouter(
-    prefix="/api/v1/molecular-dynamics",
+    prefix="/api/v1/providers/neurosnap/molecular-dynamics",
     tags=["🔬 Molecular Dynamics", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},

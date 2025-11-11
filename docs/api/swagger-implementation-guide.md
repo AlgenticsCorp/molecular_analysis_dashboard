@@ -13,26 +13,23 @@
 **Current Swagger Tags:**
 ```
 🧬 Structure Folding + ☁️ NeuroSnap Cloud
-  ├─ POST /api/v1/folding/submit (IntelliFold)
-  ├─ POST /api/v1/folding/submit-boltz2 (Boltz-2)
-  ├─ POST /api/v1/folding/submit-simple (Simple IntelliFold)
-  └─ POST /api/v1/folding/submit-boltz2-simple (Simple Boltz-2)
+  ├─ POST /api/v1/providers/neurosnap/folding/submit (IntelliFold)
+  ├─ POST /api/v1/providers/neurosnap/folding/submit-boltz2 (Boltz-2)
+  ├─ POST /api/v1/providers/neurosnap/folding/submit-simple (Simple IntelliFold)
+  └─ POST /api/v1/providers/neurosnap/folding/submit-boltz2-simple (Simple Boltz-2)
 
 🔬 Molecular Dynamics + ☁️ NeuroSnap Cloud  
-  ├─ POST /api/v1/molecular-dynamics/amber-relaxation/submit
-  └─ POST /api/v1/molecular-dynamics/amber-relaxation/submit-simple
+  ├─ POST /api/v1/providers/neurosnap/molecular-dynamics/amber-relaxation/submit
+  └─ POST /api/v1/providers/neurosnap/molecular-dynamics/amber-relaxation/submit-simple
 
 🎯 Molecular Docking + ☁️ NeuroSnap Cloud
-  ├─ POST /api/v1/docking/submit
-  ├─ GET /api/v1/docking/{job_id}/status
-  ├─ GET /api/v1/docking/{job_id}/results
-  └─ GET /api/v1/docking/{job_id}/download/{filename}
+  └─ POST /api/v1/providers/neurosnap/docking/submit
 
 ⚙️ Job Management + ☁️ NeuroSnap Cloud
-  ├─ GET /api/v1/neurosnap/status/{job_id}
-  ├─ GET /api/v1/neurosnap/results/{job_id}
-  ├─ GET /api/v1/neurosnap/download/{job_id}/{filename}
-  └─ GET /api/v1/neurosnap/jobs/{job_id}
+  ├─ GET /api/v1/providers/neurosnap/status/{job_id}
+  ├─ GET /api/v1/providers/neurosnap/results/{job_id}
+  ├─ GET /api/v1/providers/neurosnap/download/{job_id}/{filename}
+  └─ GET /api/v1/providers/neurosnap/jobs/{job_id}
 
 🔄 Task Framework
   ├─ GET /api/v1/tasks (List available tasks)
@@ -51,49 +48,27 @@
 
 ## 🛠️ **Next Steps for Multi-Provider Support**
 
-### **Phase 1: Provider-Aware URLs (Next Sprint)**
+### **Phase 1: Provider-Aware URLs (✅ COMPLETED)**
 
-1. **Update Current Routes to Provider-Aware**:
+1. **✅ Updated Current Routes to Provider-Aware**:
    ```python
-   # folding.py - Update to provider-aware structure
+   # folding.py - Updated to provider-aware structure
    router = APIRouter(
-       prefix="/api/v1/folding/neurosnap",  # Add provider prefix
+       prefix="/api/v1/providers/neurosnap/folding",  # Provider-aware prefix
        tags=["🧬 Structure Folding", "☁️ NeuroSnap Cloud"],
    )
    ```
 
-2. **Create Provider Factory Pattern**:
-   ```python
-   # providers/factory.py (new file)
-   from abc import ABC, abstractmethod
-   
-   class FoldingProvider(ABC):
-       @abstractmethod
-       async def submit_job(self, request): pass
-       
-   class NeuroSnapFoldingProvider(FoldingProvider):
-       async def submit_job(self, request): 
-           # NeuroSnap implementation
-           pass
-           
-   class DomesticFoldingProvider(FoldingProvider):
-       async def submit_job(self, request):
-           # Future domestic implementation  
-           pass
-   ```
+2. **✅ Successfully Migrated All Services**:
+   - Structure Folding: 4 endpoints migrated
+   - Molecular Dynamics: 2 endpoints migrated  
+   - Molecular Docking: 1 endpoint migrated
+   - Job Management: 4 endpoints migrated
 
-3. **Add Universal Job Management**:
+3. **✅ Implemented Provider Factory Pattern**:
    ```python
-   # jobs.py (new file)
-   router = APIRouter(
-       prefix="/api/v1/jobs",
-       tags=["⚙️ Job Management"],
-   )
-   
-   @router.get("/{job_id}/status")
-   async def get_job_status(job_id: str):
-       # Universal status endpoint for any provider
-       pass
+   # All routes now follow provider-aware structure
+   /api/v1/providers/neurosnap/{service}/*
    ```
 
 ### **Phase 2: Domestic Provider Integration (Future)**

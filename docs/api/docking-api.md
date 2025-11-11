@@ -6,7 +6,7 @@ The Docking API provides molecular docking capabilities through integration with
 
 ## 🚀 **Working Endpoints**
 
-### **POST /api/v1/docking/submit**
+### **POST /api/v1/providers/neurosnap/docking/submit**
 
 Submit a molecular docking job using NeuroSnap's GNINA service.
 
@@ -15,7 +15,7 @@ Submit a molecular docking job using NeuroSnap's GNINA service.
 #### Request Format
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/docking/submit \
+curl -X POST http://localhost:8000/api/v1/providers/neurosnap/docking/submit \
   -F "receptor_file=@protein.pdb" \
   -F "ligand_file=@ligand.sdf" \
   -F "job_name=My Docking Analysis" \
@@ -112,7 +112,7 @@ The API correctly handles:
 #### Test 1: Basic Submission
 ```bash
 # Successful submission returns job ID
-curl -X POST http://localhost:8000/api/v1/docking/submit \
+curl -X POST http://localhost:8000/api/v1/providers/neurosnap/docking/submit \
   -F "receptor_file=@test_receptor.pdb" \
   -F "ligand_file=@test_ligand.sdf"
 
@@ -122,7 +122,7 @@ curl -X POST http://localhost:8000/api/v1/docking/submit \
 #### Test 2: With Custom Parameters
 ```bash
 # Full parameter submission
-curl -X POST http://localhost:8000/api/v1/docking/submit \
+curl -X POST http://localhost:8000/api/v1/providers/neurosnap/docking/submit \
   -F "receptor_file=@EGFR_KD_WT_model_1.pdb" \
   -F "ligand_file=@osimertinib.sdf" \
   -F "job_name=EGFR-Osimertinib Docking" \

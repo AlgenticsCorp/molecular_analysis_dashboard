@@ -24,24 +24,24 @@
 
 ### **Engine-Specific Endpoints (Submission)**
 ```
-POST /api/v1/docking/submit              # GNINA docking
-POST /api/v1/folding/submit              # IntelliFold full
-POST /api/v1/folding/submit-simple       # IntelliFold simple
+POST /api/v1/providers/neurosnap/docking/submit              # GNINA docking
+POST /api/v1/providers/neurosnap/folding/submit              # IntelliFold full
+POST /api/v1/providers/neurosnap/folding/submit-simple       # IntelliFold simple
 ```
 
 ### **Unified Endpoints (Operations)**
 ```
-GET  /api/v1/neurosnap/status/{job_id}           # Any job status
-GET  /api/v1/neurosnap/results/{job_id}          # Any job results
-GET  /api/v1/neurosnap/download/{job_id}/{file}  # Any file download
-GET  /api/v1/neurosnap/jobs/{job_id}             # Complete job info
+GET  /api/v1/providers/neurosnap/status/{job_id}           # Any job status
+GET  /api/v1/providers/neurosnap/results/{job_id}          # Any job results
+GET  /api/v1/providers/neurosnap/download/{job_id}/{file}  # Any file download
+GET  /api/v1/providers/neurosnap/jobs/{job_id}             # Complete job info
 ```
 
-### **Legacy Endpoints (Still Available)**
+### **Legacy Endpoints (Deprecated - Return 404)**
 ```
-GET  /api/v1/docking/status/{job_id}     # Docking-specific
-GET  /api/v1/docking/results/{job_id}    # Docking-specific
-GET  /api/v1/folding/status/{job_id}     # Folding-specific (if needed)
+GET  /api/v1/docking/status/{job_id}     # DEPRECATED - Use provider-aware URLs
+GET  /api/v1/docking/results/{job_id}    # DEPRECATED - Use provider-aware URLs
+GET  /api/v1/folding/status/{job_id}     # DEPRECATED - Use provider-aware URLs
 ```
 
 ---

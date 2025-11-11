@@ -4,7 +4,7 @@
 
 ### **✅ Major Breakthrough Completed**
 - **NeuroSnap GNINA Integration**: Successfully resolved API format issues
-- **Working API Endpoint**: `/api/v1/docking/submit` fully functional
+- **Working API Endpoint**: `/api/v1/providers/neurosnap/docking/submit` fully functional
 - **Notebook Integration**: Jupyter notebooks can submit real docking jobs
 - **Documentation**: Comprehensive integration guides created
 
@@ -27,11 +27,11 @@
 
 #### Tasks:
 ```bash
-# Add these API endpoints
-POST /api/v1/docking/submit        # ✅ DONE
-GET  /api/v1/docking/status/{id}   # ✅ DONE
-GET  /api/v1/docking/results/{id}  # ✅ DONE
-GET  /api/v1/docking/download/{id}/{filename}  # ✅ DONE (bonus)
+# Provider-aware API endpoints (COMPLETED with migration)
+POST /api/v1/providers/neurosnap/docking/submit        # ✅ DONE + MIGRATED
+GET  /api/v1/providers/neurosnap/status/{id}   # ✅ DONE + MIGRATED
+GET  /api/v1/providers/neurosnap/results/{id}  # ✅ DONE + MIGRATED
+GET  /api/v1/providers/neurosnap/download/{id}/{filename}  # ✅ DONE + MIGRATED
 ```
 
 #### Implementation Steps:
@@ -256,15 +256,15 @@ GET  /api/v1/docking/download/{id}/{filename}  # ✅ DONE (bonus)
 
 **Day 1-2: Job Status Endpoint**
 ```bash
-# Add status checking capability
-GET /api/v1/docking/status/{job_id}
+# Provider-aware status checking capability (COMPLETED)
+GET /api/v1/providers/neurosnap/status/{job_id}
 # Returns: {"status": "running", "progress": 45, "eta": "5 minutes"}
 ```
 
 **Day 3-4: Result Retrieval**
 ```bash
-# Add result download and parsing
-GET /api/v1/docking/results/{job_id}
+# Provider-aware result download and parsing (COMPLETED)
+GET /api/v1/providers/neurosnap/results/{job_id}
 # Returns: {"scores": {...}, "poses": [...], "files": [...]}
 ```
 

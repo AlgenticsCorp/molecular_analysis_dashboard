@@ -2,14 +2,14 @@
 
 ## 📋 **What Was Delivered**
 
-### ✅ **Complete API Endpoints**
-All job lifecycle endpoints have been successfully implemented and are **fully functional**:
+### ✅ **Complete Working Job Lifecycle**
 
-```bash
-POST /api/v1/docking/submit                    # Submit docking job
-GET  /api/v1/docking/status/{job_id}          # Check job status
-GET  /api/v1/docking/results/{job_id}         # Get results list
-GET  /api/v1/docking/download/{job_id}/{file} # Download result files
+### **Available Endpoints**
+```
+POST /api/v1/providers/neurosnap/docking/submit                    # Submit docking job
+GET  /api/v1/providers/neurosnap/status/{job_id}          # Check job status
+GET  /api/v1/providers/neurosnap/results/{job_id}         # Get results list
+GET  /api/v1/providers/neurosnap/download/{job_id}/{file} # Download result files
 ```
 
 ### 🔍 **Real NeuroSnap Integration**

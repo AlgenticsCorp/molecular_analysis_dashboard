@@ -23,10 +23,10 @@ Successfully implemented complete job lifecycle management for molecular docking
 ### **Core Features Delivered**
 | Feature | Planned | Delivered | Status | Notes |
 |---------|---------|-----------|---------|-------|
-| Job Submission API | Basic submission endpoint | POST /api/v1/docking/submit with multipart upload | ✅ Complete | Working with real files |
-| Job Status Polling | Status checking capability | GET /api/v1/docking/status/{job_id} with progress tracking | ✅ Complete | Real NeuroSnap integration |
-| Results Retrieval | Results download system | GET /api/v1/docking/results/{job_id} with file listing | ✅ Complete | Parses NeuroSnap format |
-| File Downloads | Direct file access | GET /api/v1/docking/download/{job_id}/{filename} streaming | ✅ Complete | Production-ready streaming |
+| Job Submission API | Basic submission endpoint | POST /api/v1/providers/neurosnap/docking/submit with multipart upload | ✅ Complete + Migrated | Working with real files, provider-aware URLs |
+| Job Status Polling | Status checking capability | GET /api/v1/providers/neurosnap/status/{job_id} with progress tracking | ✅ Complete + Migrated | Real NeuroSnap integration, provider-aware URLs |
+| Results Retrieval | Results download system | GET /api/v1/providers/neurosnap/results/{job_id} with file listing | ✅ Complete + Migrated | Parses NeuroSnap format, provider-aware URLs |
+| File Downloads | Direct file access | GET /api/v1/providers/neurosnap/download/{job_id}/{filename} streaming | ✅ Complete + Migrated | Production-ready streaming, provider-aware URLs |
 
 ### **Technical Deliverables**
 - ✅ **Architecture Components**: Clean docking router with proper error handling and response models
@@ -130,22 +130,22 @@ Implemented clean REST API architecture following established patterns:
 ### **API Endpoints Implemented**
 
 ```bash
-POST /api/v1/docking/submit
+POST /api/v1/providers/neurosnap/docking/submit
 - Multipart file upload (PDB receptor + SDF ligand)
 - Form parameters: job_name, note
 - Returns: BasicJobResponse with job_id and status
 
-GET /api/v1/docking/status/{job_id}
+GET /api/v1/providers/neurosnap/status/{job_id}
 - Real-time status from NeuroSnap
 - Returns: Progress percentage, time estimates, status
 - Handles: pending, running, completed, failed states
 
-GET /api/v1/docking/results/{job_id}
+GET /api/v1/providers/neurosnap/results/{job_id}
 - Lists available result files
 - Returns: File names and download URLs
 - Validates: Job completion before allowing access
 
-GET /api/v1/docking/download/{job_id}/{filename}
+GET /api/v1/providers/neurosnap/download/{job_id}/{filename}
 - Direct file streaming from NeuroSnap
 - Headers: Proper Content-Disposition for downloads
 - Supports: CSV, SDF, and other molecular formats

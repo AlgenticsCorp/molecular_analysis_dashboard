@@ -22,7 +22,7 @@ from ..services.neurosnap_service import (
 # Setup
 logger = logging.getLogger(__name__)
 router = APIRouter(
-    prefix="/api/v1/docking",
+    prefix="/api/v1/providers/neurosnap/docking",
     tags=["🎯 Molecular Docking", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},

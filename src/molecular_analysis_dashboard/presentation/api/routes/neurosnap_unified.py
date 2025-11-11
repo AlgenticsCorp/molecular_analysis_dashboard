@@ -16,7 +16,7 @@ from ..services.neurosnap_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/v1/neurosnap",
+    prefix="/api/v1/providers/neurosnap",
     tags=["⚙️ Job Management", "☁️ NeuroSnap Cloud"],
     responses={
         401: {"description": "Authentication failed"},

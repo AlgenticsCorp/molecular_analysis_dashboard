@@ -122,7 +122,7 @@ Notes:
 
 ## 🧬 **Structure Folding Services (IntelliFold & Boltz-2)**
 
-- POST `/api/v1/folding/submit`
+- POST `/api/v1/providers/neurosnap/folding/submit`
   - Auth: Bearer; Roles: `standard`+
   - Body:
     ```json
@@ -164,7 +164,7 @@ Notes:
     ```
   - Purpose: Submit protein structure folding jobs to IntelliFold (AlphaFold3)
 
-- POST `/api/v1/folding/submit-boltz2`
+- POST `/api/v1/providers/neurosnap/folding/submit-boltz2`
   - Auth: Bearer; Roles: `standard`+
   - Body: Form data with JSON `folding_request` + optional file uploads
   - Additional Parameters:
@@ -175,7 +175,7 @@ Notes:
   - 200: Same format as IntelliFold response
   - Purpose: Submit advanced protein folding jobs to Boltz-2 with enhanced parameters
 
-- POST `/api/v1/folding/submit-simple`
+- POST `/api/v1/providers/neurosnap/folding/submit-simple`
   - Auth: Bearer; Roles: `standard`+
   - Body:
     ```json
@@ -194,7 +194,7 @@ Notes:
 
 ## ⚗️ **Molecular Dynamics Services (AMBER)**
 
-- POST `/api/v1/molecular-dynamics/amber-relaxation/submit`
+- POST `/api/v1/providers/neurosnap/molecular-dynamics/amber-relaxation/submit`
   - Auth: Bearer; Roles: `standard`+
   - Body: Form data
     - `structure_file` (required): PDB/PDBQT protein structure file
@@ -216,7 +216,7 @@ Notes:
     ```
   - Purpose: Submit molecular dynamics relaxation jobs using AMBER force fields
 
-- POST `/api/v1/molecular-dynamics/amber-relaxation/submit-simple`
+- POST `/api/v1/providers/neurosnap/molecular-dynamics/amber-relaxation/submit-simple`
   - Auth: Bearer; Roles: `standard`+
   - Body: Form data with `structure_file` and `job_name` only
   - 200: Same format as full AMBER response
@@ -226,7 +226,7 @@ Notes:
 
 ## 🔬 **Molecular Docking Services (GNINA)**
 
-- POST `/api/v1/docking/submit`
+- POST `/api/v1/providers/neurosnap/docking/submit`
   - Auth: Bearer; Roles: `standard`+
   - Body: Form data or JSON
     - `receptor_file` or `receptor`: Protein structure (PDB format)
@@ -250,7 +250,7 @@ Notes:
 
 ## 🌐 **Unified NeuroSnap Job Management**
 
-- GET `/api/v1/neurosnap/status/{job_id}`
+- GET `/api/v1/providers/neurosnap/status/{job_id}`
   - Auth: Bearer; Roles: `standard`+
   - Path: `job_id` (string) - NeuroSnap job identifier
   - 200:
@@ -266,7 +266,7 @@ Notes:
     ```
   - Purpose: Universal status checking for all NeuroSnap computational jobs
 
-- GET `/api/v1/neurosnap/results/{job_id}`
+- GET `/api/v1/providers/neurosnap/results/{job_id}`
   - Auth: Bearer; Roles: `standard`+
   - Path: `job_id` (string) - NeuroSnap job identifier
   - 200:
@@ -280,18 +280,36 @@ Notes:
         "binding_poses.pdb"
       ],
       "download_urls": {
-        "output.csv": "/api/v1/neurosnap/download/gnina_12345/output.csv",
-        "output.sdf": "/api/v1/neurosnap/download/gnina_12345/output.sdf"
+        "output.csv": "/api/v1/providers/neurosnap/download/gnina_12345/output.csv",
+        "output.sdf": "/api/v1/providers/neurosnap/download/gnina_12345/output.sdf"
       }
     }
     ```
   - Purpose: Universal results retrieval for all computational services
 
-- GET `/api/v1/neurosnap/download/{job_id}/{filename}`
+- GET `/api/v1/providers/neurosnap/download/{job_id}/{filename}`
   - Auth: Bearer; Roles: `standard`+
   - Path: `job_id` (string), `filename` (string)
   - 200: Binary file content with appropriate Content-Type headers
   - Purpose: Universal file download for all analysis results
+
+- GET `/api/v1/providers/neurosnap/jobs/{job_id}`
+  - Auth: Bearer; Roles: `standard`+
+  - Path: `job_id` (string) - NeuroSnap job identifier  
+  - 200:
+    ```json
+    {
+      "job_id": "gnina_12345",
+      "job_type": "docking",
+      "status": "completed",
+      "metadata": {
+        "job_name": "EGFR-Osimertinib Docking",
+        "submitted_at": "2025-11-09T14:30:45Z",
+        "completed_at": "2025-11-09T14:51:22Z"
+      }
+    }
+    ```
+  - Purpose: Universal job metadata retrieval for all computational services
           "interface_spec": { /* OpenAPI 3.0 specification */ },
           "service_config": { "docker_image": "...", "resources": {...} },
           "is_active": true,
