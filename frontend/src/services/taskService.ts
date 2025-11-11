@@ -32,7 +32,7 @@ export class TaskService {
 
   constructor(config?: Partial<TaskServiceConfig>) {
     this.config = {
-      baseUrl: '/api/v1/tasks',
+      baseUrl: '/api/v1/tasks-unified/available',
       timeout: 10000,
       retries: 3,
       fallbackEnabled: true,
@@ -413,7 +413,8 @@ export class TaskService {
     const start = Date.now();
 
     try {
-      await this.fetchWithRetry(`${this.config.baseUrl}/../health`);
+      // Use the unified tasks health endpoint instead
+      await this.fetchWithRetry(`/api/v1/tasks-unified/health`);
       return {
         available: true,
         latency: Date.now() - start,

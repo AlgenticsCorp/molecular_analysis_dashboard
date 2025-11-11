@@ -91,6 +91,22 @@ try:
 except ImportError:
     MOLECULAR_DYNAMICS_ROUTER_AVAILABLE = False
 
+# Import the task framework router
+try:
+    from .routes.task_framework import task_framework_router
+
+    TASK_FRAMEWORK_ROUTER_AVAILABLE = True
+except ImportError:
+    TASK_FRAMEWORK_ROUTER_AVAILABLE = False
+
+# Import the unified tasks router
+try:
+    from .routes.unified_tasks import router as unified_tasks_router
+
+    UNIFIED_TASKS_ROUTER_AVAILABLE = True
+except ImportError:
+    UNIFIED_TASKS_ROUTER_AVAILABLE = False
+
 root_path = os.getenv("ROOT_PATH", "")
 
 # Define comprehensive tags metadata for Swagger UI organization
@@ -199,6 +215,12 @@ if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE:
 if MOLECULAR_DYNAMICS_ROUTER_AVAILABLE:
     app.include_router(molecular_dynamics_router)
 
+if TASK_FRAMEWORK_ROUTER_AVAILABLE:
+    app.include_router(task_framework_router)
+
+if UNIFIED_TASKS_ROUTER_AVAILABLE:
+    app.include_router(unified_tasks_router)
+
 
 @app.middleware("http")
 async def add_request_id_header(request: Request, call_next: Callable[[Request], Any]) -> Response:
@@ -249,6 +271,7 @@ def ready() -> dict[str, Any]:
         "folding_services": "ready" if FOLDING_ROUTER_AVAILABLE else "not_available",
         "dynamics_services": "ready" if MOLECULAR_DYNAMICS_ROUTER_AVAILABLE else "not_available",
         "neurosnap_unified": "ready" if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE else "not_available",
+        "task_framework": "ready" if TASK_FRAMEWORK_ROUTER_AVAILABLE else "not_available",
     }
     
     # Overall readiness assessment
@@ -267,6 +290,7 @@ def ready() -> dict[str, Any]:
             "molecular_dynamics": service_checks["dynamics_services"] == "ready", 
             "molecular_docking": service_checks["docking_services"] == "ready",
             "job_management": service_checks["neurosnap_unified"] == "ready",
-            "task_framework": service_checks["task_execution_api"] == "ready",
+            "task_framework": service_checks["task_framework"] == "ready",
+            "task_execution_api": service_checks["task_execution_api"] == "ready",
         }
     }

@@ -21,7 +21,7 @@ export class FeatureFlagService {
    */
   private loadFlags(): FeatureFlags {
     const defaultFlags: FeatureFlags = {
-      useApiTasks: false, // Default to static data for safety
+      useApiTasks: true, // Enable API tasks by default now that backend is ready
       enableTaskCache: true,
       debugMode: false,
     };

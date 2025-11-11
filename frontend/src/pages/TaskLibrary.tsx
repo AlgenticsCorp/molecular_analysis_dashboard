@@ -126,7 +126,7 @@ export const TaskLibrary: React.FC = () => {
   };
 
   const handleTaskRun = (task: TaskTemplate) => {
-    navigate(`/jobs/create?template=${task.id}`);
+    navigate(`/execute-tasks?task=${task.id}`);
   };
 
   const handleRefresh = () => {

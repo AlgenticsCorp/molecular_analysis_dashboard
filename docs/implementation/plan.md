@@ -99,8 +99,69 @@ Goal: Deploy each system component as separate secure containers; implement mole
 - Rollback
     - Revert new containers; keep existing containerized services; disable new endpoints (non-breaking)
 
-## Stage 4: Dynamic Task Execution + Service Orchestration ⏳ PENDING
+## Stage 4: Dynamic Task Execution + Service Orchestration 🔄 IN PROGRESS
 Goal: Execute tasks defined in database via containerized services.
+
+### Phase 1: Unified Task Service + API ✅ COMPLETED
+- **Unified Task Service**: Combines database-defined tasks with framework tasks
+- **Task Framework Integration**: GNINA molecular docking via NeuroSnap API
+- **Unified API Endpoints**: `/api/v1/tasks-unified/*` for all task operations
+- **Database Schema**: `task_framework_executions` table for tracking framework task executions
+- **Dual-Source Task Discovery**: Tasks from both database definitions and task framework
+
+**Completed Components**:
+- [x] `UnifiedTaskService` in `services/unified_task_service.py`
+- [x] `TaskExecutionService` with NeuroSnap adapter
+- [x] API endpoints: `/available`, `/health`, `/{task_id}`, `/{task_id}/execute`, `/executions/{id}/status`, `/executions/{id}/results`
+- [x] `task_framework_executions` table with migration (`20251111_2150_80835240e483`)
+- [x] GNINA task definition seeded in database
+- [x] Frontend TaskLibrary displays 2 GNINA tasks from API
+- [x] Health check shows API "Healthy" status
+
+### Phase 2: Task Execution Interface 🚧 IN PROGRESS  
+- **Dynamic Task Form**: Auto-generate execution forms from task parameters
+- **File Upload Handling**: Support for molecular structure files (PDB, SDF, MOL2)
+- **Task Submission**: Execute tasks via unified API
+- **Navigation Integration**: Updated TaskLibrary → ExecuteTasks routing
+
+**In Progress**:
+- [ ] `DynamicTaskForm.tsx` component
+- [ ] `FileUploadField.tsx` with validation
+- [ ] Update `ExecuteTasks.tsx` to parse task query parameter
+- [ ] Form generation from task.parameters array
+
+### Phase 3: Task Monitoring & Status ⏳ PENDING
+- **Real-time Status Tracking**: Poll execution status every 5 seconds
+- **Progress Indicators**: Visual feedback for pending/running/completed states
+- **Status Page**: `/task-monitor/{execution_id}` route
+
+**Pending**:
+- [ ] `TaskMonitor.tsx` page component
+- [ ] `StatusIndicator.tsx` visual component
+- [ ] `useTaskExecution.ts` hook for status polling
+- [ ] WebSocket support for real-time updates (optional)
+
+### Phase 4: Results Display ⏳ PENDING
+- **Results Viewer**: Display completed task outputs
+- **3D Visualization**: Integrate 3Dmol.js for molecular structures
+- **Download Functionality**: Export docked poses and score files
+- **Results Page**: `/task-results/{execution_id}` route
+
+**Pending**:
+- [ ] `TaskResults.tsx` page component
+- [ ] `MoleculeViewer.tsx` with 3Dmol.js integration
+- [ ] `DockingScores.tsx` scores table
+- [ ] Download handlers for output files
+
+### Phase 5: Job Manager Integration ⏳ PENDING
+- **Unified Execution List**: Show both legacy jobs and framework executions
+- **Execution Actions**: View, cancel, retry operations
+- **Filtering & Search**: Query executions by status, date, task type
+
+**Pending**:
+- [ ] Update `JobManager.tsx` to query `/api/v1/tasks-unified/executions`
+- [ ] Execution table with action buttons
+- [ ] Cancel execution endpoint implementation
 
 - Scope
     - **Dynamic Task Execution API**: `POST /api/v1/tasks/{task_id}/execute`, `GET /api/v1/executions/{execution_id}/status`
@@ -108,16 +169,30 @@ Goal: Execute tasks defined in database via containerized services.
     - **HTTP-based Task Adapters**: Communication with containerized task services via OpenAPI
     - **Enhanced Task Executions**: Track execution metadata including service URL and task definition ID
 - Quality gates
-    - **Tasks execute via HTTP calls to containerized services**
-    - **Task parameters validate against database-stored OpenAPI schemas**
-    - **Service discovery routes requests to healthy instances**
-- **Status: READY TO START** - Prerequisites completed:
-    - Task definitions ready (Stage 2)
-    - Container infrastructure operational (Stage 3 Phases 1-2)
-    - Storage system functional for task inputs/outputs
-    - Will leverage gateway service from Stage 3 Phase 3
+    - **Tasks execute via HTTP calls to containerized services** ✅ (via NeuroSnap API)
+    - **Task parameters validate against database-stored OpenAPI schemas** ✅
+    - **Service discovery routes requests to healthy instances** ✅ (health endpoint operational)
+    - **Frontend can submit task executions** ⏳ (API ready, UI in progress)
+    - **Users can monitor execution status** ⏳ (API ready, UI pending)
+    - **Results are displayable and downloadable** ⏳ (API ready, UI pending)
+- **Status: PHASE 1 COMPLETED, PHASES 2-5 IN PROGRESS**
+    - Backend infrastructure: ✅ Fully operational
+    - API endpoints: ✅ All implemented and tested
+    - Database: ✅ Schema complete, tasks seeded
+    - Frontend integration: 🔄 40% complete (task display working, execution/monitoring/results pending)
+- **Current Blockers**:
+    - Dynamic form generation from task parameters
+    - File upload component for molecular structures
+    - Task monitoring UI with status polling
+    - 3D molecular visualization integration
+- **Next Steps** (This Week):
+    1. Create `DynamicTaskForm.tsx` - generic form generator
+    2. Update `ExecuteTasks.tsx` - parse task ID from URL query
+    3. Implement file upload handling for receptor/ligand files
+    4. Test end-to-end task submission
 - Rollback
-    - Fall back to hardcoded task execution; keep enhanced tracking tables
+    - Fall back to static task execution; keep enhanced tracking tables
+    - Unified API remains available for future features
 
 ## Stage 5: Results DB Provisioning + Pipeline Templates ⏳ PENDING
 Goal: Establish per-org Results DB and pipeline composition system.
@@ -138,17 +213,75 @@ Goal: Establish per-org Results DB and pipeline composition system.
 ## Stage 6: Frontend Dynamic Interface Generation 🔄 PARTIALLY COMPLETED
 Goal: Auto-generate task forms and interfaces from database specifications.
 
+### Phase 1: Task Library Integration ✅ COMPLETED
+- **API Integration**: Frontend loads tasks from `/api/v1/tasks-unified/available`
+- **Health Monitoring**: Real-time API health status display
+- **Feature Flags**: Controlled rollout with `useApiTasks`, `enableTaskCache`, `debugMode`
+- **Fallback System**: Static data fallback for high availability
+- **Task Display**: TaskLibrary shows all available tasks (database + framework)
+
+**Completed Components**:
+- [x] `TaskService` with API client and fallback
+- [x] `TaskLibrary.tsx` displays tasks from API
+- [x] Health check integration
+- [x] Navigation to ExecuteTasks page
+- [x] Task details modal
+
+### Phase 2: Dynamic Form Generation ⏳ PENDING
+- **Parameter-Based Forms**: Auto-generate input fields from task.parameters
+- **Type-Aware Components**: String, integer, float, boolean, file inputs
+- **Validation**: Client-side validation from parameter constraints
+- **File Upload**: Drag-drop file upload with format validation
+
+**Pending**:
+- [ ] `DynamicTaskForm.tsx` - Form generator component
+- [ ] `FileUploadField.tsx` - File upload with preview
+- [ ] `TaskParameterField.tsx` - Generic parameter field
+- [ ] Form validation from OpenAPI schema
+
+### Phase 3: Task Execution UI ⏳ PENDING
+- **Execution Wizard**: Step-by-step task execution flow
+- **Real-time Feedback**: Loading states and progress indicators
+- **Error Handling**: User-friendly error messages
+- **Success Redirect**: Navigate to monitoring after submission
+
+**Pending**:
+- [ ] Update `ExecuteTasks.tsx` for dynamic tasks
+- [ ] Task submission with FormData
+- [ ] Error boundary for execution failures
+- [ ] Success/error notifications
+
+### Phase 4: Pipeline Builder ⏳ FUTURE
+- **Visual Pipeline Composer**: Drag-drop task composition
+- **DAG Visualization**: Show task dependencies
+- **Pipeline Templates**: Save and reuse workflows
+- **Execution Scheduling**: Batch and scheduled executions
+
 - Scope
     - **Dynamic Form Generation**: Frontend generates forms from OpenAPI specifications loaded from database
     - **Real-time Task Interface**: Forms adapt automatically when task definitions change
     - **Task Execution UI**: Submit and monitor dynamic task executions
     - **Pipeline Builder**: Visual interface for composing pipelines from available tasks
 - Quality gates
-    - **Frontend loads and renders new tasks without code deployment**
-    - **Form validation follows OpenAPI schema from database**
-    - **Task execution status updates in real-time**
-- **Status: PARTIALLY COMPLETED** - TaskLibrary component dynamically loads tasks from API with fallback, but form generation needs implementation
-- **Pending: Dynamic form generation, task execution UI, pipeline builder**
+    - **Frontend loads and renders new tasks without code deployment** ✅ 
+    - **Form validation follows OpenAPI schema from database** ⏳
+    - **Task execution status updates in real-time** ⏳
+    - **Pipeline composition interface functional** ⏳
+- **Status: PHASE 1 COMPLETED (30%), PHASES 2-3 IN PROGRESS, PHASE 4 FUTURE**
+    - Task discovery: ✅ Working
+    - Task display: ✅ Working  
+    - Form generation: ⏳ Pending
+    - Task execution: ⏳ Pending
+    - Monitoring: ⏳ Pending
+    - Results display: ⏳ Pending
+    - Pipeline builder: 🔮 Future enhancement
+- **Dependencies Met**:
+    - Unified API operational (Stage 4 Phase 1) ✅
+    - Task definitions in database (Stage 2) ✅
+    - Feature flag system (Stage 2) ✅
+- **Pending Dependencies**:
+    - File storage integration for uploads
+    - Authentication for user-specific executions
 - Rollback
     - Fall back to static task forms; keep API integration
 
@@ -278,50 +411,183 @@ Goal: Production-ready dynamic task system with comprehensive monitoring.
 
 ---
 
-## Current Implementation Status (Updated September 23, 2025)
+## Current Implementation Status (Updated November 11, 2025)
 
 ### ✅ COMPLETED FEATURES
-1. **Task Registry API with Frontend Integration**
-   - FastAPI endpoints: `GET /api/v1/tasks`, `GET /api/v1/tasks/{task_id}`, `GET /api/v1/tasks/categories`
-   - Pydantic schemas for type-safe task definitions
-   - Task transformer services for data conversion between database and API formats
-   - Frontend TaskService with HTTP client, retry logic, and 5-minute caching
-   - Automatic fallback to static data when API unavailable
-   - Feature flag system for controlled rollout (API vs static data)
-   - React hooks integration: `useTasks`, `useTaskDetail`, `useTaskCategories`
-   - Performance optimizations: memoized parameters, infinite re-render loop fixes
-   - Comprehensive test coverage: 30 unit tests, 17 integration tests, 74% coverage
 
-2. **Frontend Task Library**
-   - TaskLibrary component dynamically loads tasks from API
-   - Graceful degradation to static task data (3 comprehensive task templates)
-   - Search and filtering capabilities
-   - Loading states, error handling, and user feedback
-   - Feature flag debugging interface
-   - API health monitoring with status indicators
+#### 1. **GNINA Task Framework Integration (Stage 4 - Phase 1)**
+   - **Unified Task Service**: Combines database-defined tasks with framework tasks
+   - **API Endpoints**: Complete `/api/v1/tasks-unified/*` implementation
+     - `GET /available` - List all tasks (database + framework)
+     - `GET /health` - Service health check
+     - `GET /{task_id}` - Task details
+     - `POST /{task_id}/execute` - Execute task
+     - `GET /executions/{id}/status` - Execution status
+     - `GET /executions/{id}/results` - Execution results
+     - `GET /executions` - List user executions
+   - **Database Schema**: `task_framework_executions` table created
+   - **NeuroSnap Integration**: TaskExecutionService with GNINA adapter
+   - **Task Definitions**: GNINA molecular docking tasks seeded
+   - **Test Coverage**: Backend integration fully tested
 
-3. **Infrastructure Foundation**
-   - Database schema with task_definitions, task_services, pipeline_templates
-   - Alembic migrations for version control
-   - Health (`/health`) and readiness (`/ready`) endpoints
-   - Clean Architecture compliance with proper separation of concerns
+#### 2. **Frontend Task Library Integration (Stage 6 - Phase 1)**
+   - **Dynamic Task Loading**: Frontend loads from `/api/v1/tasks-unified/available`
+   - **API Health Monitoring**: Real-time status display ("Healthy" indicator)
+   - **Feature Flags**: `useApiTasks`, `enableTaskCache`, `debugMode`
+   - **Fallback System**: Graceful degradation when API unavailable
+   - **Task Display**: TaskLibrary shows 2 GNINA tasks (database + framework sources)
+   - **Navigation**: Updated routing from TaskLibrary → ExecuteTasks
+   - **Docker Integration**: Frontend and API containers rebuilt and operational
 
-3. **Complete Storage Containerization (Stage 3 Extension)**
-   - Frontend container: Multi-stage React/Vite build with Nginx production serving
-   - Storage service: Dedicated Nginx-based file server with security hardening
-   - Volume management: Persistent storage with organized directory structure
-   - Molecule upload API: Complete file validation, organization isolation, presigned URLs
-   - Comprehensive testing: 50+ tests across unit, integration, API, and E2E levels
-   - Production documentation: Deployment guides, troubleshooting, performance optimization
+#### 3. **Infrastructure & DevOps**
+   - **Docker Services**: All containers running and healthy
+     - API (FastAPI on port 8000)
+     - Frontend (React/Nginx on port 3000)
+     - Gateway (Nginx on port 80)
+     - PostgreSQL (exposed on port 5432 for pgAdmin)
+     - Redis, Storage, Worker services
+   - **Gateway Routing**: `/api/*` → API backend, `/*` → Frontend
+   - **Database Migrations**: Alembic migrations for all task framework tables
+   - **Async Patterns**: Proper AsyncGenerator usage in database access
 
-### 🔄 PARTIALLY COMPLETED
-1. **Stage 6**: Task loading is dynamic but form generation needs implementation
+#### 4. **Previous Completed Stages**
+   - **Stage 0**: FastAPI app with `/health` endpoint ✅
+   - **Stage 1**: Database connectivity, Alembic migrations, identity/RBAC tables ✅
+   - **Stage 2**: Task registry API, OpenAPI-based task definitions ✅
+   - **Stage 3**: Complete containerization, storage adapter, molecule upload ✅
 
-### ⏳ NEXT PRIORITIES
-1. **Stage 3 - Phase 3**: Gateway Service & Security (API Gateway, advanced security)
-2. **Stage 3 - Phase 4**: Integration & Testing (E2E validation, performance testing)
-3. **Stage 4**: Dynamic task execution API with containerized service communication
-4. **Stage 6**: Auto-generated forms from OpenAPI specifications
+### 🔄 IN PROGRESS
+
+#### **Stage 4 - Phase 2: Task Execution Interface (40% Complete)**
+**Backend**: ✅ All APIs implemented and tested
+**Frontend**: 🚧 In development
+
+**Pending Components**:
+- [ ] `DynamicTaskForm.tsx` - Generic form generator from task.parameters
+- [ ] `FileUploadField.tsx` - File upload with PDB/SDF validation
+- [ ] Update `ExecuteTasks.tsx` - Parse task ID from query parameter
+- [ ] Form submission to `/api/v1/tasks-unified/{task_id}/execute`
+
+**Current Blocker**: Dynamic form generation from task parameters
+
+#### **Stage 6 - Phase 2: Dynamic Form Generation (Pending)**
+- Parameter-based form field generation
+- Type-aware components (string, integer, file, boolean)
+- Client-side validation from OpenAPI schema
+- File upload with drag-drop support
+
+### ⏳ NEXT IMMEDIATE PRIORITIES
+
+#### **This Week** (November 11-17, 2025):
+1. ✅ Complete backend unified task service
+2. 🔨 **Create `DynamicTaskForm.tsx` component**
+   - Auto-generate form fields from `task.parameters` array
+   - Handle different parameter types (string, integer, file, etc.)
+   - Integrate validation rules
+3. 🔨 **Implement file upload handling**
+   - `FileUploadField.tsx` component
+   - Support for PDB (receptor) and SDF (ligand) formats
+   - File size and format validation
+4. 🔨 **Update ExecuteTasks page**
+   - Parse `?task=gnina-molecular-docking` from URL
+   - Fetch task details from API
+   - Render dynamic form
+   - Submit FormData to execution endpoint
+
+#### **Next Week** (November 18-24, 2025):
+1. 🔨 **Task Monitoring Page** (`/task-monitor/{execution_id}`)
+   - `TaskMonitor.tsx` component
+   - Status polling every 5 seconds
+   - Progress indicators (pending/running/completed/failed)
+   - Real-time status updates
+2. 🔨 **Status Components**
+   - `StatusIndicator.tsx` - Visual status badges
+   - `useTaskExecution.ts` - React hook for execution state
+   - Notification system for status changes
+
+#### **Following Week** (November 25-30, 2025):
+1. 🔨 **Results Display Page** (`/task-results/{execution_id}`)
+   - `TaskResults.tsx` component
+   - Fetch results from API
+   - Display docking scores and metrics
+2. 🔨 **3D Molecular Visualization**
+   - `MoleculeViewer.tsx` with 3Dmol.js integration
+   - Display docked poses in 3D
+   - Interactive structure viewing
+3. 🔨 **Download Functionality**
+   - Download docked poses (PDB/PDBQT)
+   - Download log files
+   - Export scores as CSV
+
+### 📊 COMPLETION STATUS BY STAGE
+
+| Stage | Status | Completion | Notes |
+|-------|--------|-----------|-------|
+| **Stage 0** | ✅ Done | 100% | Health endpoint operational |
+| **Stage 1** | ✅ Done | 100% | Database, migrations, RBAC complete |
+| **Stage 2** | ✅ Done | 100% | Task registry API, OpenAPI specs |
+| **Stage 3** | ✅ Done | 100% | All services containerized |
+| **Stage 4** | 🔄 In Progress | 40% | Backend done, frontend execution UI pending |
+| **Stage 5** | ⏳ Pending | 0% | Awaiting Stage 4 completion |
+| **Stage 6** | 🔄 In Progress | 30% | Task display works, forms pending |
+| **Stage 7** | ⏳ Pending | 0% | Future pipeline orchestration |
+| **Stage 8** | ⏳ Pending | 0% | Legacy engine integration |
+| **Stage 9** | ⏳ Pending | 0% | Advanced caching |
+| **Stage 10** | ⏳ Pending | 0% | Enhanced logging |
+| **Stage 11** | ⏳ Pending | 0% | Task-level permissions |
+| **Stage 12** | ⏳ Pending | 0% | Production hardening |
+
+### 🎯 SUCCESS METRICS (Stage 4 - GNINA Integration)
+
+- [x] GNINA task visible in Task Library
+- [x] API returns 2 GNINA tasks from unified endpoint
+- [x] Health check shows "Healthy" status
+- [x] Task details display correctly in modal
+- [ ] User can upload receptor + ligand files
+- [ ] Task execution creates database record
+- [ ] User can monitor execution progress
+- [ ] Results display with 3D visualization
+- [ ] Job Manager shows all executions
+- [ ] Error states handled gracefully
+- [ ] Response time < 2s for all operations
+
+**Current Achievement**: 4/11 metrics met (36%)
+
+### 🚧 CURRENT BLOCKERS
+
+1. **Frontend Development**:
+   - Need generic dynamic form component
+   - File upload component missing
+   - Task execution flow incomplete
+
+2. **Integration**:
+   - No monitoring UI for running tasks
+   - No results display page
+   - Job Manager not updated for framework executions
+
+3. **Future Enhancements**:
+   - Authentication/authorization not implemented
+   - File storage integration basic
+   - No webhook support for async status updates
+
+### 📈 VELOCITY & PROGRESS
+
+**Recent Achievements** (Last 7 days):
+- ✅ Created UnifiedTaskService combining database + framework tasks
+- ✅ Implemented 7 API endpoints for task execution
+- ✅ Created task_framework_executions table with migration
+- ✅ Seeded GNINA task definitions in database
+- ✅ Fixed frontend API integration (health check, baseUrl)
+- ✅ Enabled useApiTasks feature flag
+- ✅ Rebuilt all Docker containers successfully
+
+**Estimated Timeline to Complete Stage 4**:
+- Week 1 (Current): Task execution form + file upload
+- Week 2: Monitoring page + status polling
+- Week 3: Results display + 3D visualization
+- Week 4: Job Manager integration + testing
+
+**Total**: ~4 weeks to full GNINA workflow completion
 
 ---
 

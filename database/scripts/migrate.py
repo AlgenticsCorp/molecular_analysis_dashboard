@@ -87,6 +87,8 @@ def run_upgrade(branch):
     """Run database upgrade."""
     console.print(f"Upgrading [bold]{branch}[/bold] database to latest version...")
 
+    ensure_application_role()
+
     # Check database connectivity first
     if not check_database_connectivity():
         console.print("Database connection failed. Please check your connection settings.", style="red")
@@ -138,10 +140,7 @@ def check_database_connectivity():
                 return False
 
             try:
-                # Convert to asyncpg format if needed
-                if database_url.startswith('postgresql+asyncpg://'):
-                    database_url = database_url.replace('postgresql+asyncpg://', 'postgresql://')
-
+                database_url = _normalize_dsn(database_url)
                 conn = await asyncpg.connect(database_url)
                 await conn.execute('SELECT 1')
                 await conn.close()
@@ -153,6 +152,77 @@ def check_database_connectivity():
     except ImportError:
         console.print("Warning: asyncpg not available, skipping connectivity check", style="yellow")
         return True
+
+
+def ensure_application_role():
+    """Ensure the core application role/database exist before migrations."""
+    try:
+        import asyncpg
+    except ImportError:
+        console.print("Warning: asyncpg not available, skipping role creation check", style="yellow")
+        return
+
+    admin_url = os.getenv('DATABASE_ADMIN_URL') or os.getenv('DATABASE_URL')
+    if not admin_url:
+        console.print("DATABASE_URL not set; cannot ensure application role.", style="yellow")
+        return
+
+    admin_url = _normalize_dsn(admin_url)
+
+    target_role = os.getenv('POSTGRES_USER', 'mad')
+    target_password = os.getenv('POSTGRES_PASSWORD', 'mad_password')
+    target_db = os.getenv('POSTGRES_DB', 'mad')
+
+    async def ensure_role_and_db():
+        try:
+            conn = await asyncpg.connect(admin_url)
+        except Exception as exc:
+            console.print(f"Skipping role check: unable to connect with admin credentials ({exc}).", style="yellow")
+            return
+
+        try:
+            role_exists = await conn.fetchval("SELECT 1 FROM pg_roles WHERE rolname=$1", target_role)
+            if not role_exists:
+                await conn.execute(
+                    f"CREATE ROLE {quote_ident(target_role)} LOGIN PASSWORD {quote_literal(target_password)}"
+                )
+                console.print(f"Created role '{target_role}'.", style="green")
+
+            db_exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname=$1", target_db)
+            if not db_exists:
+                await conn.execute(
+                    f"CREATE DATABASE {quote_ident(target_db)} OWNER {quote_ident(target_role)}"
+                )
+                console.print(f"Created database '{target_db}'.", style="green")
+        except asyncpg.InsufficientPrivilegeError:
+            console.print(
+                "Insufficient privileges to ensure application role/database. "
+                "Set DATABASE_ADMIN_URL to a superuser connection string.",
+                style="yellow"
+            )
+        except Exception as exc:
+            console.print(f"Failed to ensure application role/database: {exc}", style="red")
+        finally:
+            await conn.close()
+
+    asyncio.run(ensure_role_and_db())
+
+
+def quote_ident(value: str) -> str:
+    """Safely quote PostgreSQL identifiers."""
+    return '"' + value.replace('"', '""') + '"'
+
+
+def quote_literal(value: str) -> str:
+    """Safely quote PostgreSQL string literals."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _normalize_dsn(database_url: str) -> str:
+    """Convert SQLAlchemy-style DSNs to asyncpg-friendly ones."""
+    if database_url.startswith('postgresql+asyncpg://'):
+        return database_url.replace('postgresql+asyncpg://', 'postgresql://', 1)
+    return database_url
 
 
 if __name__ == '__main__':
