@@ -1,216 +1,230 @@
-import React, { useState, useContext, createContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Grid,
   Typography,
   Button,
-  TextField,
-  FormControl,
-  Select,
-  MenuItem,
   Paper,
-  Chip,
-  FormHelperText,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Tooltip,
-  IconButton,
+  CircularProgress,
+  Alert,
   Stepper,
   Step,
   StepLabel,
   StepContent,
 } from '@mui/material';
-import { HelpOutline, ExpandMore, ArrowBack, ArrowForward, PlayArrow } from '@mui/icons-material';
-import { useForm, Controller, Control, FieldError } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { ArrowBack, ArrowForward, PlayArrow } from '@mui/icons-material';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { taskService } from '../services/taskService';
+import { TaskTemplate } from '../types/tasks';
+import { DynamicTaskForm, FormValues, FormErrors } from '../components/task/DynamicTaskForm';
 
-// Types
-interface DockingParams {
-  xSize: number;
-  ySize: number;
-  zSize: number;
-  gaRuns: number;
-  outputFormat: string;
-  energyEvals?: number;
-}
-
-interface UploadedFiles {
-  [key: string]: File;
-}
-
-interface WizardContextType {
-  params: DockingParams | null;
-  setParams: (params: DockingParams) => void;
-  activeStep: number;
-  setActiveStep: (step: number) => void;
-  uploadedFiles: UploadedFiles;
-  setUploadedFiles: (files: UploadedFiles) => void;
-}
-
-// Validation schema
-const schema = z.object({
-  xSize: z.number().min(1, 'X size must be at least 1'),
-  ySize: z.number().min(1, 'Y size must be at least 1'),
-  zSize: z.number().min(1, 'Z size must be at least 1'),
-  gaRuns: z.number().min(1, 'GA runs must be at least 1'),
-  outputFormat: z.string().min(1, 'Output format is required'),
-  energyEvals: z.number().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
-
-const defaultParams: FormValues = {
-  xSize: 22.5,
-  ySize: 22.5,
-  zSize: 22.5,
-  gaRuns: 10,
-  outputFormat: 'pdbqt',
-  energyEvals: 2500000,
-};
-
-// Context
-const WizardContext = createContext<WizardContextType | undefined>(undefined);
-
-const useWizard = () => {
-  const context = useContext(WizardContext);
-  if (!context) {
-    throw new Error('useWizard must be used within a WizardProvider');
-  }
-  return context;
-};
-
-// Parameter Field Component
-interface ParameterFieldProps {
-  name: keyof FormValues;
-  control: Control<FormValues>;
-  label: string;
-  tooltip: string;
-  error?: FieldError;
-}
-
-const ParameterField: React.FC<ParameterFieldProps> = ({
-  name,
-  control,
-  label,
-  tooltip,
-  error,
-}) => (
-  <Controller
-    name={name}
-    control={control}
-    render={({ field }) => (
-      <Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-          <Typography variant="body2" component="label" sx={{ fontWeight: 500 }}>
-            {label}
-          </Typography>
-          <Tooltip title={tooltip}>
-            <IconButton size="small" sx={{ ml: 0.5, p: 0.25 }}>
-              <HelpOutline sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        </Box>
-        <TextField
-          {...field}
-          type="number"
-          fullWidth
-          size="small"
-          error={!!error}
-          onChange={(e) => field.onChange(Number(e.target.value))}
-        />
-        <FormHelperText error={!!error}>{error?.message || tooltip}</FormHelperText>
-      </Box>
-    )}
-  />
-);
-
-// Main Integrated Wizard Component
-const IntegratedWizard: React.FC = () => {
+export const ExecuteTasks: React.FC = () => {
   const navigate = useNavigate();
-  const { params, setParams, activeStep, setActiveStep, uploadedFiles, setUploadedFiles } =
-    useWizard();
-  const [submitting, setSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const taskId = searchParams.get('task');
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: params ?? defaultParams,
-    mode: 'onBlur',
-  });
+  const [task, setTask] = useState<TaskTemplate | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [formValues, setFormValues] = useState<FormValues>({});
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
+  const [activeStep, setActiveStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [executionId, setExecutionId] = useState<string | null>(null);
+
+  // Load task details
+  useEffect(() => {
+    const loadTask = async () => {
+      if (!taskId) {
+        setError('No task specified');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const response = await taskService.getTaskDetail({ task_id: taskId });
+        setTask(response.data);
+
+        // Initialize form with default values
+        const defaults: FormValues = {};
+        response.data.parameters.forEach((param) => {
+          if (param.default !== undefined) {
+            defaults[param.name] = param.default;
+          }
+        });
+        setFormValues(defaults);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load task:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load task details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTask();
+  }, [taskId]);
+
+  const handleFormChange = (name: string, value: any) => {
+    setFormValues((prev) => ({ ...prev, [name]: value }));
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    if (!task) return false;
+
+    const errors: FormErrors = {};
+    task.parameters.forEach((param) => {
+      const value = formValues[param.name];
+
+      // Required validation
+      if (param.required && (value === undefined || value === null || value === '')) {
+        errors[param.name] = `${param.name} is required`;
+      }
+    });
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleNext = () => {
-    setActiveStep(activeStep + 1);
+    if (activeStep === 0) {
+      // Validate parameters before moving to review
+      if (validateForm()) {
+        setActiveStep(1);
+      }
+    } else {
+      setActiveStep(activeStep + 1);
+    }
   };
 
   const handleBack = () => {
     if (activeStep === 0) {
-      navigate(-1);
+      navigate('/task-library');
     } else {
       setActiveStep(activeStep - 1);
     }
   };
 
-  const onParametersSubmit = (values: FormValues) => {
-    setParams(values);
-    handleNext();
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, fileType: string) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadedFiles({ ...uploadedFiles, [fileType]: file });
-    }
-  };
-
-  const handleFilesNext = () => {
-    if (uploadedFiles.receptor && uploadedFiles.ligand) {
-      handleNext();
-    } else {
-      console.warn('Please upload both receptor and ligand files before proceeding.');
-    }
-  };
-
   const handleExecute = async () => {
+    if (!task || !taskId) return;
+
     setSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    handleNext();
-    setSubmitting(false);
+    try {
+      // Prepare form data
+      const formData = new FormData();
+
+      task.parameters.forEach((param) => {
+        const value = formValues[param.name];
+        if (value !== undefined && value !== null) {
+          if (param.type === 'file' && value instanceof File) {
+            formData.append(param.name, value);
+          } else {
+            formData.append(param.name, String(value));
+          }
+        }
+      });
+
+      // Submit to API
+      const response = await fetch(`/api/v1/tasks-unified/${taskId}/execute`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      setExecutionId(result.id || result.execution_id);
+      setActiveStep(2); // Move to success step
+    } catch (err) {
+      console.error('Failed to execute task:', err);
+      setError(err instanceof Error ? err.message : 'Failed to execute task');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleViewJobs = () => {
-    navigate('/job-manager');
+  const handleViewMonitor = () => {
+    if (executionId) {
+      navigate(`/task-monitor/${executionId}`);
+    }
   };
+
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '400px',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error && !task) {
+    return (
+      <Box sx={{ maxWidth: 1280, mx: 'auto', p: 3 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+        <Button variant="outlined" onClick={() => navigate('/task-library')}>
+          Back to Task Library
+        </Button>
+      </Box>
+    );
+  }
+
+  if (!task) {
+    return (
+      <Box sx={{ maxWidth: 1280, mx: 'auto', p: 3 }}>
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6" gutterBottom>
+            Select a Task
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Choose a molecular analysis task from the Task Library to begin configuration.
+          </Typography>
+          <Button variant="contained" onClick={() => navigate('/task-library')} size="large">
+            Go to Task Library
+          </Button>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ maxWidth: 1280, mx: 'auto', p: 3 }}>
-      {/* Header Section */}
+      {/* Header */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: 600, mb: 2 }}>
-          Classic molecular docking using AutoDock 4 algorithm for protein-ligand binding prediction
+        <Typography variant="h5" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
+          {task.name}
         </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          {['Docking', 'v4.2.6', 'CPU: medium', 'Duration: 5–30 minutes'].map((tag) => (
-            <Chip
-              key={tag}
-              label={tag}
-              size="small"
-              sx={{
-                backgroundColor: 'grey.100',
-                fontSize: '0.75rem',
-                height: 24,
-              }}
-            />
-          ))}
-        </Box>
+        <Typography variant="body1" color="text.secondary">
+          {task.description}
+        </Typography>
       </Box>
 
-      {/* Integrated Stepper with Content */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Stepper */}
       <Paper sx={{ borderRadius: 3, boxShadow: 2, p: 4 }}>
         <Stepper activeStep={activeStep} orientation="vertical">
           {/* Step 1: Configure Parameters */}
@@ -222,229 +236,16 @@ const IntegratedWizard: React.FC = () => {
             </StepLabel>
             <StepContent>
               <Box sx={{ mt: 2 }}>
-                <form onSubmit={handleSubmit(onParametersSubmit)}>
-                  {/* Required Parameters */}
-                  <Box sx={{ border: 1, borderColor: 'grey.300', borderRadius: 2, p: 3, mb: 3 }}>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ mb: 3, fontWeight: 500, color: 'text.secondary' }}
-                    >
-                      Required Parameters
-                    </Typography>
-
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} sm={6} md={3}>
-                        <ParameterField
-                          name="xSize"
-                          control={control}
-                          label="Search Space X Size*"
-                          tooltip="Size of the search space in the X dimension (Angstroms)"
-                          error={errors.xSize}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} sm={6} md={3}>
-                        <ParameterField
-                          name="ySize"
-                          control={control}
-                          label="Search Space Y Size*"
-                          tooltip="Size of the search space in the Y dimension (Angstroms)"
-                          error={errors.ySize}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} sm={6} md={3}>
-                        <ParameterField
-                          name="zSize"
-                          control={control}
-                          label="Search Space Z Size*"
-                          tooltip="Size of the search space in the Z dimension (Angstroms)"
-                          error={errors.zSize}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} sm={6} md={3}>
-                        <ParameterField
-                          name="gaRuns"
-                          control={control}
-                          label="GA Runs*"
-                          tooltip="Number of genetic algorithm runs"
-                          error={errors.gaRuns}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12} sm={6} md={3}>
-                        <Controller
-                          name="outputFormat"
-                          control={control}
-                          render={({ field }) => (
-                            <Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                                <Typography
-                                  variant="body2"
-                                  component="label"
-                                  sx={{ fontWeight: 500 }}
-                                >
-                                  Output Format*
-                                </Typography>
-                                <Tooltip title="Format for the output files">
-                                  <IconButton size="small" sx={{ ml: 0.5, p: 0.25 }}>
-                                    <HelpOutline sx={{ fontSize: 16 }} />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                              <FormControl fullWidth size="small" error={!!errors.outputFormat}>
-                                <Select {...field} displayEmpty>
-                                  <MenuItem value="pdbqt">pdbqt</MenuItem>
-                                </Select>
-                                <FormHelperText>
-                                  {errors.outputFormat?.message || 'Format for the output files'}
-                                </FormHelperText>
-                              </FormControl>
-                            </Box>
-                          )}
-                        />
-                      </Grid>
-                    </Grid>
-                  </Box>
-
-                  {/* Advanced Parameters */}
-                  <Accordion
-                    defaultExpanded
-                    sx={{
-                      mb: 4,
-                      border: 1,
-                      borderColor: 'grey.300',
-                      '&:before': { display: 'none' },
-                    }}
-                  >
-                    <AccordionSummary
-                      expandIcon={<ExpandMore />}
-                      sx={{ minHeight: 48, '&.Mui-expanded': { minHeight: 48 } }}
-                    >
-                      <Typography
-                        variant="subtitle2"
-                        sx={{ fontWeight: 500, color: 'text.secondary' }}
-                      >
-                        Advanced Parameters (1)
-                      </Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6} md={4}>
-                          <ParameterField
-                            name="energyEvals"
-                            control={control}
-                            label="Energy Evaluations"
-                            tooltip="Maximum number of energy evaluations"
-                            error={errors.energyEvals}
-                          />
-                        </Grid>
-                      </Grid>
-                    </AccordionDetails>
-                  </Accordion>
-
-                  {/* Navigation */}
-                  <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
-                    <Button
-                      variant="outlined"
-                      onClick={handleBack}
-                      startIcon={<ArrowBack />}
-                      sx={{ textTransform: 'uppercase', fontWeight: 500 }}
-                    >
-                      Back
-                    </Button>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      endIcon={<ArrowForward />}
-                      sx={{ textTransform: 'uppercase', fontWeight: 500 }}
-                    >
-                      Next
-                    </Button>
-                  </Box>
-                </form>
-              </Box>
-            </StepContent>
-          </Step>
-
-          {/* Step 2: Upload Files */}
-          <Step>
-            <StepLabel>
-              <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                Upload Files
-              </Typography>
-            </StepLabel>
-            <StepContent>
-              <Box sx={{ mt: 2 }}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                        Receptor File (PDB/PDBQT) *
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        component="label"
-                        fullWidth
-                        sx={{ mb: 1, justifyContent: 'flex-start', p: 2 }}
-                      >
-                        {uploadedFiles.receptor
-                          ? uploadedFiles.receptor.name
-                          : 'Choose Receptor File'}
-                        <input
-                          type="file"
-                          hidden
-                          accept=".pdb,.pdbqt"
-                          onChange={(e) => handleFileUpload(e, 'receptor')}
-                        />
-                      </Button>
-                      {uploadedFiles.receptor && (
-                        <Chip label="File uploaded" color="success" size="small" />
-                      )}
-                    </Box>
-
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                        Ligand File (PDB/PDBQT/SDF) *
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        component="label"
-                        fullWidth
-                        sx={{ mb: 1, justifyContent: 'flex-start', p: 2 }}
-                      >
-                        {uploadedFiles.ligand ? uploadedFiles.ligand.name : 'Choose Ligand File'}
-                        <input
-                          type="file"
-                          hidden
-                          accept=".pdb,.pdbqt,.sdf"
-                          onChange={(e) => handleFileUpload(e, 'ligand')}
-                        />
-                      </Button>
-                      {uploadedFiles.ligand && (
-                        <Chip label="File uploaded" color="success" size="small" />
-                      )}
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ p: 3, backgroundColor: 'grey.50', borderRadius: 2 }}>
-                      <Typography variant="h6" gutterBottom>
-                        File Requirements
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        • Receptor: PDB or PDBQT format
-                        <br />
-                        • Ligand: PDB, PDBQT, or SDF format
-                        <br />• Files should be properly prepared with correct coordinates
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
+                <DynamicTaskForm
+                  parameters={task.parameters}
+                  values={formValues}
+                  onChange={handleFormChange}
+                  errors={formErrors}
+                  allowFileUpload={true}
+                />
 
                 {/* Navigation */}
-                <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
                   <Button
                     variant="outlined"
                     onClick={handleBack}
@@ -455,7 +256,7 @@ const IntegratedWizard: React.FC = () => {
                   </Button>
                   <Button
                     variant="contained"
-                    onClick={handleFilesNext}
+                    onClick={handleNext}
                     endIcon={<ArrowForward />}
                     sx={{ textTransform: 'uppercase', fontWeight: 500 }}
                   >
@@ -466,7 +267,7 @@ const IntegratedWizard: React.FC = () => {
             </StepContent>
           </Step>
 
-          {/* Step 3: Review & Execute */}
+          {/* Step 2: Review & Execute */}
           <Step>
             <StepLabel>
               <Typography variant="h6" sx={{ fontWeight: 500 }}>
@@ -475,41 +276,28 @@ const IntegratedWizard: React.FC = () => {
             </StepLabel>
             <StepContent>
               <Box sx={{ mt: 2 }}>
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
-                        Parameters
-                      </Typography>
-                      <Paper sx={{ p: 2, backgroundColor: 'grey.50' }}>
-                        <Typography variant="body2">
-                          X Size: {params?.xSize} Å<br />Y Size: {params?.ySize} Å<br />Z Size:{' '}
-                          {params?.zSize} Å<br />
-                          GA Runs: {params?.gaRuns}
-                          <br />
-                          Output Format: {params?.outputFormat}
-                          <br />
-                          Energy Evaluations: {params?.energyEvals?.toLocaleString()}
-                        </Typography>
-                      </Paper>
-                    </Box>
-                  </Grid>
+                <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
+                  Parameters Summary
+                </Typography>
+                <Paper sx={{ p: 3, backgroundColor: 'grey.50', mb: 3 }}>
+                  {task.parameters.map((param) => {
+                    const value = formValues[param.name];
+                    if (value === undefined || value === null) return null;
 
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 3 }}>
-                      <Typography variant="subtitle1" gutterBottom sx={{ fontWeight: 500 }}>
-                        Files
-                      </Typography>
-                      <Paper sx={{ p: 2, backgroundColor: 'grey.50' }}>
-                        <Typography variant="body2">
-                          Receptor: {uploadedFiles.receptor?.name || 'Not uploaded'}
-                          <br />
-                          Ligand: {uploadedFiles.ligand?.name || 'Not uploaded'}
+                    return (
+                      <Box key={param.name} sx={{ mb: 1 }}>
+                        <Typography variant="body2" component="span" sx={{ fontWeight: 500 }}>
+                          {param.name}:
+                        </Typography>{' '}
+                        <Typography variant="body2" component="span">
+                          {param.type === 'file' && value instanceof File
+                            ? value.name
+                            : String(value)}
                         </Typography>
-                      </Paper>
-                    </Box>
-                  </Grid>
-                </Grid>
+                      </Box>
+                    );
+                  })}
+                </Paper>
 
                 {/* Navigation */}
                 <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
@@ -529,106 +317,49 @@ const IntegratedWizard: React.FC = () => {
                     sx={{ textTransform: 'uppercase', fontWeight: 500 }}
                     disabled={submitting}
                   >
-                    {submitting ? 'Submitting...' : 'Execute Job'}
+                    {submitting ? 'Submitting...' : 'Execute Task'}
                   </Button>
                 </Box>
               </Box>
             </StepContent>
           </Step>
 
-          {/* Step 4: Monitor Progress */}
+          {/* Step 3: Success */}
           <Step>
             <StepLabel>
-              <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                Job Submitted Successfully!
+              <Typography variant="h6" sx={{ fontWeight: 500, color: 'success.main' }}>
+                Task Submitted Successfully!
               </Typography>
             </StepLabel>
             <StepContent>
               <Box sx={{ mt: 2, textAlign: 'center', py: 4 }}>
                 <Typography variant="h5" gutterBottom color="success.main">
-                  ✓ Your docking job has been submitted
+                  ✓ Your task has been submitted
                 </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-                  Job ID: JOB-{Date.now().toString().slice(-8)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
-                  Estimated completion time: 15-30 minutes
-                </Typography>
+                {executionId && (
+                  <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+                    Execution ID: {executionId}
+                  </Typography>
+                )}
+                {task.execution_time_estimate && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 4 }}>
+                    Estimated completion time: {Math.ceil(task.execution_time_estimate / 60)}{' '}
+                    minutes
+                  </Typography>
+                )}
 
                 <Button
                   variant="contained"
-                  onClick={handleViewJobs}
+                  onClick={handleViewMonitor}
                   size="large"
                   startIcon={<PlayArrow />}
                 >
-                  Monitor Job Progress
+                  Monitor Task Progress
                 </Button>
               </Box>
             </StepContent>
           </Step>
         </Stepper>
-      </Paper>
-    </Box>
-  );
-};
-
-// Wizard Provider Component
-const WizardProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [params, setParams] = useState<DockingParams | null>(null);
-  const [activeStep, setActiveStep] = useState(0);
-  const [uploadedFiles, setUploadedFiles] = useState<UploadedFiles>({});
-
-  return (
-    <WizardContext.Provider
-      value={{
-        params,
-        setParams,
-        activeStep,
-        setActiveStep,
-        uploadedFiles,
-        setUploadedFiles,
-      }}
-    >
-      {children}
-    </WizardContext.Provider>
-  );
-};
-
-// Main ExecuteTasks component
-export const ExecuteTasks: React.FC = () => {
-  const location = useLocation();
-  const selectedTemplate = location.state?.selectedTemplate;
-
-  if (
-    selectedTemplate &&
-    (selectedTemplate.name?.includes('AutoDock') ||
-      selectedTemplate.id?.includes('autodock') ||
-      selectedTemplate.category === 'autodock_vina' ||
-      selectedTemplate.category === 'autodock4')
-  ) {
-    return (
-      <WizardProvider>
-        <IntegratedWizard />
-      </WizardProvider>
-    );
-  }
-
-  return (
-    <Box>
-      <Typography variant="h4" gutterBottom sx={{ mb: 3, fontWeight: 600 }}>
-        Execute Tasks
-      </Typography>
-
-      <Paper sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h6" gutterBottom>
-          Select a Task Template
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Choose a molecular analysis task from the Task Library to begin configuration.
-        </Typography>
-        <Button variant="contained" onClick={() => window.history.back()} size="large">
-          Go to Task Library
-        </Button>
       </Paper>
     </Box>
   );

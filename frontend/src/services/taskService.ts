@@ -221,26 +221,40 @@ export class TaskService {
    * Fetch task detail from API.
    */
   private async fetchTaskDetailFromApi(params: TaskDetailParams): Promise<TaskDetailResponse> {
-    const url = new URL(`${this.config.baseUrl}/${params.task_id}`, window.location.origin);
+    // Use the tasks-unified base path, not the /available subpath
+    const baseUrl = this.config.baseUrl.replace('/available', '');
+    const url = new URL(`${baseUrl}/${params.task_id}`, window.location.origin);
 
     if (params.org_id) {
       url.searchParams.append('org_id', params.org_id);
     }
 
-    return this.fetchWithRetry(url.toString());
+    const taskData = await this.fetchWithRetry<TaskTemplate>(url.toString());
+    
+    // The API returns the task directly, but we need to wrap it in the expected format
+    return {
+      task: taskData,
+      api_specification: {},
+      service_configuration: {}
+    };
   }
 
   /**
-   * Fetch categories from API.
+   * Fetch categories from API by extracting them from the task list.
    */
   private async fetchCategoriesFromApi(params?: TaskCategoriesParams): Promise<string[]> {
-    const url = new URL(`${this.config.baseUrl}/categories`, window.location.origin);
-
-    if (params?.org_id) {
-      url.searchParams.append('org_id', params.org_id);
-    }
-
-    return this.fetchWithRetry(url.toString());
+    // Get all tasks and extract unique categories
+    const taskParams: TaskListParams = params?.org_id ? { org_id: params.org_id } : {};
+    const tasksResponse = await this.getTasks(taskParams);
+    const categories = new Set<string>();
+    
+    tasksResponse.data.forEach((task: TaskTemplate) => {
+      if (task.category) {
+        categories.add(task.category);
+      }
+    });
+    
+    return Array.from(categories).sort();
   }
 
   /**

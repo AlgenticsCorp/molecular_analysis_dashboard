@@ -22,6 +22,9 @@ from ..infrastructure.database import get_metadata_session as get_db
 
 logger = logging.getLogger(__name__)
 
+# System organization ID for framework/system tasks
+SYSTEM_ORG_ID = UUID('00000000-0000-0000-0000-000000000000')
+
 
 class UnifiedTaskService:
     """Service for managing both database and framework tasks"""
@@ -32,17 +35,16 @@ class UnifiedTaskService:
         
     async def get_all_tasks(self, org_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
         """Get all available tasks from both database and framework"""
-        tasks = []
-        
-        # Get database tasks
-        db_tasks = await self._get_database_tasks(org_id)
-        tasks.extend(db_tasks)
-        
-        # Get framework tasks
+        # Get framework tasks first (they take priority)
         framework_tasks = await self._get_framework_tasks()
-        tasks.extend(framework_tasks)
+        framework_task_ids = {task['id'] for task in framework_tasks}
         
-        return tasks
+        # Get database tasks, excluding ones that exist in framework
+        db_tasks = await self._get_database_tasks(org_id)
+        unique_db_tasks = [task for task in db_tasks if task['id'] not in framework_task_ids]
+        
+        # Combine: framework tasks + unique database tasks
+        return framework_tasks + unique_db_tasks
     
     async def get_task_by_id(self, task_id: str, org_id: Optional[UUID] = None) -> Optional[Dict[str, Any]]:
         """Get specific task by ID"""
@@ -266,38 +268,57 @@ class UnifiedTaskService:
             task_id, org_id
         )
         
+        # Merge parameters and files into input_data
+        input_data = {**parameters}
+        if files:
+            # Store complete file information in input_data (including content as base64)
+            import base64
+            for key, file_info in files.items():
+                content = file_info.get('content', b'')
+                input_data[key] = {
+                    'filename': file_info.get('filename'),
+                    'content_type': file_info.get('content_type'),
+                    'size': len(content),
+                    'content_base64': base64.b64encode(content).decode('utf-8')
+                }
+        
+        # Create execution record using actual table columns
         execution = TaskFrameworkExecution(
             execution_id=execution_id,
-            task_definition_id=task_definition.task_definition_id,
-            org_id=org_id or task_definition.org_id,
-            user_id=user_id,
+            task_id=task_id,
+            display_name=task_definition.task_metadata.get('name', task_id),
+            org_id=org_id or SYSTEM_ORG_ID,  # Use system org ID if none provided
+            user_id=user_id or SYSTEM_ORG_ID,  # Use system org ID if no user
             status='pending',
-            parameters=parameters
+            input_data=input_data
         )
         
         await self._save_execution(execution)
         
         try:
-            # Execute through framework
-            framework_response = await self.task_framework.execute_task(
-                task_id, parameters, files
+            # Execute through framework - pass execution object and task definition
+            external_job_id = await self.task_framework.execute_task(
+                task_id, execution, task_definition.task_metadata
             )
             
             # Update execution with external job ID
-            execution.external_job_id = framework_response.get('job_id')
-            execution.update_status('running')
+            execution.external_job_id = external_job_id
+            execution.status = 'running'
+            execution.started_at = datetime.now(timezone.utc)
             await self._save_execution(execution)
             
             return {
                 'execution_id': str(execution_id),
-                'job_id': framework_response.get('job_id'),
+                'job_id': external_job_id,
                 'status': 'running',
                 'task_id': task_id,
                 'created_at': execution.created_at.isoformat()
             }
             
         except Exception as e:
-            execution.update_status('failed', error_message=str(e))
+            execution.status = 'failed'
+            execution.error_message = str(e)
+            execution.completed_at = datetime.now(timezone.utc)
             await self._save_execution(execution)
             raise
     
@@ -325,10 +346,10 @@ class UnifiedTaskService:
             if not framework_task:
                 raise ValueError(f"Framework task {task_id} not found")
             
-            # Create task definition
+            # Create task definition - use SYSTEM_ORG_ID for framework/system tasks
             task_def = TaskDefinition(
                 task_id=task_id,
-                org_id=org_id,  # This might be None for system tasks
+                org_id=org_id or SYSTEM_ORG_ID,  # Use system org ID if none provided
                 version=framework_task.get('version', '1.0.0'),
                 task_metadata=framework_task,
                 interface_spec=self._generate_interface_spec(framework_task),

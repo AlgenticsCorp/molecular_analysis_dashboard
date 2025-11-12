@@ -83,22 +83,50 @@
 
 **Goal**: Enable users to run individual GNINA tasks with file uploads, monitoring, and results viewing.
 
-#### Phase 1A: Dynamic Task Execution Form
-**Current Issue**: TaskLibrary "Run Task" button navigates to `/execute-tasks?task=gnina-molecular-docking`, but ExecuteTasks page is hardcoded.
+#### Phase 1A: Dynamic Task Execution Form ✅ COMPLETED
+**Status**: ✅ Fully functional - users can submit GNINA tasks with file uploads
 
-**What's Needed**:
+**What Was Implemented**:
 
-1. **Update ExecuteTasks.tsx** to be task-agnostic:
-   ```typescript
-   // Parse query parameter
-   const searchParams = new URLSearchParams(location.search);
-   const taskId = searchParams.get('task');
-   
-   // Fetch task details from API
-   const task = await fetch(`/api/v1/tasks-unified/${taskId}`);
-   
-   // Dynamically generate form based on task.parameters
-   const form = generateDynamicForm(task.parameters);
+1. ✅ **Updated ExecuteTasks.tsx** to be task-agnostic:
+   - Reads `task_id` from query parameter (`?task=gnina-molecular-docking`)
+   - Fetches task details from `/api/v1/tasks-unified/{task_id}` API
+   - Dynamically generates form using `DynamicTaskForm` component
+   - 3-step wizard: Configure → Review → Execute → Success
+
+2. ✅ **Created DynamicTaskForm.tsx** component:
+   - Generic form generator supporting all parameter types
+   - Handles: file, string, number, integer, boolean, select/enum
+   - Built-in validation (required, min/max, pattern, allowed_values)
+   - Error display and field-level error messages
+
+3. ✅ **Created FileUploadField.tsx** component:
+   - Drag-and-drop file upload with visual feedback
+   - File validation (type: .pdb/.sdf/.pdbqt, max size: 100MB)
+   - File preview with name and size display
+   - Remove file functionality
+
+4. ✅ **Fixed Backend API Issues**:
+   - **File Content Loss**: Fixed by storing file content as base64 in `input_data`
+   - **Duplicate Tasks**: Fixed by prioritizing framework tasks over database tasks
+   - **Database Constraints**: Created system organization and user (UUID: `00000000-0000-0000-0000-000000000000`)
+   - **Model Field Mismatches**: Fixed `TaskFrameworkExecution` to use correct fields (`task_id`, `display_name`, `input_data`)
+   - **Adapter Signature**: Fixed to decode base64 file content before submitting to NeuroSnap
+
+5. ✅ **API Endpoints Working**:
+   - `GET /api/v1/tasks-unified/available` - Returns 1 GNINA task (framework source)
+   - `GET /api/v1/tasks-unified/{task_id}` - Returns task details with parameters
+   - `POST /api/v1/tasks-unified/{task_id}/execute` - Accepts FormData with files
+   - Successfully submitted test job: `execution_id: ff7a09e4-e365-4165-8cb8-befdb31ea362`, `job_id: 6914d0ed8b9522d6ffefa776`
+
+**Test Results**:
+```bash
+curl -X POST \
+  -F "receptor_file=@EGFR_KD_L858R_T790M_model_1.pdb" \
+  -F "ligand_file=@erlotinib.sdf" \
+  -F "exhaustiveness=2" \
+  http://localhost/api/v1/tasks-unified/gnina-molecular-docking/execute
+# Response: {"execution_id": "...", "job_id": "...", "status": "running", ...}
    ```
 
 2. **Create Dynamic Form Generator**:
@@ -119,28 +147,9 @@
 3. **Handle File Uploads**:
    ```typescript
    // For GNINA: receptor_file (PDB) + ligand_file (SDF)
-   const formData = new FormData();
-   formData.append('receptor_file', receptorFile);
-   formData.append('ligand_file', ligandFile);
-   formData.append('job_name', jobName);
-   formData.append('note', note);
-   
-   await fetch(`/api/v1/tasks-unified/${taskId}/execute`, {
-     method: 'POST',
-     body: formData
-   });
-   ```
+```
 
-4. **Submit Task Execution**:
-   - Validate all required parameters
-   - Show loading state during submission
-   - Handle errors gracefully
-   - On success: redirect to monitoring page with execution_id
-
-**Files to Modify**:
-- `frontend/src/pages/ExecuteTasks.tsx` - Make dynamic
-- `frontend/src/components/task/DynamicTaskForm.tsx` - NEW component
-- `frontend/src/components/task/FileUploadField.tsx` - NEW component
+**Next Steps**: Phase 1B - Task Monitoring & Status
 
 ---
 

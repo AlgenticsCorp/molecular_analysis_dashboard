@@ -46,28 +46,32 @@ class NeuroSnapDockingAdapter(TaskExecutorPort):
                          task_definition: Dict[str, Any]) -> str:
         """Submit GNINA docking task to NeuroSnap provider endpoint."""
         
+        import base64
+        
         try:
             # Extract parameters from task execution
-            parameters = execution.parameters
+            parameters = execution.input_data
             
             # Prepare files and form data for httpx
             files = {}
             form_data = {}
             
-            # Handle file parameters
+            # Handle file parameters - decode from base64
             if 'receptor_file' in parameters:
-                receptor_data = await self._prepare_file_data(parameters['receptor_file'])
+                receptor_info = parameters['receptor_file']
+                content = base64.b64decode(receptor_info['content_base64'])
                 files['receptor_file'] = (
-                    receptor_data['filename'],
-                    receptor_data['content'],
+                    receptor_info['filename'],
+                    content,
                     'chemical/x-pdb'
                 )
             
             if 'ligand_file' in parameters:
-                ligand_data = await self._prepare_file_data(parameters['ligand_file'])
+                ligand_info = parameters['ligand_file']
+                content = base64.b64decode(ligand_info['content_base64'])
                 files['ligand_file'] = (
-                    ligand_data['filename'],
-                    ligand_data['content'],
+                    ligand_info['filename'],
+                    content,
                     'chemical/x-mdl-sdfile'
                 )
 
