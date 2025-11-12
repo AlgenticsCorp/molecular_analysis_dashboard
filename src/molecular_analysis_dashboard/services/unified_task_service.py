@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional, Union
 from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 import json
 import logging
 from datetime import datetime, timezone
@@ -96,19 +97,19 @@ class UnifiedTaskService:
         if execution:
             if execution.external_job_id:
                 # Get results from framework
-                framework_results = await self.task_framework.get_task_results(
-                    execution.task_definition.task_id, execution.external_job_id
+                framework_results = await self.task_framework.get_execution_results(
+                    execution.task_id, execution.external_job_id
                 )
                 
                 # Update database with results
                 if framework_results:
-                    execution.results = framework_results
+                    execution.output_data = framework_results
                     execution.update_status('completed')
                     await self._save_execution(execution)
                 
                 return framework_results
             else:
-                return execution.results
+                return execution.output_data
         
         return None
     
@@ -425,8 +426,10 @@ class UnifiedTaskService:
                     TaskFrameworkExecution.execution_id == UUID(execution_id)
                 )
                 result = await db.execute(query)
-                return result.scalar_one_or_none()
-        except Exception:
+                execution = result.scalar_one_or_none()
+                return execution
+        except Exception as e:
+            logger.error(f"Error getting task execution {execution_id}: {e}")
             return None
     
     async def _save_execution(self, execution: TaskFrameworkExecution):
@@ -491,20 +494,21 @@ class UnifiedTaskService:
             
             status_dict = {
                 'execution_id': str(execution.execution_id),
-                'task_id': execution.task_definition.task_id if execution.task_definition else None,
+                'task_id': execution.task_id,
                 'status': execution.status,
                 'created_at': execution.created_at.isoformat() if execution.created_at else None,
                 'started_at': execution.started_at.isoformat() if execution.started_at else None,
                 'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
                 'error_message': execution.error_message,
-                'external_job_id': execution.external_job_id
+                'external_job_id': execution.external_job_id,
+                'progress': execution.progress_percentage
             }
             
             # If there's an external job ID, get status from framework
-            if execution.external_job_id and execution.task_definition:
+            if execution.external_job_id and execution.task_id:
                 try:
-                    framework_status = await self.task_framework.get_task_status(
-                        execution.task_definition.task_id,
+                    framework_status = await self.task_framework.get_execution_status(
+                        execution.task_id,
                         execution.external_job_id
                     )
                     
@@ -516,7 +520,7 @@ class UnifiedTaskService:
                     # Merge framework status
                     if framework_status:
                         status_dict.update({
-                            'progress': framework_status.get('progress'),
+                            'progress': framework_status.get('progress', execution.progress_percentage),
                             'message': framework_status.get('message'),
                             'framework_status': framework_status
                         })

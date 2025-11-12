@@ -153,53 +153,69 @@ curl -X POST \
 
 ---
 
-#### Phase 1B: Task Monitoring & Status
+#### Phase 1B: Task Monitoring & Status ✅ COMPLETED
+**Status**: ✅ Fully functional - users can monitor job executions in real-time
 
-**Current Issue**: After task execution, no way to monitor progress or see status.
+**What Was Implemented**:
 
-**What's Needed**:
+1. ✅ **Updated JobManager.tsx** to show real task executions:
+   - Removed mock data insertion (disabled WebSocket mock animation)
+   - Integrated with `/api/v1/tasks-unified/executions` API endpoint
+   - Displays real execution data from database (9 GNINA jobs)
+   - Shows "Live Data" green chip instead of "Offline Mode"
+   - Auto-refreshes every 10 seconds using TanStack Query
 
-1. **Create TaskMonitor Page** (`/task-monitor/{execution_id}`):
-   ```typescript
-   export const TaskMonitor: React.FC = () => {
-     const { executionId } = useParams();
-     const { status, refetch } = useQuery({
-       queryKey: ['execution', executionId],
-       queryFn: () => fetch(`/api/v1/tasks-unified/executions/${executionId}/status`),
-       refetchInterval: 5000 // Poll every 5 seconds
-     });
-     
-     return (
-       <Box>
-         <StatusIndicator status={status.status} />
-         <ProgressBar progress={status.progress} />
-         <ExecutionDetails execution={status} />
-         {status.status === 'completed' && <ViewResultsButton />}
-       </Box>
-     );
-   };
-   ```
+2. ✅ **Real-time Status Display**:
+   - Status badges: Pending, Running, Completed, Failed, Cancelled
+   - Progress bars showing completion percentage
+   - Runtime calculation from started_at and completed_at timestamps
+   - Task type display (gnina-molecular-docking)
 
-2. **Status Display**:
-   - Pending: Show queued message
-   - Running: Show progress bar, estimated time remaining
-   - Completed: Show success message, "View Results" button
-   - Failed: Show error message, "Retry" button
+3. ✅ **View Details Dialog** with real data:
+   - **Overview Tab**: Job ID, task type, priority, progress, runtime
+   - **Parameters Tab**: JSON display of input_data from execution
+   - **Files Tab**: Real input/output files from `/results` endpoint
+     - Input files: Input_Ligand.json (7.81 KB), Input_Receptor.zip (38.24 KB)
+     - Output files: output.csv (597 bytes), output.sdf (45.28 KB)
+     - Download buttons with actual URLs from NeuroSnap API
+   - **Logs Tab**: Error messages and execution logs
+   - **Resources Tab**: Placeholder for CPU/memory metrics
 
-3. **Real-time Updates**:
-   - Poll status endpoint every 5 seconds while running
-   - Stop polling when completed/failed
-   - Show notification when status changes
+4. ✅ **Enhanced File Integration**:
+   - Changed inputFiles/outputFiles from `string[]` to objects:
+     ```typescript
+     interface FileInfo {
+       name: string;
+       size: string;
+       url?: string; // Download URL from NeuroSnap
+     }
+     ```
+   - Fetches file details from `/executions/{id}/results` endpoint
+   - Parses `raw_data.in` for input files
+   - Parses `raw_data.out` for output files with sizes
+   - Displays file names, sizes, and clickable download buttons
 
-**Files to Create**:
-- `frontend/src/pages/TaskMonitor.tsx` - NEW page
-- `frontend/src/components/task/StatusIndicator.tsx` - NEW component
-- `frontend/src/hooks/useTaskExecution.ts` - NEW hook
+5. ✅ **API Endpoints Working**:
+   - `GET /api/v1/tasks-unified/executions` - Lists all user executions
+   - `GET /api/v1/tasks-unified/executions/{id}/status` - Job status details
+   - `GET /api/v1/tasks-unified/executions/{id}/results` - File URLs and metadata
 
-**Routes to Add** (in `App.tsx`):
-```typescript
-<Route path="/task-monitor/:executionId" element={<TaskMonitor />} />
+**Test Results**:
+```bash
+# List executions
+curl http://localhost:8000/api/v1/tasks-unified/executions
+# Returns: 9 executions with full details
+
+# Get execution status
+curl http://localhost:8000/api/v1/tasks-unified/executions/ff7a09e4-.../status
+# Returns: status, progress, timestamps, framework_status
+
+# Get execution results  
+curl http://localhost:8000/api/v1/tasks-unified/executions/ff7a09e4-.../results
+# Returns: files[], download_urls{}, raw_data with input/output file info
 ```
+
+**Next Steps**: Phase 1C - Enhanced Results Display with 3D Visualization
 
 ---
 

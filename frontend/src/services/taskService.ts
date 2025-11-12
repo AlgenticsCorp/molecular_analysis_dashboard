@@ -440,6 +440,39 @@ export class TaskService {
       };
     }
   }
+
+  /**
+   * Get execution status for a task
+   */
+  async getExecutionStatus(executionId: string): Promise<any> {
+    const url = `/api/v1/tasks-unified/executions/${executionId}/status`;
+    return this.fetchWithRetry(url);
+  }
+
+  /**
+   * Get execution results for a completed task
+   */
+  async getExecutionResults(executionId: string): Promise<any> {
+    const url = `/api/v1/tasks-unified/executions/${executionId}/results`;
+    return this.fetchWithRetry(url);
+  }
+
+  /**
+   * List all task executions for the current user
+   */
+  async listExecutions(params?: { status?: string; limit?: number; offset?: number }): Promise<any> {
+    const url = new URL('/api/v1/tasks-unified/executions', window.location.origin);
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+    
+    return this.fetchWithRetry(url.toString());
+  }
 }
 
 // Global service instance

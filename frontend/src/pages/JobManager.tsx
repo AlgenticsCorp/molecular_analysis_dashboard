@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Grid,
@@ -51,14 +51,15 @@ import {
   Memory,
   Speed,
 } from '@mui/icons-material';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { taskService } from '../services/taskService';
 
 // Types for job management
 interface Job {
   id: string;
   name: string;
   description?: string;
-  status: 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED';
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress: number;
   startTime?: string;
   endTime?: string;
@@ -66,8 +67,8 @@ interface Job {
   priority: 'low' | 'medium' | 'high';
   taskType: string;
   parameters: Record<string, unknown>;
-  inputFiles: string[];
-  outputFiles: string[];
+  inputFiles: Array<{ name: string; size: string; url?: string }>;
+  outputFiles: Array<{ name: string; size: string; url?: string }>;
   logs: string[];
   errorMessage?: string;
   resourceUsage?: {
@@ -84,132 +85,127 @@ interface JobFilter {
   searchTerm: string;
 }
 
-// Mock WebSocket connection for real-time updates
-class JobWebSocket {
-  private ws: WebSocket | null = null;
-  private onUpdate: (job: Job) => void;
-
-  constructor(onUpdate: (job: Job) => void) {
-    this.onUpdate = onUpdate;
-    this.connect();
-  }
-
-  private connect() {
-    // In real implementation, this would connect to actual WebSocket
-    console.warn('WebSocket connection established');
-
-    // Simulate real-time updates
-    setInterval(() => {
-      if (Math.random() > 0.8) {
-        this.simulateJobUpdate();
+// Fetch jobs with error handling and fallback
+const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'api' | 'fallback' }> => {
+  try {
+    // Fetch real executions from API
+    const executionsData = await taskService.listExecutions();
+    const executions = executionsData.executions || [];
+    
+    // Transform API data to Job interface
+    const jobs: Job[] = await Promise.all(executions.map(async (exec: any) => {
+      // Calculate runtime
+      let runtime: string | undefined;
+      if (exec.started_at) {
+        const start = new Date(exec.started_at);
+        const end = exec.completed_at ? new Date(exec.completed_at) : new Date();
+        const durationMs = end.getTime() - start.getTime();
+        const hours = Math.floor(durationMs / (1000 * 60 * 60));
+        const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+        runtime = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
       }
-    }, 5000);
+
+      // Fetch file information from results endpoint if completed
+      let inputFiles: Array<{ name: string; size: string; url?: string }> = [];
+      let outputFiles: Array<{ name: string; size: string; url?: string }> = [];
+      
+      if (exec.status === 'completed' || exec.status === 'failed') {
+        try {
+          const results = await taskService.getExecutionResults(exec.execution_id);
+          
+          // Parse input files from raw_data
+          if (results.raw_data?.in) {
+            inputFiles = results.raw_data.in.map(([name, size]: [string, string]) => ({
+              name,
+              size,
+              url: results.download_urls?.[name] || undefined
+            }));
+          }
+          
+          // Parse output files from raw_data
+          if (results.raw_data?.out) {
+            outputFiles = results.raw_data.out.map(([name, size]: [string, string]) => ({
+              name,
+              size,
+              url: results.download_urls?.[name] || undefined
+            }));
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch results for execution ${exec.execution_id}:`, error);
+        }
+      }
+
+      return {
+        id: exec.execution_id,
+        name: exec.display_name || `Task ${exec.task_id}`,
+        description: `Execution ID: ${exec.execution_id}`,
+        status: exec.status.toLowerCase(), // Convert to lowercase to match Job interface
+        progress: exec.progress_percentage || 0,
+        startTime: exec.created_at,
+        endTime: exec.completed_at,
+        runtime,
+        priority: 'medium' as const, // Default priority since not in API
+        taskType: exec.task_id || 'unknown',
+        parameters: exec.input_data || {},
+        inputFiles,
+        outputFiles,
+        logs: exec.error_message ? [exec.error_message] : ['Job execution in progress...'],
+        errorMessage: exec.error_message,
+      };
+    }));
+
+    // Apply filters
+    const filteredJobs = jobs.filter((job) => {
+      const matchesStatus = filters.status === 'all' || job.status === filters.status;
+      const matchesType = filters.taskType === 'all' || job.taskType === filters.taskType;
+      const matchesPriority = filters.priority === 'all' || job.priority === filters.priority;
+      const matchesSearch =
+        filters.searchTerm === '' ||
+        job.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        job.description?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+      return matchesStatus && matchesType && matchesPriority && matchesSearch;
+    });
+
+    return { jobs: filteredJobs, source: 'api' };
+  } catch (error) {
+    console.error('Error fetching jobs:', error);
+    
+    // Return fallback mock data on error
+    const mockJobs: Job[] = [
+      {
+        id: 'mock-1',
+        name: 'Sample Docking Job (Offline Mode)',
+        description: 'This is sample data - API is unavailable',
+        status: 'completed',
+        progress: 100,
+        startTime: new Date(Date.now() - 3600000).toISOString(),
+        endTime: new Date().toISOString(),
+        runtime: '1h 0m',
+        priority: 'medium',
+        taskType: 'gnina-molecular-docking',
+        parameters: {},
+        inputFiles: [],
+        outputFiles: [],
+        logs: ['Sample job - API offline'],
+      },
+    ];
+
+    // Apply filters to mock data
+    const filteredJobs = mockJobs.filter((job) => {
+      const matchesStatus = filters.status === 'all' || job.status === filters.status;
+      const matchesType = filters.taskType === 'all' || job.taskType === filters.taskType;
+      const matchesPriority = filters.priority === 'all' || job.priority === filters.priority;
+      const matchesSearch =
+        filters.searchTerm === '' ||
+        job.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+        job.description?.toLowerCase().includes(filters.searchTerm.toLowerCase());
+
+      return matchesStatus && matchesType && matchesPriority && matchesSearch;
+    });
+
+    return { jobs: filteredJobs, source: 'fallback' };
   }
-
-  private simulateJobUpdate() {
-    const mockJob: Job = {
-      id: 'job-' + Date.now(),
-      name: 'AutoDock Vina - Real-time Update',
-      status: 'RUNNING',
-      progress: Math.floor(Math.random() * 100),
-      taskType: 'autodock_vina',
-      priority: 'medium',
-      parameters: {},
-      inputFiles: [],
-      outputFiles: [],
-      logs: ['Processing...'],
-    };
-    this.onUpdate(mockJob);
-  }
-
-  disconnect() {
-    if (this.ws) {
-      this.ws.close();
-    }
-  }
-}
-
-// Mock API functions
-const fetchJobs = async (filters: JobFilter): Promise<Job[]> => {
-  // Mock data - replace with actual API call
-  const mockJobs: Job[] = [
-    {
-      id: '1',
-      name: 'AutoDock Vina - Protein Complex A',
-      description: 'Molecular docking analysis for drug target identification',
-      status: 'SUCCEEDED',
-      progress: 100,
-      startTime: '2025-09-10T10:30:00Z',
-      endTime: '2025-09-10T12:04:00Z',
-      runtime: '1h 34m',
-      priority: 'high',
-      taskType: 'autodock_vina',
-      parameters: { exhaustiveness: 8, num_modes: 9 },
-      inputFiles: ['receptor.pdbqt', 'ligand.pdbqt'],
-      outputFiles: ['output.pdbqt', 'log.txt'],
-      logs: ['Job started', 'Processing docking...', 'Job completed successfully'],
-      resourceUsage: { cpu: 85, memory: 2048, diskSpace: 512 },
-    },
-    {
-      id: '2',
-      name: 'Virtual Screening Pipeline',
-      description: 'High-throughput screening of compound library',
-      status: 'RUNNING',
-      progress: 67,
-      startTime: '2025-09-10T11:45:00Z',
-      runtime: '2h 15m',
-      priority: 'medium',
-      taskType: 'pipeline',
-      parameters: { library_size: 10000, scoring_function: 'vina' },
-      inputFiles: ['receptor.pdbqt', 'library.sdf'],
-      outputFiles: [],
-      logs: ['Job started', 'Processing compound 6,700 of 10,000...'],
-      resourceUsage: { cpu: 92, memory: 4096, diskSpace: 2048 },
-    },
-    {
-      id: '3',
-      name: 'AutoDock 4 - Advanced Parameters',
-      status: 'FAILED',
-      progress: 45,
-      startTime: '2025-09-10T09:20:00Z',
-      endTime: '2025-09-10T10:15:00Z',
-      runtime: '55m',
-      priority: 'low',
-      taskType: 'autodock4',
-      parameters: { ga_runs: 50, ga_pop_size: 300 },
-      inputFiles: ['receptor.pdbqt', 'ligand.pdbqt', 'grid.gpf'],
-      outputFiles: [],
-      logs: ['Job started', 'Error: Invalid grid file format'],
-      errorMessage: 'Grid file format validation failed',
-      resourceUsage: { cpu: 45, memory: 1024, diskSpace: 256 },
-    },
-    {
-      id: '4',
-      name: 'Conformational Analysis',
-      status: 'PENDING',
-      progress: 0,
-      priority: 'medium',
-      taskType: 'custom',
-      parameters: { conformer_count: 100 },
-      inputFiles: ['molecule.sdf'],
-      outputFiles: [],
-      logs: ['Job queued'],
-    },
-  ];
-
-  // Apply filters
-  return mockJobs.filter((job) => {
-    const matchesStatus = filters.status === 'all' || job.status === filters.status;
-    const matchesType = filters.taskType === 'all' || job.taskType === filters.taskType;
-    const matchesPriority = filters.priority === 'all' || job.priority === filters.priority;
-    const matchesSearch =
-      filters.searchTerm === '' ||
-      job.name.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      job.description?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      '';
-
-    return matchesStatus && matchesType && matchesPriority && matchesSearch;
-  });
 };
 
 export const JobManager: React.FC = () => {
@@ -222,43 +218,29 @@ export const JobManager: React.FC = () => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
-  const [, setWsConnection] = useState<JobWebSocket | null>(null);
-
-  const queryClient = useQueryClient();
+  const [dataSource, setDataSource] = useState<'api' | 'fallback'>('api');
 
   // TanStack Query for job data
   const {
-    data: jobs = [],
+    data: jobsData,
     error,
     isLoading,
     refetch,
   } = useQuery({
     queryKey: ['jobs', filters],
-    queryFn: () => fetchJobs(filters),
+    queryFn: async () => {
+      const result = await fetchJobs(filters);
+      setDataSource(result.source);
+      return result.jobs;
+    },
     refetchInterval: 10000, // Refresh every 10 seconds
     retry: 3,
   });
 
-  // WebSocket connection for real-time updates
-  useEffect(() => {
-    const ws = new JobWebSocket((updatedJob: Job) => {
-      queryClient.setQueryData(['jobs', filters], (oldJobs: Job[] | undefined) => {
-        if (!oldJobs) return [updatedJob];
-        const existingIndex = oldJobs.findIndex((job) => job.id === updatedJob.id);
-        if (existingIndex >= 0) {
-          const newJobs = [...oldJobs];
-          newJobs[existingIndex] = updatedJob;
-          return newJobs;
-        }
-        return [updatedJob, ...oldJobs];
-      });
-    });
-    setWsConnection(ws);
+  const jobs = jobsData || [];
 
-    return () => {
-      ws.disconnect();
-    };
-  }, [queryClient, filters]);
+  // Real-time updates disabled - using polling with refetchInterval instead
+  // WebSocket functionality can be re-enabled when backend WebSocket support is added
 
   // Job actions
   const pauseJobMutation = useMutation({
@@ -295,16 +277,18 @@ export const JobManager: React.FC = () => {
   });
 
   const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'info' | 'default' => {
-    switch (status) {
-      case 'SUCCEEDED':
+    const lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
+      case 'completed':
+      case 'succeeded':
         return 'success';
-      case 'FAILED':
+      case 'failed':
         return 'error';
-      case 'RUNNING':
+      case 'running':
         return 'info';
-      case 'PENDING':
+      case 'pending':
         return 'warning';
-      case 'CANCELLED':
+      case 'cancelled':
         return 'default';
       default:
         return 'default';
@@ -312,16 +296,18 @@ export const JobManager: React.FC = () => {
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'SUCCEEDED':
+    const lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
+      case 'completed':
+      case 'succeeded':
         return <CheckCircle />;
-      case 'FAILED':
+      case 'failed':
         return <Error />;
-      case 'RUNNING':
+      case 'running':
         return <PlayArrow />;
-      case 'PENDING':
+      case 'pending':
         return <Schedule />;
-      case 'CANCELLED':
+      case 'cancelled':
         return <Stop />;
       default:
         return <Schedule />;
@@ -406,7 +392,7 @@ export const JobManager: React.FC = () => {
                   <LinearProgress
                     variant="determinate"
                     value={job.progress}
-                    color={job.status === 'FAILED' ? 'error' : 'primary'}
+                    color={job.status === 'failed' ? 'error' : 'primary'}
                   />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                     {job.progress}%
@@ -433,7 +419,7 @@ export const JobManager: React.FC = () => {
                       <Visibility />
                     </IconButton>
                   </Tooltip>
-                  {job.status === 'RUNNING' && (
+                  {job.status === 'running' && (
                     <Tooltip title="Pause Job">
                       <IconButton
                         size="small"
@@ -444,7 +430,7 @@ export const JobManager: React.FC = () => {
                       </IconButton>
                     </Tooltip>
                   )}
-                  {(job.status === 'RUNNING' || job.status === 'PENDING') && (
+                  {(job.status === 'running' || job.status === 'pending') && (
                     <Tooltip title="Stop Job">
                       <IconButton
                         size="small"
@@ -485,17 +471,35 @@ export const JobManager: React.FC = () => {
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: 600 }}>
-          Job Manager
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h4" sx={{ fontWeight: 600 }}>
+            Job Manager
+          </Typography>
+          {dataSource === 'fallback' && (
+            <Chip
+              label="Offline Mode"
+              color="warning"
+              size="small"
+              icon={<Error />}
+            />
+          )}
+          {dataSource === 'api' && (
+            <Chip
+              label="Live Data"
+              color="success"
+              size="small"
+              icon={<CheckCircle />}
+            />
+          )}
+        </Box>
         <Button variant="contained" startIcon={<Add />} href="/tasks">
           New Job
         </Button>
       </Box>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Failed to load jobs. Please check your connection and try again.
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          Using offline mode - API unavailable. Showing sample data.
         </Alert>
       )}
 
@@ -692,10 +696,29 @@ export const JobManager: React.FC = () => {
                       <List dense>
                         {selectedJob.inputFiles.map((file, index) => (
                           <ListItem key={index}>
-                            <ListItemText primary={file} />
+                            <ListItemText 
+                              primary={file.name} 
+                              secondary={file.size}
+                            />
+                            {file.url && (
+                              <IconButton 
+                                size="small" 
+                                component="a" 
+                                href={file.url} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download />
+                              </IconButton>
+                            )}
                           </ListItem>
                         ))}
                       </List>
+                      {selectedJob.inputFiles.length === 0 && (
+                        <Typography variant="body2" color="text.secondary">
+                          No input files available
+                        </Typography>
+                      )}
                     </Grid>
                     <Grid item xs={12} md={6}>
                       <Typography variant="h6" gutterBottom>
@@ -704,10 +727,21 @@ export const JobManager: React.FC = () => {
                       <List dense>
                         {selectedJob.outputFiles.map((file, index) => (
                           <ListItem key={index}>
-                            <ListItemText primary={file} />
-                            <IconButton size="small">
-                              <Download />
-                            </IconButton>
+                            <ListItemText 
+                              primary={file.name} 
+                              secondary={file.size}
+                            />
+                            {file.url && (
+                              <IconButton 
+                                size="small" 
+                                component="a" 
+                                href={file.url} 
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                <Download />
+                              </IconButton>
+                            )}
                           </ListItem>
                         ))}
                       </List>
