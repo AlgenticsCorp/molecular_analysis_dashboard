@@ -1,7 +1,7 @@
 """add_task_framework_executions
 
 Revision ID: 80835240e483
-Revises: 17e8ba7cf10e
+Revises: 001_meta
 Create Date: 2025-11-11 21:50:06.403806+00:00
 
 """
@@ -13,7 +13,7 @@ import uuid
 
 # revision identifiers, used by Alembic.
 revision = '80835240e483'
-down_revision = '17e8ba7cf10e'
+down_revision = '001_meta'
 branch_labels = None
 depends_on = None
 

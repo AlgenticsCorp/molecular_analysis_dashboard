@@ -212,3 +212,4 @@ test_package*/
 
 # Temporary development folders
 temp/
+.env.example
