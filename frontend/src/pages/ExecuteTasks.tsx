@@ -156,7 +156,12 @@ export const ExecuteTasks: React.FC = () => {
 
   const handleViewMonitor = () => {
     if (executionId) {
-      navigate(`/task-monitor/${executionId}`);
+      navigate('/job-manager', { 
+        state: { 
+          newJobId: executionId,
+          message: 'Task submitted successfully! Your job is now running.' 
+        } 
+      });
     }
   };
 
@@ -352,9 +357,9 @@ export const ExecuteTasks: React.FC = () => {
                   variant="contained"
                   onClick={handleViewMonitor}
                   size="large"
-                  startIcon={<PlayArrow />}
+                  sx={{ mr: 2 }}
                 >
-                  Monitor Task Progress
+                  View in Job Manager
                 </Button>
               </Box>
             </StepContent>

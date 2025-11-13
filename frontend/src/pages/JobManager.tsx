@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -109,7 +110,8 @@ const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'ap
       let inputFiles: Array<{ name: string; size: string; url?: string }> = [];
       let outputFiles: Array<{ name: string; size: string; url?: string }> = [];
       
-      if (exec.status === 'completed' || exec.status === 'failed') {
+      // Only fetch results for completed jobs (failed jobs may not have results)
+      if (exec.status === 'completed') {
         try {
           const results = await taskService.getExecutionResults(exec.execution_id);
           
@@ -209,6 +211,7 @@ const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'ap
 };
 
 export const JobManager: React.FC = () => {
+  const location = useLocation();
   const [filters, setFilters] = useState<JobFilter>({
     status: 'all',
     taskType: 'all',
@@ -219,6 +222,16 @@ export const JobManager: React.FC = () => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   const [dataSource, setDataSource] = useState<'api' | 'fallback'>('api');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Show success message from navigation state
+  useEffect(() => {
+    if (location.state?.message) {
+      setSuccessMessage(location.state.message);
+      // Clear the state to prevent showing again on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   // TanStack Query for job data
   const {
@@ -470,6 +483,15 @@ export const JobManager: React.FC = () => {
 
   return (
     <Box>
+      {successMessage && (
+        <Alert 
+          severity="success" 
+          onClose={() => setSuccessMessage(null)}
+          sx={{ mb: 3 }}
+        >
+          {successMessage}
+        </Alert>
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h4" sx={{ fontWeight: 600 }}>

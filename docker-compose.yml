@@ -63,6 +63,9 @@ services:
     volumes:
       - results:${RESULTS_DIR}
       - uploads:${UPLOADS_DIR}
+      - uploads:/storage/uploads  # New storage architecture
+      - results:/storage/results  # New storage architecture
+      - storage_temp:/storage/temp  # New storage architecture
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
@@ -147,6 +150,7 @@ services:
       dockerfile: docker/Dockerfile.worker
     environment:
       <<: *common-env
+      PYTHONPATH: /app:/app/database
       CELERY_WORKER_CONCURRENCY: ${CELERY_WORKER_CONCURRENCY}
       CELERY_PREFETCH_MULTIPLIER: ${CELERY_PREFETCH_MULTIPLIER}
       CELERY_ACKS_LATE: ${CELERY_ACKS_LATE}
@@ -158,6 +162,9 @@ services:
     volumes:
       - results:${RESULTS_DIR}
       - uploads:${UPLOADS_DIR}
+      - uploads:/storage/uploads  # New storage architecture
+      - results:/storage/results  # New storage architecture
+      - storage_temp:/storage/temp  # New storage architecture
     networks: [appnet]
 
   migrate:

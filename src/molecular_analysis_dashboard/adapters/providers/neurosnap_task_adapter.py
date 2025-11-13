@@ -46,9 +46,11 @@ class NeuroSnapDockingAdapter(TaskExecutorPort):
                          task_definition: Dict[str, Any]) -> str:
         """Submit GNINA docking task to NeuroSnap provider endpoint."""
         
-        import base64
-        
         try:
+            # Import ExecutionFileService to retrieve file content
+            from ...services.execution_file_service import ExecutionFileService
+            file_service = ExecutionFileService()
+            
             # Extract parameters from task execution
             parameters = execution.input_data
             
@@ -56,26 +58,34 @@ class NeuroSnapDockingAdapter(TaskExecutorPort):
             files = {}
             form_data = {}
             
-            # Handle file parameters - decode from base64
+            # Handle file parameters - retrieve from execution_files table
             if 'receptor_file' in parameters:
                 receptor_info = parameters['receptor_file']
-                content = base64.b64decode(receptor_info['content_base64'])
-                files['receptor_file'] = (
-                    receptor_info['filename'],
-                    content,
-                    'chemical/x-pdb'
-                )
+                file_id = receptor_info.get('file_id')
+                
+                # Fetch file content from storage
+                content = await file_service.get_file_content(file_id)
+                if content:
+                    files['receptor_file'] = (
+                        receptor_info['filename'],
+                        content,
+                        receptor_info.get('content_type', 'chemical/x-pdb')
+                    )
             
             if 'ligand_file' in parameters:
                 ligand_info = parameters['ligand_file']
-                content = base64.b64decode(ligand_info['content_base64'])
-                files['ligand_file'] = (
-                    ligand_info['filename'],
-                    content,
-                    'chemical/x-mdl-sdfile'
-                )
+                file_id = ligand_info.get('file_id')
+                
+                # Fetch file content from storage
+                content = await file_service.get_file_content(file_id)
+                if content:
+                    files['ligand_file'] = (
+                        ligand_info['filename'],
+                        content,
+                        ligand_info.get('content_type', 'chemical/x-mdl-sdfile')
+                    )
 
-            # Handle string parameters
+            # Handle string parameters (no change needed)
             form_data['job_name'] = parameters.get('job_name', 'GNINA Docking')
             form_data['note'] = parameters.get('note', 'Task framework execution')
 

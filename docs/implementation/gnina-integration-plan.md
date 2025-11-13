@@ -1,12 +1,28 @@
 # GNINA Task Framework & Pipeline Builder Integration Plan
 
+**Last Updated**: November 13, 2025  
+**Current Status**: ✅ Core Integration Complete | ⚠️ Results UI Pending  
+
+> **⚠️ IMPORTANT**: This document contains the original integration plan.  
+> **For current implementation status**, see: `integration-summary.md`  
+> 
+> **Recent Major Updates (Nov 12-13, 2025)**:
+> - ✅ Celery background polling implemented (10-second intervals)
+> - ✅ ExecutionFileService with hybrid storage (local + external URLs)
+> - ✅ execution_files table for file metadata (no base64 in database)
+> - ✅ Real-time job monitoring in JobManager
+> - ✅ Files stored to /storage/uploads/ via storage service
+> - ⚠️ Results visualization UI pending (backend ready)
+
 ## 📋 **PROJECT CONTEXT & STRATEGIC DIRECTION**
 
 ### Architecture Decision ✅
 - **Task Storage**: Framework tasks (code-based) in `neurosnap_task_adapter.py`
 - **Rationale**: Same tasks for all organizations, only developers add new tasks
 - **Database Role**: `task_definitions` table NOT used for framework tasks (by design)
-- **Primary Focus**: Visual pipeline builder with Nextflow integration
+- **File Storage**: Hybrid model - local files in storage service + external NeuroSnap URLs
+- **Background Processing**: Celery workers for status polling and task execution
+- **Primary Focus**: Single task execution complete → Results UI → Pipeline builder
 
 ### User Requirements ✅
 1. ✅ Tasks shared across all organizations (no org-specific tasks)
@@ -14,7 +30,30 @@
 3. 🔄 Non-developers create multi-step workflows via visual pipeline builder
 4. ✅ Execution data is org-isolated (but tasks remain shared)
 5. 🔄 Nextflow executes workflows in background
-6. **Priority**: Pipeline builder > Single task execution
+6. **Current Priority**: Complete results UI → Pipeline builder
+
+### Implementation Status Summary (Nov 13, 2025)
+
+**✅ Completed (Production Ready)**:
+- Task execution with file uploads
+- Background status polling (Celery)
+- Real-time job monitoring
+- File storage service integration
+- Database schema (executions + files)
+- API endpoints for tasks & executions
+
+**⚠️ In Progress (Estimated 8-12 hours)**:
+- Store result file metadata in execution_files table (1-2 hrs)
+- TaskResults.tsx visualization component (3-4 hrs)
+- Navigation from JobManager to Results (30 min)
+- File download service in frontend (1-2 hrs)
+- End-to-end testing (2-3 hrs)
+
+**📅 Future Work (Weeks 3-8)**:
+- Visual pipeline builder (React Flow)
+- Nextflow script generation
+- Pipeline execution engine
+- Template gallery & sharing
 
 ### What We're NOT Building
 - ❌ Dynamic task registration UI (developers add tasks via code)
@@ -34,43 +73,73 @@
 
 ### Database Integration ✅
 - [x] Created `task_framework_executions` table (migration `20251111_2150_80835240e483`)
+- [x] Created `execution_files` table for file metadata (migration `20250112_execution_files.py`)
 - [x] Created `pipeline_templates`, `pipeline_executions`, `pipeline_step_results` tables (SQL migration `20251112_pipeline_builder.sql`)
 - [x] `task_definitions` table exists but unused (framework tasks bypass database - **by design**)
-- [x] Added indexes for performance (org_id, user_id, status, created_at)
+- [x] Added indexes for performance (org_id, user_id, status, created_at, external_job_id)
 - [x] PostgreSQL exposed on port 5432 for external pgAdmin access
 - [x] Fixed alembic migration chain (corrected down_revision from '17e8ba7cf10e' to '001_meta')
 - [x] Removed duplicate/malformed migrations
 
 ### Backend API ✅
 - [x] Created `UnifiedTaskService` combining database + framework tasks
-- [x] Framework tasks in `neurosnap_task_adapter.py` (`get_available_tasks()` returns hardcoded GNINA)
-- [x] Implemented `/api/v1/tasks-unified/available` endpoint (returns 2 GNINA tasks)
+- [x] Created `ExecutionFileService` for hybrid file storage (local + external URLs)
+- [x] Framework tasks in `neurosnap_task_adapter.py` (`get_available_tasks()` returns GNINA)
+- [x] Implemented `/api/v1/tasks-unified/available` endpoint
 - [x] Implemented `/api/v1/tasks-unified/health` endpoint
 - [x] Implemented `/api/v1/tasks-unified/{task_id}` get task details
-- [x] Implemented `/api/v1/tasks-unified/{task_id}/execute` endpoint
-- [x] Implemented `/api/v1/tasks-unified/executions/{id}/status` endpoint
+- [x] Implemented `/api/v1/tasks-unified/{task_id}/execute` endpoint with file uploads
+- [x] Implemented `/api/v1/tasks-unified/executions/{id}/status` endpoint (used by polling)
 - [x] Implemented `/api/v1/tasks-unified/executions/{id}/results` endpoint
 - [x] Implemented `/api/v1/tasks-unified/executions` list user executions
 - [x] Fixed async database patterns (AsyncGenerator instead of context manager)
 - [x] Standardized response format ('id' field instead of 'task_id')
+- [x] File storage: NO base64 encoding, only metadata in database
+
+### Background Processing ✅
+- [x] Celery workers configured and running
+- [x] Redis message broker integration
+- [x] `poll_job_status()` task polls internal API every 10 seconds
+- [x] Synchronous HTTP calls (no async in Celery workers)
+- [x] Auto-scheduling for non-terminal job states
+- [x] Polling stops on completion/failure/cancellation
+- [x] Tested with live jobs - successfully updated stuck jobs to completed
+
+### File Storage ✅
+- [x] Storage service (nginx) running on port 8080
+- [x] Files stored to `/storage/uploads/{org_id}/{execution_id}/`
+- [x] ExecutionFileService.store_input_file() implemented
+- [x] ExecutionFileService.store_output_file() implemented (for NeuroSnap URLs)
+- [x] ExecutionFileService.get_execution_files() implemented
+- [x] ExecutionFileService.get_file_content() implemented
+- [x] MD5 + SHA256 integrity checks
+- [x] Hybrid storage: Local files + external NeuroSnap URLs
 
 ### Frontend Integration ✅
 - [x] Updated `taskService.ts` to use `/api/v1/tasks-unified/available`
 - [x] Fixed health check endpoint to use absolute path
 - [x] Enabled `useApiTasks` feature flag by default
-- [x] Task Library displays 2 GNINA tasks from API (not fallback)
+- [x] Task Library displays GNINA tasks from API
 - [x] API health status shows "Healthy"
 - [x] Updated navigation from `/jobs/create` to `/execute-tasks`
+- [x] JobManager displays real-time execution data
+- [x] Auto-refresh every 5 seconds in JobManager
+- [x] Status badges and progress indicators
+- [x] Fixed frontend .env.production for Docker deployment
 
 ### Infrastructure ✅
 - [x] Docker services rebuilt and running (api, frontend, gateway, postgres, redis, worker, storage)
-- [x] Gateway routes configured (/api/* → api, /* → frontend)
+- [x] Gateway routes configured (/api/* → api:8000, /* → frontend)
+- [x] Storage service configured (nginx serving /storage/uploads/)
 - [x] All containers healthy
+- [x] Gateway DNS resolution working (after restart fix)
 - [x] Local PostgreSQL@14 stopped to avoid port 5432 conflicts
 - [x] All migrations executed successfully
 
 ### Architecture Analysis ✅
 - [x] Documented dual-track task system (framework vs database) in `CURRENT_SYSTEM_ANALYSIS.md`
+- [x] Documented storage architecture fix in `storage-architecture-fix.md`
+- [x] Documented complete integration in `integration-summary.md`
 - [x] Confirmed framework tasks appropriate for user requirements
 - [x] Designed pipeline builder schema with React Flow + Nextflow support
 - [x] Clean Architecture with Ports & Adapters pattern validated
@@ -79,9 +148,9 @@
 
 ## 🔄 **REMAINING WORK - UPDATED ROADMAP**
 
-### WEEK 1-2: Single Task Execution (Foundation)
+### **Current Priority: Results Visualization (Week 1-2)**
 
-**Goal**: Enable users to run individual GNINA tasks with file uploads, monitoring, and results viewing.
+**Goal**: Complete the results viewing workflow so users can see and download job outputs.
 
 #### Phase 1A: Dynamic Task Execution Form ✅ COMPLETED
 **Status**: ✅ Fully functional - users can submit GNINA tasks with file uploads
@@ -99,6 +168,25 @@
    - Handles: file, string, number, integer, boolean, select/enum
    - Built-in validation (required, min/max, pattern, allowed_values)
    - Error display and field-level error messages
+
+3. ✅ **Created FileUploadField.tsx** component:
+   - Drag-and-drop file upload with visual feedback
+   - File validation (type: .pdb/.sdf/.pdbqt, max size: 100MB)
+   - File preview with name and size display
+   - Remove file functionality
+
+4. ✅ **Fixed Backend API Issues**:
+   - **File Storage**: Files stored via ExecutionFileService to /storage/uploads/
+   - **Duplicate Tasks**: Fixed by prioritizing framework tasks over database tasks
+   - **Database Constraints**: Created system organization and user (UUID: `00000000-0000-0000-0000-000000000000`)
+   - **Model Field Mismatches**: Fixed `TaskFrameworkExecution` to use correct fields
+   - **File Handling**: Files stored to storage service, only metadata in database
+
+5. ✅ **API Endpoints Working**:
+   - `GET /api/v1/tasks-unified/available` - Returns GNINA tasks (framework source)
+   - `GET /api/v1/tasks-unified/{task_id}` - Returns task details with parameters
+   - `POST /api/v1/tasks-unified/{task_id}/execute` - Accepts FormData with files
+   - Successfully submitted test jobs with file uploads
 
 3. ✅ **Created FileUploadField.tsx** component:
    - Drag-and-drop file upload with visual feedback

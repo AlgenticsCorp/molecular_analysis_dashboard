@@ -91,27 +91,83 @@ class UnifiedTaskService:
             return None
     
     async def get_execution_results(self, execution_id: str) -> Optional[Dict[str, Any]]:
-        """Get results of completed execution"""
+        """Get results of completed execution with input/output file listings"""
         
         execution = await self._get_task_execution(execution_id)
-        if execution:
-            if execution.external_job_id:
-                # Get results from framework
-                framework_results = await self.task_framework.get_execution_results(
-                    execution.task_id, execution.external_job_id
-                )
-                
-                # Update database with results
-                if framework_results:
-                    execution.output_data = framework_results
-                    execution.update_status('completed')
-                    await self._save_execution(execution)
-                
-                return framework_results
-            else:
-                return execution.output_data
+        if not execution:
+            return None
         
-        return None
+        # Get input and output files from execution_files table
+        from .execution_file_service import ExecutionFileService
+        file_service = ExecutionFileService()
+        
+        input_files = await file_service.get_execution_files(
+            execution_id=UUID(execution_id),
+            file_type='input'
+        )
+        output_files = await file_service.get_execution_files(
+            execution_id=UUID(execution_id),
+            file_type='output'
+        )
+        
+        # Get NeuroSnap results if available
+        neurosnap_results = None
+        if execution.external_job_id:
+            # Get results from framework
+            framework_results = await self.task_framework.get_execution_results(
+                execution.task_id, execution.external_job_id
+            )
+            
+            if framework_results:
+                neurosnap_results = framework_results
+                
+                # Store output file metadata if not already stored
+                if framework_results.get('output_files') and len(output_files) == 0:
+                    logger.info(f"Storing {len(framework_results['output_files'])} output file(s) to database")
+                    
+                    for output_file in framework_results['output_files']:
+                        try:
+                            await file_service.store_output_file(
+                                execution_id=UUID(execution_id),
+                                parameter_name=output_file.get('parameter_name', 'output'),
+                                filename=output_file.get('filename', 'result.pdbqt'),
+                                download_url=output_file.get('url', ''),
+                                size_bytes=output_file.get('size', 0),
+                                content_type=output_file.get('content_type', 'chemical/x-pdbqt')
+                            )
+                        except Exception as e:
+                            logger.error(f"Failed to store output file metadata: {e}")
+                    
+                    # Re-fetch output files after storing
+                    output_files = await file_service.get_execution_files(
+                        execution_id=UUID(execution_id),
+                        file_type='output'
+                    )
+                
+                # Update database with results (excluding large file data)
+                execution.output_data = {
+                    'binding_affinity': framework_results.get('binding_affinity'),
+                    'top_poses_count': framework_results.get('top_poses_count'),
+                    'computation_time': framework_results.get('computation_time'),
+                    'status': framework_results.get('status')
+                }
+                execution.update_status('completed')
+                await self._save_execution(execution)
+        
+        # Return combined data
+        return {
+            'execution_id': execution_id,
+            'task_id': execution.task_id,
+            'display_name': execution.display_name,
+            'status': execution.status,
+            'created_at': execution.created_at.isoformat() if execution.created_at else None,
+            'started_at': execution.started_at.isoformat() if execution.started_at else None,
+            'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
+            'error_message': execution.error_message,
+            'neurosnap_results': neurosnap_results or execution.output_data,
+            'input_files': input_files,
+            'output_files': output_files
+        }
     
     async def list_user_executions(
         self, 
@@ -261,7 +317,7 @@ class UnifiedTaskService:
     ) -> Dict[str, Any]:
         """Execute task through framework and record in database"""
         
-        # Create execution record
+        # Create execution ID
         execution_id = uuid4()
         
         # Get task definition for database record
@@ -269,21 +325,7 @@ class UnifiedTaskService:
             task_id, org_id
         )
         
-        # Merge parameters and files into input_data
-        input_data = {**parameters}
-        if files:
-            # Store complete file information in input_data (including content as base64)
-            import base64
-            for key, file_info in files.items():
-                content = file_info.get('content', b'')
-                input_data[key] = {
-                    'filename': file_info.get('filename'),
-                    'content_type': file_info.get('content_type'),
-                    'size': len(content),
-                    'content_base64': base64.b64encode(content).decode('utf-8')
-                }
-        
-        # Create execution record using actual table columns
+        # Create execution record FIRST (before storing files to satisfy foreign key)
         execution = TaskFrameworkExecution(
             execution_id=execution_id,
             task_id=task_id,
@@ -291,10 +333,44 @@ class UnifiedTaskService:
             org_id=org_id or SYSTEM_ORG_ID,  # Use system org ID if none provided
             user_id=user_id or SYSTEM_ORG_ID,  # Use system org ID if no user
             status='pending',
-            input_data=input_data
+            input_data=parameters  # Start with just parameters
         )
         
         await self._save_execution(execution)
+        
+        # Now store files and update input_data with file references
+        input_data = {**parameters}
+        if files:
+            # Store files using ExecutionFileService (no base64 encoding!)
+            from .execution_file_service import ExecutionFileService
+            file_service = ExecutionFileService()
+            
+            for key, file_info in files.items():
+                content = file_info.get('content', b'')
+                filename = file_info.get('filename')
+                content_type = file_info.get('content_type')
+                
+                # Store file and get metadata
+                file_record = await file_service.store_input_file(
+                    execution_id=execution_id,
+                    parameter_name=key,
+                    filename=filename,
+                    content=content,
+                    content_type=content_type,
+                    org_id=org_id
+                )
+                
+                # Store only file reference in input_data (NOT content!)
+                input_data[key] = {
+                    'filename': file_record['filename'],
+                    'size': file_record['size'],
+                    'content_type': file_record['content_type'],
+                    'file_id': file_record['file_id']  # Reference to execution_files table
+                }
+            
+            # Update execution with file references
+            execution.input_data = input_data
+            await self._save_execution(execution)
         
         try:
             # Execute through framework - pass execution object and task definition
@@ -307,6 +383,14 @@ class UnifiedTaskService:
             execution.status = 'running'
             execution.started_at = datetime.now(timezone.utc)
             await self._save_execution(execution)
+            
+            # Schedule background polling task
+            from ..infrastructure.tasks import poll_job_status
+            poll_job_status.apply_async(
+                args=[str(execution_id), external_job_id, task_id],
+                countdown=10  # Start polling in 10 seconds
+            )
+            logger.info(f"Scheduled status polling for execution {execution_id}")
             
             return {
                 'execution_id': str(execution_id),

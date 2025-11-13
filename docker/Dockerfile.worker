@@ -13,10 +13,16 @@ WORKDIR /app
 
 COPY pyproject.toml ./
 COPY src ./src
+COPY database ./database
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e .
+    && pip install --no-cache-dir -e ".[dev]"
 
 RUN useradd -m appuser
+
+# Create storage directories with proper ownership
+RUN mkdir -p /storage/uploads /storage/results /storage/temp \
+    && chown -R appuser:appuser /storage
+
 USER appuser
 
 CMD ["bash", "-lc", \
