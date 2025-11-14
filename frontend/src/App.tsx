@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { TaskLibrary } from './pages/TaskLibrary';
 import { ExecuteTasks } from './pages/ExecuteTasks';
 import TaskMonitor from './pages/TaskMonitor';
+import TaskResults from './pages/TaskResults';
 import { Pipelines } from './pages/Pipelines';
 import { JobManager } from './pages/JobManager';
 import { FileManager } from './pages/FileManager';
@@ -96,6 +97,7 @@ function App() {
                 <Route path="/task-library" element={<TaskLibrary />} />
                 <Route path="/execute-tasks" element={<ExecuteTasks />} />
                 <Route path="/task-monitor/:executionId" element={<TaskMonitor />} />
+                <Route path="/task-results/:executionId" element={<TaskResults />} />
                 <Route path="/pipelines" element={<Pipelines />} />
                 <Route path="/job-manager" element={<JobManager />} />
                 <Route path="/file-manager" element={<FileManager />} />

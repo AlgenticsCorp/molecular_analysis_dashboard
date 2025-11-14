@@ -137,6 +137,8 @@ services:
       - storage_temp:/storage/temp
     expose:
       - "8080"
+    ports:
+      - "8080:8080"  # Expose storage service for external access
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 15s

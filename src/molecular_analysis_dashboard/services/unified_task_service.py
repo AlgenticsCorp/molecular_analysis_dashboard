@@ -121,28 +121,21 @@ class UnifiedTaskService:
             if framework_results:
                 neurosnap_results = framework_results
                 
-                # Store output file metadata if not already stored
-                if framework_results.get('output_files') and len(output_files) == 0:
-                    logger.info(f"Storing {len(framework_results['output_files'])} output file(s) to database")
-                    
-                    for output_file in framework_results['output_files']:
-                        try:
-                            await file_service.store_output_file(
-                                execution_id=UUID(execution_id),
-                                parameter_name=output_file.get('parameter_name', 'output'),
-                                filename=output_file.get('filename', 'result.pdbqt'),
-                                download_url=output_file.get('url', ''),
-                                size_bytes=output_file.get('size', 0),
-                                content_type=output_file.get('content_type', 'chemical/x-pdbqt')
-                            )
-                        except Exception as e:
-                            logger.error(f"Failed to store output file metadata: {e}")
-                    
-                    # Re-fetch output files after storing
-                    output_files = await file_service.get_execution_files(
-                        execution_id=UUID(execution_id),
-                        file_type='output'
-                    )
+                # Note: Output files are downloaded automatically when job completes during status polling
+                # If for some reason they weren't downloaded, try downloading now
+                download_urls = framework_results.get('download_urls', {})
+                local_output_files = [f for f in output_files if f.get('storage_backend') == 'local']
+                if download_urls and len(local_output_files) == 0:
+                    logger.warning(f"Output files not yet downloaded for {execution_id}, downloading now")
+                    try:
+                        await self._download_output_files(execution_id, framework_results)
+                        # Re-fetch output files after storing
+                        output_files = await file_service.get_execution_files(
+                            execution_id=UUID(execution_id),
+                            file_type='output'
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to download output files: {e}")
                 
                 # Update database with results (excluding large file data)
                 execution.output_data = {
@@ -168,6 +161,65 @@ class UnifiedTaskService:
             'input_files': input_files,
             'output_files': output_files
         }
+    
+    async def _download_output_files(self, execution_id: str, framework_results: Dict[str, Any]) -> None:
+        """Download output files from NeuroSnap and store locally when job completes.
+        
+        This is called automatically when the status changes to 'completed' during polling.
+        Files are downloaded immediately while NeuroSnap URLs are still valid.
+        """
+        from .execution_file_service import ExecutionFileService
+        
+        download_urls = framework_results.get('download_urls', {})
+        if not download_urls:
+            logger.info(f"No download URLs found for execution {execution_id}")
+            return
+        
+        # Get job_id from framework results
+        job_id = framework_results.get('job_id')
+        if not job_id:
+            logger.error(f"No job_id found in framework_results for execution {execution_id}")
+            return
+        
+        logger.info(f"Downloading {len(download_urls)} output file(s) from NeuroSnap for execution {execution_id}")
+        
+        file_service = ExecutionFileService()
+        import httpx
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for filename, url in download_urls.items():
+                try:
+                    # Download file using NeuroSnap adapter instead of direct URL
+                    adapter_url = f"http://api:8000/api/v1/providers/neurosnap/download/{job_id}/{filename}"
+                    logger.info(f"Downloading {filename} via adapter: {adapter_url}")
+                    response = await client.get(adapter_url)
+                    response.raise_for_status()
+                    file_content = response.content
+                    
+                    # Determine content type from extension
+                    content_type = 'application/octet-stream'
+                    if filename.endswith('.csv'):
+                        content_type = 'text/csv'
+                    elif filename.endswith('.sdf'):
+                        content_type = 'chemical/x-mdl-sdfile'
+                    elif filename.endswith('.pdbqt'):
+                        content_type = 'chemical/x-pdbqt'
+                    elif filename.endswith('.pdb'):
+                        content_type = 'chemical/x-pdb'
+                    
+                    # Store file locally
+                    await file_service.store_output_file_content(
+                        execution_id=UUID(execution_id),
+                        parameter_name=filename.replace('.', '_'),  # e.g., output_csv, output_sdf
+                        filename=filename,
+                        content=file_content,
+                        content_type=content_type
+                    )
+                    logger.info(f"Successfully stored {filename} ({len(file_content)} bytes)")
+                except httpx.HTTPStatusError as e:
+                    logger.error(f"Failed to download {filename} from NeuroSnap (HTTP {e.response.status_code}): {url}")
+                except Exception as e:
+                    logger.error(f"Failed to download/store output file {filename}: {e}")
     
     async def list_user_executions(
         self, 
@@ -598,8 +650,18 @@ class UnifiedTaskService:
                     
                     # Update database if status changed
                     if framework_status and framework_status.get('status') != execution.status:
-                        execution.update_status(framework_status['status'])
+                        old_status = execution.status
+                        new_status = framework_status['status']
+                        execution.update_status(new_status)
                         await self._save_execution(execution)
+                        
+                        # Download output files when job completes
+                        if new_status == 'completed' and old_status != 'completed':
+                            logger.info(f"Job {execution_id} completed, downloading output files")
+                            try:
+                                await self._download_output_files(execution_id, framework_status)
+                            except Exception as e:
+                                logger.error(f"Failed to download output files for {execution_id}: {e}")
                     
                     # Merge framework status
                     if framework_status:

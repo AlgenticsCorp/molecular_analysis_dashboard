@@ -3,7 +3,7 @@ Unified Task API Router - combines database tasks with task framework
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse
 from typing import Dict, List, Any, Optional
 from uuid import UUID
 import json
@@ -11,9 +11,13 @@ import logging
 from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+import httpx
+from pathlib import Path
+import os
 
 from database.models.task_execution import TaskFrameworkExecution
 from ....services.unified_task_service import unified_task_service
+from ....services.execution_file_service import ExecutionFileService
 from ....infrastructure.database import get_metadata_session
 
 logger = logging.getLogger(__name__)
@@ -135,6 +139,41 @@ async def get_execution_status(execution_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to fetch status: {str(e)}")
 
 
+@router.get("/executions/{execution_id}/files")
+async def list_execution_files(
+    execution_id: str,
+    file_type: Optional[str] = None
+):
+    """
+    List all files associated with a specific execution.
+    
+    Args:
+        execution_id: The ID of the task execution
+        file_type: Optional filter - 'input' or 'output'
+    
+    Returns:
+        List of file metadata including file_id, filename, size, etc.
+    """
+    try:
+        file_service = ExecutionFileService()
+        files = await file_service.get_execution_files(
+            execution_id=UUID(execution_id),
+            file_type=file_type
+        )
+        
+        return {
+            "execution_id": execution_id,
+            "total_files": len(files),
+            "files": files
+        }
+        
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid execution ID format")
+    except Exception as e:
+        logger.error(f"Error listing files for execution {execution_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {str(e)}")
+
+
 @router.get("/executions/{execution_id}/results")
 async def get_execution_results(execution_id: str):
     """Get results of a completed execution"""
@@ -218,3 +257,103 @@ async def execute_task(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Task execution failed: {str(e)}")
+
+
+@router.get("/files/{file_id}/download")
+async def download_file(
+    file_id: str
+):
+    """
+    Download a file by its file_id.
+    Handles both local storage files and external URLs (NeuroSnap).
+    """
+    try:
+        # Get file metadata from database
+        file_service = ExecutionFileService()
+        file_metadata = await file_service.get_file(file_id)
+        
+        if not file_metadata:
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        # Handle external URLs (NeuroSnap) - redirect to external URL
+        if file_metadata.get("storage_backend") == "neurosnap_cloud":
+            download_url = file_metadata.get("download_url")
+            if not download_url:
+                raise HTTPException(status_code=404, detail="Download URL not available")
+            return RedirectResponse(url=download_url)
+        
+        # Handle local storage files
+        storage_path = file_metadata.get("storage_path")
+        if not storage_path:
+            raise HTTPException(status_code=404, detail="File path not available")
+        
+        # Construct full file path
+        # Storage path is relative like: /uploads/system/{execution_id}/{filename}
+        # We need to serve from the storage volume mounted at /storage
+        full_path = Path("/storage") / storage_path.lstrip("/")
+        
+        if not full_path.exists():
+            logger.error(f"File not found at path: {full_path}")
+            raise HTTPException(status_code=404, detail="File not found on storage")
+        
+        # Read and stream the file
+        def iter_file():
+            with open(full_path, "rb") as f:
+                yield from f
+        
+        # Determine content type
+        content_type = file_metadata.get("content_type", "application/octet-stream")
+        filename = file_metadata.get("filename", "download")
+        
+        return StreamingResponse(
+            iter_file(),
+            media_type=content_type,
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(full_path.stat().st_size)
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"File download failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File download failed: {str(e)}")
+
+
+@router.get("/executions/{execution_id}/files/{file_type}/{parameter_name}/download")
+async def download_execution_file(
+    execution_id: str,
+    file_type: str,
+    parameter_name: str
+):
+    """
+    Download a specific file from an execution by parameter name.
+    file_type: 'input' or 'output'
+    parameter_name: e.g., 'receptor_file', 'ligand_file', 'output_csv'
+    """
+    try:
+        file_service = ExecutionFileService()
+        file_metadata = await file_service.get_file_by_execution_and_param(
+            execution_id, parameter_name, file_type
+        )
+        
+        if not file_metadata:
+            raise HTTPException(
+                status_code=404,
+                detail=f"File not found: {file_type}/{parameter_name} for execution {execution_id}"
+            )
+        
+        # Use the same download logic
+        file_id = file_metadata.get("file_id")
+        if not file_id:
+            raise HTTPException(status_code=500, detail="Invalid file metadata")
+        
+        # Redirect to the main download endpoint
+        return await download_file(file_id)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Execution file download failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"File download failed: {str(e)}")

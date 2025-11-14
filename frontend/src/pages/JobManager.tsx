@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Grid,
@@ -212,6 +212,7 @@ const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'ap
 
 export const JobManager: React.FC = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<JobFilter>({
     status: 'all',
     taskType: 'all',
@@ -432,6 +433,19 @@ export const JobManager: React.FC = () => {
                       <Visibility />
                     </IconButton>
                   </Tooltip>
+                  {job.status === 'completed' && (
+                    <Tooltip title="View Results">
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="primary"
+                        onClick={() => navigate(`/task-results/${job.id}`)}
+                        sx={{ minWidth: 'auto', px: 1.5 }}
+                      >
+                        Results
+                      </Button>
+                    </Tooltip>
+                  )}
                   {job.status === 'running' && (
                     <Tooltip title="Pause Job">
                       <IconButton

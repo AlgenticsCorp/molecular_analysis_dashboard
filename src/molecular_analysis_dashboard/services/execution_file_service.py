@@ -112,6 +112,7 @@ class ExecutionFileService:
     ) -> Dict[str, Any]:
         """
         Store metadata for an output file (typically external NeuroSnap URLs).
+        DEPRECATED: Use store_output_file_content instead to download and store files locally.
         
         Args:
             execution_id: ID of the task execution
@@ -134,6 +135,75 @@ class ExecutionFileService:
             storage_backend='neurosnap_cloud',
             storage_path='',  # Not applicable for external URLs
             download_url=download_url
+        )
+        
+        return file_record
+    
+    async def store_output_file_content(
+        self,
+        execution_id: UUID,
+        parameter_name: str,
+        filename: str,
+        content: bytes,
+        content_type: Optional[str] = None,
+        org_id: Optional[UUID] = None
+    ) -> Dict[str, Any]:
+        """
+        Download and store an output file locally (same as input files).
+        
+        Args:
+            execution_id: ID of the task execution
+            parameter_name: Name of the output (e.g., 'output_sdf')
+            filename: Filename of the result
+            content: File content as bytes
+            content_type: MIME type
+            org_id: Organization ID for path organization
+            
+        Returns:
+            Dictionary with file metadata including file_id
+        """
+        # Calculate checksums for integrity
+        md5_hash = hashlib.md5(content).hexdigest()
+        sha256_hash = hashlib.sha256(content).hexdigest()
+        
+        # Generate storage path
+        storage_backend = os.getenv('STORAGE_BACKEND', 'local')
+        storage_path = self._generate_storage_path(
+            org_id=org_id,
+            execution_id=execution_id,
+            filename=filename
+        )
+        
+        # Store file to storage backend
+        try:
+            # For local storage, ensure directory exists
+            if storage_backend == 'local':
+                storage_dir = Path(f"/storage{storage_path}").parent
+                storage_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Write file asynchronously
+                import aiofiles
+                async with aiofiles.open(f"/storage{storage_path}", 'wb') as f:
+                    await f.write(content)
+                
+                logger.info(f"Stored output file to local storage: {storage_path}")
+            
+        except Exception as e:
+            logger.error(f"Failed to store output file {filename}: {e}")
+            raise
+        
+        # Create database record
+        file_record = await self._create_file_record(
+            execution_id=execution_id,
+            parameter_name=parameter_name,
+            file_type='output',
+            filename=filename,
+            size_bytes=len(content),
+            content_type=content_type,
+            storage_backend=storage_backend,
+            storage_path=storage_path,
+            md5_hash=md5_hash,
+            sha256_hash=sha256_hash
         )
         
         return file_record
@@ -246,6 +316,109 @@ class ExecutionFileService:
             
             return None
     
+    async def get_file(
+        self,
+        file_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get file metadata by file_id.
+        
+        Args:
+            file_id: UUID of the file
+            
+        Returns:
+            Dictionary with file metadata or None if not found
+        """
+        async for db in get_metadata_session():
+            query = text("""
+                SELECT file_id, execution_id, parameter_name, file_type, 
+                       filename, size_bytes, content_type, storage_backend,
+                       storage_path, download_url, md5_hash, sha256_hash,
+                       uploaded_at, expires_at
+                FROM execution_files
+                WHERE file_id = :file_id
+            """)
+            
+            result = await db.execute(query, {'file_id': file_id})
+            row = result.fetchone()
+            
+            if not row:
+                return None
+            
+            return {
+                'file_id': row[0],
+                'execution_id': row[1],
+                'parameter_name': row[2],
+                'file_type': row[3],
+                'filename': row[4],
+                'size_bytes': row[5],
+                'content_type': row[6],
+                'storage_backend': row[7],
+                'storage_path': row[8],
+                'download_url': row[9],
+                'md5_hash': row[10],
+                'sha256_hash': row[11],
+                'uploaded_at': row[12].isoformat() if row[12] else None,
+                'expires_at': row[13].isoformat() if row[13] else None
+            }
+    
+    async def get_file_by_execution_and_param(
+        self,
+        execution_id: str,
+        parameter_name: str,
+        file_type: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get file metadata by execution_id, parameter_name, and file_type.
+        
+        Args:
+            execution_id: UUID of the execution
+            parameter_name: Parameter name (e.g., 'receptor_file', 'output_csv')
+            file_type: 'input' or 'output'
+            
+        Returns:
+            Dictionary with file metadata or None if not found
+        """
+        async for db in get_metadata_session():
+            query = text("""
+                SELECT file_id, execution_id, parameter_name, file_type, 
+                       filename, size_bytes, content_type, storage_backend,
+                       storage_path, download_url, md5_hash, sha256_hash,
+                       uploaded_at, expires_at
+                FROM execution_files
+                WHERE execution_id = :execution_id 
+                  AND parameter_name = :parameter_name
+                  AND file_type = :file_type
+                LIMIT 1
+            """)
+            
+            result = await db.execute(query, {
+                'execution_id': execution_id,
+                'parameter_name': parameter_name,
+                'file_type': file_type
+            })
+            row = result.fetchone()
+            
+            if not row:
+                return None
+            
+            return {
+                'file_id': row[0],
+                'execution_id': row[1],
+                'parameter_name': row[2],
+                'file_type': row[3],
+                'filename': row[4],
+                'size_bytes': row[5],
+                'content_type': row[6],
+                'storage_backend': row[7],
+                'storage_path': row[8],
+                'download_url': row[9],
+                'md5_hash': row[10],
+                'sha256_hash': row[11],
+                'uploaded_at': row[12].isoformat() if row[12] else None,
+                'expires_at': row[13].isoformat() if row[13] else None
+            }
+    
     def _generate_storage_path(
         self,
         org_id: Optional[UUID],
@@ -288,7 +461,7 @@ class ExecutionFileService:
         md5_hash: Optional[str] = None,
         sha256_hash: Optional[str] = None
     ) -> Dict[str, Any]:
-        """Create execution_files database record."""
+        """Create or update execution_files database record."""
         file_id = uuid4()
         
         async for db in get_metadata_session():
@@ -303,6 +476,17 @@ class ExecutionFileService:
                     :filename, :size_bytes, :content_type, :storage_backend,
                     :storage_path, :download_url, :md5_hash, :sha256_hash
                 )
+                ON CONFLICT (execution_id, parameter_name, file_type)
+                DO UPDATE SET
+                    filename = EXCLUDED.filename,
+                    size_bytes = EXCLUDED.size_bytes,
+                    content_type = EXCLUDED.content_type,
+                    storage_backend = EXCLUDED.storage_backend,
+                    storage_path = EXCLUDED.storage_path,
+                    download_url = EXCLUDED.download_url,
+                    md5_hash = EXCLUDED.md5_hash,
+                    sha256_hash = EXCLUDED.sha256_hash,
+                    uploaded_at = CURRENT_TIMESTAMP
                 RETURNING file_id, filename, size_bytes, content_type,
                           storage_backend, storage_path, download_url
             """)
