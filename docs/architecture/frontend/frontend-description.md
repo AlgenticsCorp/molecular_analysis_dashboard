@@ -77,7 +77,9 @@ Step 4 – Monitor Progress
 
 5) Job Monitor
 	•	Table with filters (status, task type, date).
-	•	Details drawer: parameters, logs (live via WebSocket), and Artifacts (download links + pose gallery).
+	•	Details dialog: tabs for Overview, Parameters, Files, Logs, and Resources surfaced via modal workflow.
+	•	Files tab: collapsible tree groups each execution’s input/output artifacts with inline download actions and cached preview panel (text + 3D structures) driven by `JobFilesTree` and `MolecularViewerSimple`.
+	•	Preview experience: fetches molecule/text formats (PDB/PDBQT/SDF/MOL2/XYZ/log/json) with truncation guardrails and shows download CTA for unsupported binaries.
 	•	3D viewer renders the selected pose (cartoon receptor + sticks ligand). 3Dmol’s tutorial shows this pattern clearly.  ￼
 
 6) File Manager
@@ -100,6 +102,7 @@ Core reusable components
 	•	ParamField (number + units + tooltip + validation error)
 	•	FilePicker (drag-drop, progress, preview)
 	•	JobProgress (status badge + percent + live event stream)
+	•	JobFilesTree (job/file hierarchy with selection + download callbacks feeding preview state)
 	•	MoleculeViewer (3Dmol or NGL wrapper with props: structureUrl, style, focusSelection)  ￼ ￼
 
 ⸻

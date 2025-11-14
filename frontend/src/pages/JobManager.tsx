@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   DialogContent,
   DialogActions,
   LinearProgress,
+  CircularProgress,
   Table,
   TableBody,
   TableCell,
@@ -46,7 +47,7 @@ import {
   Delete,
   Schedule,
   CheckCircle,
-  Error,
+  Error as ErrorIcon,
   Add,
   GetApp,
   Memory,
@@ -54,6 +55,9 @@ import {
 } from '@mui/icons-material';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { taskService } from '../services/taskService';
+import { JobFilesTree, type JobFile, type SelectedJobFile } from '../components/jobs/JobFilesTree';
+import MolecularViewer from '../components/molecular/MolecularViewerSimple';
+import { downloadFileById, formatFileSize, getFileExtension } from '@/utils/fileDownload';
 
 // Types for job management
 interface Job {
@@ -68,8 +72,8 @@ interface Job {
   priority: 'low' | 'medium' | 'high';
   taskType: string;
   parameters: Record<string, unknown>;
-  inputFiles: Array<{ name: string; size: string; url?: string }>;
-  outputFiles: Array<{ name: string; size: string; url?: string }>;
+  inputFiles: JobFile[];
+  outputFiles: JobFile[];
   logs: string[];
   errorMessage?: string;
   resourceUsage?: {
@@ -85,6 +89,65 @@ interface JobFilter {
   priority: string;
   searchTerm: string;
 }
+
+type PreviewData =
+  | { kind: 'molecule'; content: string; format: string }
+  | { kind: 'text'; content: string }
+  | { kind: 'unsupported' };
+
+const MOLECULE_EXTENSIONS = new Set(['pdb', 'sdf', 'mol2', 'pdbqt', 'xyz']);
+const TEXT_EXTENSIONS = new Set(['txt', 'log', 'json', 'csv', 'tsv', 'yaml', 'yml']);
+
+const formatJobFileSize = (value: number | string | undefined): string => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return formatFileSize(value);
+  }
+
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+
+  return '-';
+};
+
+const mapExecutionFile = (file: any): JobFile => {
+  const mapped: JobFile = {
+    name: file?.filename || file?.name || 'Unnamed file',
+    size: formatJobFileSize(file?.size ?? file?.size_bytes),
+    sizeBytes:
+      typeof file?.size === 'number' && Number.isFinite(file.size)
+        ? file.size
+        : typeof file?.size_bytes === 'number' && Number.isFinite(file.size_bytes)
+          ? file.size_bytes
+          : undefined,
+    fileId: file?.file_id,
+    parameterName: file?.parameter_name,
+    storageBackend: file?.storage_backend,
+    contentType: file?.content_type,
+  };
+
+  const derivedUrl = file?.file_id
+    ? `/api/v1/tasks-unified/files/${file.file_id}/download`
+    : file?.url;
+  if (derivedUrl) {
+    mapped.url = derivedUrl;
+  }
+
+  return mapped;
+};
+
+const mapLegacyFile = (name: string, size: string, url?: string): JobFile => {
+  const mapped: JobFile = {
+    name,
+    size: formatJobFileSize(size),
+  };
+
+  if (url) {
+    mapped.url = url;
+  }
+
+  return mapped;
+};
 
 // Fetch jobs with error handling and fallback
 const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'api' | 'fallback' }> => {
@@ -107,30 +170,28 @@ const fetchJobs = async (filters: JobFilter): Promise<{ jobs: Job[], source: 'ap
       }
 
       // Fetch file information from results endpoint if completed
-      let inputFiles: Array<{ name: string; size: string; url?: string }> = [];
-      let outputFiles: Array<{ name: string; size: string; url?: string }> = [];
+      let inputFiles: JobFile[] = [];
+      let outputFiles: JobFile[] = [];
       
       // Only fetch results for completed jobs (failed jobs may not have results)
       if (exec.status === 'completed') {
         try {
           const results = await taskService.getExecutionResults(exec.execution_id);
-          
-          // Parse input files from raw_data
-          if (results.raw_data?.in) {
-            inputFiles = results.raw_data.in.map(([name, size]: [string, string]) => ({
-              name,
-              size,
-              url: results.download_urls?.[name] || undefined
-            }));
+
+          if (Array.isArray(results?.input_files) && results.input_files.length > 0) {
+            inputFiles = results.input_files.map((file: any) => mapExecutionFile(file));
+          } else if (results?.raw_data?.in) {
+            inputFiles = results.raw_data.in.map(([name, size]: [string, string]) =>
+              mapLegacyFile(name, size, results?.download_urls?.[name]),
+            );
           }
-          
-          // Parse output files from raw_data
-          if (results.raw_data?.out) {
-            outputFiles = results.raw_data.out.map(([name, size]: [string, string]) => ({
-              name,
-              size,
-              url: results.download_urls?.[name] || undefined
-            }));
+
+          if (Array.isArray(results?.output_files) && results.output_files.length > 0) {
+            outputFiles = results.output_files.map((file: any) => mapExecutionFile(file));
+          } else if (results?.raw_data?.out) {
+            outputFiles = results.raw_data.out.map(([name, size]: [string, string]) =>
+              mapLegacyFile(name, size, results?.download_urls?.[name]),
+            );
           }
         } catch (error) {
           console.warn(`Failed to fetch results for execution ${exec.execution_id}:`, error);
@@ -224,6 +285,12 @@ export const JobManager: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [dataSource, setDataSource] = useState<'api' | 'fallback'>('api');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [selectedFileNode, setSelectedFileNode] = useState<SelectedJobFile | null>(null);
+  const [selectedFileNodeId, setSelectedFileNodeId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<PreviewData | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewCacheRef = useRef<Map<string, PreviewData>>(new Map());
 
   // Show success message from navigation state
   useEffect(() => {
@@ -252,6 +319,64 @@ export const JobManager: React.FC = () => {
   });
 
   const jobs = jobsData || [];
+  const selectedJobHasFiles =
+    !!selectedJob && (selectedJob.inputFiles.length > 0 || selectedJob.outputFiles.length > 0);
+
+  useEffect(() => {
+    if (!selectedFileNode) {
+      return;
+    }
+
+    const job = jobs.find((item) => item.id === selectedFileNode.jobId);
+    if (!job) {
+      setSelectedFileNode(null);
+      setSelectedFileNodeId(null);
+      setPreviewData(null);
+      setPreviewError(null);
+      return;
+    }
+
+    const candidateFiles =
+      selectedFileNode.fileType === 'input' ? job.inputFiles : job.outputFiles;
+
+    const stillExists = candidateFiles.some((file) =>
+      selectedFileNode.file.fileId
+        ? file.fileId === selectedFileNode.file.fileId
+        : file.name === selectedFileNode.file.name,
+    );
+
+    if (!stillExists) {
+      setSelectedFileNode(null);
+      setSelectedFileNodeId(null);
+      setPreviewData(null);
+      setPreviewError(null);
+    }
+  }, [jobs, selectedFileNode]);
+
+  useEffect(() => {
+    if (!detailsOpen) {
+      setSelectedFileNode(null);
+      setSelectedFileNodeId(null);
+      setPreviewData(null);
+      setPreviewError(null);
+      return;
+    }
+
+    if (!selectedJob) {
+      setSelectedFileNode(null);
+      setSelectedFileNodeId(null);
+      setPreviewData(null);
+      setPreviewError(null);
+      return;
+    }
+
+    if (selectedFileNode && selectedFileNode.jobId !== selectedJob.id) {
+      setSelectedFileNode(null);
+      setSelectedFileNodeId(null);
+      setPreviewData(null);
+      setPreviewError(null);
+    }
+  }, [detailsOpen, selectedJob, selectedFileNode]);
 
   // Real-time updates disabled - using polling with refetchInterval instead
   // WebSocket functionality can be re-enabled when backend WebSocket support is added
@@ -316,7 +441,7 @@ export const JobManager: React.FC = () => {
       case 'succeeded':
         return <CheckCircle />;
       case 'failed':
-        return <Error />;
+        return <ErrorIcon />;
       case 'running':
         return <PlayArrow />;
       case 'pending':
@@ -355,6 +480,233 @@ export const JobManager: React.FC = () => {
       default:
         break;
     }
+  };
+
+  const loadPreview = useCallback(async (file: JobFile) => {
+    if (!file.url) {
+      setPreviewData(null);
+      setPreviewError('Preview not available for this file');
+      setPreviewLoading(false);
+      return;
+    }
+
+    const extension = getFileExtension(file.name);
+    const cacheKey = `${file.url}|${extension}`;
+    const cached = previewCacheRef.current.get(cacheKey);
+
+    if (cached) {
+      setPreviewData(cached);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    if (!MOLECULE_EXTENSIONS.has(extension) && !TEXT_EXTENSIONS.has(extension)) {
+      const unsupported: PreviewData = { kind: 'unsupported' };
+      previewCacheRef.current.set(cacheKey, unsupported);
+      setPreviewData(unsupported);
+      setPreviewError(null);
+      setPreviewLoading(false);
+      return;
+    }
+
+    setPreviewLoading(true);
+    setPreviewError(null);
+    setPreviewData(null);
+
+    try {
+      const requestOptions: RequestInit = { credentials: 'include' };
+
+      if (TEXT_EXTENSIONS.has(extension) || MOLECULE_EXTENSIONS.has(extension)) {
+        requestOptions.headers = { Accept: 'text/plain' };
+      }
+
+      const response = await fetch(file.url, requestOptions);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const textContent = await response.text();
+
+      if (MOLECULE_EXTENSIONS.has(extension)) {
+        const data: PreviewData = { kind: 'molecule', content: textContent, format: extension };
+        previewCacheRef.current.set(cacheKey, data);
+        setPreviewData(data);
+      } else {
+        const truncated =
+          textContent.length > 10000
+            ? `${textContent.slice(0, 10000)}\n\n… truncated for display …`
+            : textContent;
+        const data: PreviewData = { kind: 'text', content: truncated };
+        previewCacheRef.current.set(cacheKey, data);
+        setPreviewData(data);
+      }
+    } catch (error) {
+      console.error('File preview error', error);
+      setPreviewData(null);
+      setPreviewError('Failed to load file preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  const handleSelectFile = useCallback(
+    (selection: SelectedJobFile) => {
+      setSelectedFileNode(selection);
+      setSelectedFileNodeId(selection.nodeId);
+      setPreviewError(null);
+      setPreviewData(null);
+      void loadPreview(selection.file);
+    },
+    [loadPreview],
+  );
+
+  const handleDownloadFile = useCallback(async (file: JobFile) => {
+    try {
+      if (file.fileId) {
+        await downloadFileById(file.fileId, file.name);
+      } else if (file.url) {
+        window.open(file.url, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('Download not available for this file.');
+      }
+    } catch (error) {
+      console.error('File download failed', error);
+      const message = error instanceof Error ? error.message : 'Failed to download file';
+      alert(message);
+    }
+  }, []);
+
+  const renderPreview = () => {
+    if (!selectedFileNode) {
+      return (
+        <Box sx={{ py: 6, textAlign: 'center', color: 'text.secondary' }}>
+          <Typography variant="body2">Select a job file to see its preview.</Typography>
+        </Box>
+      );
+    }
+
+    if (previewLoading) {
+      return (
+        <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
+          <CircularProgress size={32} />
+        </Box>
+      );
+    }
+
+    if (previewError) {
+      return (
+        <Alert severity="error">
+          <Typography variant="body2">{previewError}</Typography>
+        </Alert>
+      );
+    }
+
+    if (!previewData) {
+      return (
+        <Alert severity="info">
+          <Typography variant="body2">
+            Preview not available for this file. Use the download button to open it locally.
+          </Typography>
+        </Alert>
+      );
+    }
+
+    const fileMeta = selectedFileNode.file;
+    const contextLabel = `${selectedFileNode.jobName} • ${
+      selectedFileNode.fileType === 'input' ? 'Input' : 'Output'
+    } file`;
+
+    const header = (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="subtitle2" noWrap title={fileMeta.name}>
+            {fileMeta.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {contextLabel}
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {fileMeta.size && fileMeta.size !== '-' && (
+            <Chip label={fileMeta.size} size="small" variant="outlined" />
+          )}
+          <Tooltip title="Download file">
+            <span>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Download />}
+                onClick={() => handleDownloadFile(fileMeta)}
+                disabled={!fileMeta.fileId && !fileMeta.url}
+              >
+                Download
+              </Button>
+            </span>
+          </Tooltip>
+        </Box>
+      </Box>
+    );
+
+    if (previewData.kind === 'molecule') {
+      return (
+        <Box>
+          {header}
+          <MolecularViewer moleculeData={previewData.content} format={previewData.format} height={320} />
+        </Box>
+      );
+    }
+
+    if (previewData.kind === 'text') {
+      const isTruncated = previewData.content.includes('… truncated for display …');
+      return (
+        <Box>
+          {header}
+          <Box
+            component="pre"
+            sx={{
+              maxHeight: 320,
+              overflow: 'auto',
+              backgroundColor: 'grey.900',
+              color: 'grey.100',
+              borderRadius: 1,
+              p: 2,
+              fontSize: 12,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {previewData.content}
+          </Box>
+          {isTruncated && (
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Showing first 10k characters. Download for the full file.
+            </Typography>
+          )}
+        </Box>
+      );
+    }
+
+    return (
+      <Box>
+        {header}
+        <Alert severity="info">
+          <Typography variant="body2">
+            Preview not supported for this file type. Download to inspect it locally.
+          </Typography>
+        </Alert>
+      </Box>
+    );
   };
 
   const handleViewDetails = (job: Job) => {
@@ -516,7 +868,7 @@ export const JobManager: React.FC = () => {
               label="Offline Mode"
               color="warning"
               size="small"
-              icon={<Error />}
+              icon={<ErrorIcon />}
             />
           )}
           {dataSource === 'api' && (
@@ -641,7 +993,6 @@ export const JobManager: React.FC = () => {
       ) : (
         renderJobsTable()
       )}
-
       {/* Job Details Dialog */}
       <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="lg" fullWidth>
         {selectedJob && (
@@ -657,7 +1008,7 @@ export const JobManager: React.FC = () => {
               </Box>
             </DialogTitle>
             <DialogContent>
-              <Tabs value={tabValue} onChange={(e, newValue) => setTabValue(newValue)}>
+              <Tabs value={tabValue} onChange={(_, newValue) => setTabValue(newValue)}>
                 <Tab label="Overview" />
                 <Tab label="Parameters" />
                 <Tab label="Files" />
@@ -724,70 +1075,38 @@ export const JobManager: React.FC = () => {
                 )}
 
                 {tabValue === 2 && (
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>
-                        Input Files
-                      </Typography>
-                      <List dense>
-                        {selectedJob.inputFiles.map((file, index) => (
-                          <ListItem key={index}>
-                            <ListItemText 
-                              primary={file.name} 
-                              secondary={file.size}
-                            />
-                            {file.url && (
-                              <IconButton 
-                                size="small" 
-                                component="a" 
-                                href={file.url} 
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download />
-                              </IconButton>
-                            )}
-                          </ListItem>
-                        ))}
-                      </List>
-                      {selectedJob.inputFiles.length === 0 && (
-                        <Typography variant="body2" color="text.secondary">
-                          No input files available
-                        </Typography>
-                      )}
+                  selectedJobHasFiles ? (
+                    <Grid container spacing={3}>
+                      <Grid item xs={12} md={5}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="h6" gutterBottom>
+                            Job Files
+                          </Typography>
+                          <JobFilesTree
+                            jobs={[selectedJob]}
+                            onSelectFile={handleSelectFile}
+                            onDownloadFile={handleDownloadFile}
+                            selectedNodeId={selectedFileNodeId}
+                          />
+                        </Paper>
+                      </Grid>
+                      <Grid item xs={12} md={7}>
+                        <Paper variant="outlined" sx={{ p: 2, height: '100%' }}>
+                          <Typography variant="h6" gutterBottom>
+                            File Preview
+                          </Typography>
+                          {renderPreview()}
+                        </Paper>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>
-                        Output Files
+                  ) : (
+                    <Alert severity="info">
+                      <Typography variant="body2">
+                        This execution has no files available yet. Check back after the job
+                        completes or generates outputs.
                       </Typography>
-                      <List dense>
-                        {selectedJob.outputFiles.map((file, index) => (
-                          <ListItem key={index}>
-                            <ListItemText 
-                              primary={file.name} 
-                              secondary={file.size}
-                            />
-                            {file.url && (
-                              <IconButton 
-                                size="small" 
-                                component="a" 
-                                href={file.url} 
-                                target="_blank"
-                                rel="noopener noreferrer"
-                              >
-                                <Download />
-                              </IconButton>
-                            )}
-                          </ListItem>
-                        ))}
-                      </List>
-                      {selectedJob.outputFiles.length === 0 && (
-                        <Typography variant="body2" color="text.secondary">
-                          No output files generated yet
-                        </Typography>
-                      )}
-                    </Grid>
-                  </Grid>
+                    </Alert>
+                  )
                 )}
 
                 {tabValue === 3 && (
