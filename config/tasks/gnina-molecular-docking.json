@@ -1,0 +1,69 @@
+{
+  "id": "gnina-molecular-docking",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter",
+    "class": "NeuroSnapDockingAdapter"
+  },
+  "metadata": {
+    "name": "GNINA Molecular Docking",
+    "description": "Perform molecular docking using GNINA via NeuroSnap",
+    "version": "1.0.0",
+    "category": "molecular-docking",
+    "tags": ["docking", "gnina", "protein-ligand"],
+    "provider": "neurosnap",
+    "interface_type": "openapi",
+    "parameters": [
+      {
+        "name": "receptor_file",
+        "type": "file",
+        "required": true,
+        "description": "Protein receptor file (PDB format)",
+        "validation": {
+          "file_types": [".pdb"],
+          "max_size_mb": 100
+        }
+      },
+      {
+        "name": "ligand_file",
+        "type": "file",
+        "required": true,
+        "description": "Ligand file (SDF/MOL2 format)",
+        "validation": {
+          "file_types": [".sdf", ".mol2", ".mol"],
+          "max_size_mb": 100
+        }
+      },
+      {
+        "name": "exhaustiveness",
+        "type": "integer",
+        "required": false,
+        "default": 8,
+        "description": "Exhaustiveness of the global search",
+        "validation": {
+          "min": 1,
+          "max": 64
+        }
+      },
+      {
+        "name": "job_name",
+        "type": "string",
+        "required": false,
+        "default": "GNINA Docking",
+        "description": "Friendly name for the docking job"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false,
+        "default": "Task framework execution",
+        "description": "Optional note recorded with the NeuroSnap job"
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "2",
+      "memory": "4Gi"
+    },
+    "execution_time_estimate": 600,
+    "source": "framework"
+  }
+}

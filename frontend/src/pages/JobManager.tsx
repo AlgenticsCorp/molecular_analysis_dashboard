@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import Grid from '@mui/material/GridLegacy';
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   Typography,
@@ -17,6 +17,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   LinearProgress,
   CircularProgress,
@@ -291,6 +292,8 @@ export const JobManager: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const previewCacheRef = useRef<Map<string, PreviewData>>(new Map());
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [jobPendingDeletion, setJobPendingDeletion] = useState<Job | null>(null);
 
   // Show success message from navigation state
   useEffect(() => {
@@ -406,12 +409,14 @@ export const JobManager: React.FC = () => {
 
   const deleteJobMutation = useMutation({
     mutationFn: async (jobId: string) => {
-      // Mock API call
-      console.warn('Deleting job:', jobId);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await taskService.deleteExecution(jobId);
     },
     onSuccess: () => {
       refetch();
+    },
+    onSettled: () => {
+      setDeleteDialogOpen(false);
+      setJobPendingDeletion(null);
     },
   });
 
@@ -475,11 +480,29 @@ export const JobManager: React.FC = () => {
         stopJobMutation.mutate(jobId);
         break;
       case 'delete':
-        deleteJobMutation.mutate(jobId);
+        {
+          const job = jobs.find((item) => item.id === jobId);
+          if (job) {
+            setJobPendingDeletion(job);
+            setDeleteDialogOpen(true);
+          }
+        }
         break;
       default:
         break;
     }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setJobPendingDeletion(null);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!jobPendingDeletion) {
+      return;
+    }
+    deleteJobMutation.mutate(jobPendingDeletion.id);
   };
 
   const loadPreview = useCallback(async (file: JobFile) => {
@@ -858,6 +881,32 @@ export const JobManager: React.FC = () => {
           {successMessage}
         </Alert>
       )}
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={deleteJobMutation.isPending ? undefined : handleCancelDelete}
+      >
+        <DialogTitle>Delete Job</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {jobPendingDeletion
+              ? `Are you sure you want to delete "${jobPendingDeletion.name}" and permanently remove all associated files?`
+              : 'Are you sure you want to delete this job and its files?'}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelDelete} disabled={deleteJobMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleteJobMutation.isPending}
+          >
+            {deleteJobMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h4" sx={{ fontWeight: 600 }}>

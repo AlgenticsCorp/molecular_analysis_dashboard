@@ -418,6 +418,47 @@ class ExecutionFileService:
                 'uploaded_at': row[12].isoformat() if row[12] else None,
                 'expires_at': row[13].isoformat() if row[13] else None
             }
+
+    async def delete_execution_files(self, execution_id: UUID) -> Dict[str, Any]:
+        """Remove all file records and storage artifacts tied to an execution."""
+
+        deleted_records = 0
+        failed_paths: List[str] = []
+
+        async for db in get_metadata_session():
+            query = text(
+                """
+                SELECT file_id, storage_backend, storage_path
+                FROM execution_files
+                WHERE execution_id = :execution_id
+                """
+            )
+            result = await db.execute(query, {"execution_id": str(execution_id)})
+            rows = result.fetchall()
+
+            if not rows:
+                return {"deleted": 0, "failed": 0}
+
+            storage_paths = {
+                row[2]
+                for row in rows
+                if row[1] == 'local' and row[2]
+            }
+
+            for storage_path in storage_paths:
+                if not self._safe_remove(storage_path):
+                    failed_paths.append(storage_path)
+
+            await db.execute(
+                text("DELETE FROM execution_files WHERE execution_id = :execution_id"),
+                {"execution_id": str(execution_id)}
+            )
+            await db.commit()
+
+            deleted_records = len(rows)
+            break
+
+        return {"deleted": deleted_records, "failed": len(failed_paths)}
     
     def _generate_storage_path(
         self,
@@ -446,6 +487,50 @@ class ExecutionFileService:
         
         # For S3, MinIO, etc., would generate presigned URLs here
         return None
+
+    def _safe_remove(self, storage_path: str) -> bool:
+        """Delete a file from local storage and prune empty directories."""
+        if not storage_path:
+            return True
+
+        storage_root = Path(os.getenv('STORAGE_ROOT', '/storage')).resolve()
+        absolute_path = (storage_root / storage_path.lstrip('/')).resolve()
+
+        try:
+            if storage_root not in absolute_path.parents and absolute_path != storage_root:
+                logger.warning("Refusing to remove path outside storage root: %s", absolute_path)
+                return False
+
+            if not absolute_path.exists():
+                return True
+
+            try:
+                absolute_path.unlink()
+            except PermissionError:
+                try:
+                    absolute_path.chmod(0o600)
+                    absolute_path.unlink()
+                except Exception as exc:
+                    logger.warning("Failed to remove stored file '%s': %s", absolute_path, exc)
+                    return False
+
+            self._cleanup_empty_dirs(absolute_path.parent, storage_root)
+            return True
+        except Exception as exc:  # pragma: no cover - best effort cleanup
+            logger.warning("Failed to remove stored file '%s': %s", absolute_path, exc)
+            return False
+
+    def _cleanup_empty_dirs(self, start: Path, root: Path) -> None:
+        """Remove empty directories up to the storage root."""
+        current = start
+        try:
+            while current.is_dir() and current != root:
+                if any(current.iterdir()):
+                    break
+                current.rmdir()
+                current = current.parent
+        except Exception as exc:  # pragma: no cover - best effort cleanup
+            logger.debug("Failed to prune directory '%s': %s", current, exc)
     
     async def _create_file_record(
         self,

@@ -146,29 +146,25 @@ async def get_task_framework_results(task_id: str, external_job_id: str) -> Dict
 @task_framework_router.get("/tasks/available")
 async def list_available_framework_tasks() -> Dict[str, Any]:
     """List all available tasks in the task framework."""
-    
-    tasks = [
-        {
-            "task_id": "gnina-molecular-docking",
-            "name": "GNINA Molecular Docking", 
-            "description": "Neural network-guided molecular docking via NeuroSnap API",
-            "category": "molecular_docking",
-            "provider": "neurosnap",
-            "status": "available",
-            "parameters": {
-                "receptor_file": {"type": "file", "format": "pdb", "required": True},
-                "ligand_file": {"type": "file", "format": "sdf", "required": True},
-                "job_name": {"type": "string", "required": False},
-                "note": {"type": "string", "required": False}
-            },
-            "endpoints": {
-                "execute": "/api/v1/task-framework/gnina-molecular-docking/execute",
-                "status": "/api/v1/task-framework/gnina-molecular-docking/status/{job_id}",
-                "results": "/api/v1/task-framework/gnina-molecular-docking/results/{job_id}"
+
+    framework_tasks = _task_execution_service.get_available_tasks()
+
+    tasks = []
+    for task_id, metadata in framework_tasks.items():
+        tasks.append(
+            {
+                "task_id": task_id,
+                "name": metadata.get("name", task_id.replace("-", " ").title()),
+                "description": metadata.get("description", ""),
+                "category": metadata.get("category", "general"),
+                "provider": metadata.get("provider", "unknown"),
+                "status": "available",
+                "parameters": metadata.get("parameters", []),
+                "resource_requirements": metadata.get("resource_requirements", {}),
+                "execution_time_estimate": metadata.get("execution_time_estimate", 0),
             }
-        }
-    ]
-    
+        )
+
     return {
         "tasks": tasks,
         "total_count": len(tasks),

@@ -458,6 +458,23 @@ export class TaskService {
   }
 
   /**
+   * Delete an execution and optionally purge its files.
+   */
+  async deleteExecution(executionId: string, purgeFiles = true): Promise<void> {
+    const url = new URL(`/api/v1/tasks-unified/executions/${executionId}`, window.location.origin);
+    url.searchParams.set('purge_files', String(purgeFiles));
+
+    const response = await fetch(url.toString(), {
+      method: 'DELETE',
+      signal: this.abortController?.signal ?? null,
+    });
+
+    if (!response.ok && response.status !== 204) {
+      throw new Error(`Failed to delete execution: ${response.statusText}`);
+    }
+  }
+
+  /**
    * List all task executions for the current user
    */
   async listExecutions(params?: { status?: string; limit?: number; offset?: number }): Promise<any> {

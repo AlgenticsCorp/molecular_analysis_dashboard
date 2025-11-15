@@ -2,9 +2,10 @@
 Unified Task API Router - combines database tasks with task framework
 """
 
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from starlette.datastructures import UploadFile, FormData
 from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from uuid import UUID
 import json
 import logging
@@ -34,6 +35,131 @@ def get_current_org_id() -> Optional[UUID]:
 def get_current_user_id() -> Optional[UUID]:
     """Get current user ID (placeholder implementation)."""
     return None
+
+
+FORM_TRUE_VALUES = {"true", "1", "yes", "on"}
+FORM_FALSE_VALUES = {"false", "0", "no", "off"}
+DEFAULT_BINARY_CONTENT_TYPE = "application/octet-stream"
+
+
+def _coerce_form_value(value: str, spec: Dict[str, Any]) -> Any:
+    """Convert raw string values from multipart forms into typed parameter values."""
+
+    if value == "" and not spec.get("required"):
+        return None
+
+    param_type = spec.get("type", "string")
+    try:
+        if param_type == "integer":
+            return int(value)
+        if param_type == "number":
+            return float(value)
+        if param_type == "boolean":
+            lowered = value.lower()
+            if lowered in FORM_TRUE_VALUES:
+                return True
+            if lowered in FORM_FALSE_VALUES:
+                return False
+            raise ValueError("Invalid boolean value")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid value for parameter '{spec.get('name', 'unknown')}'",
+        ) from exc
+
+    return value
+
+
+def _validate_allowed_value(value: Any, spec: Dict[str, Any]) -> None:
+    allowed = spec.get("validation", {}).get("allowed_values")
+    if allowed and value not in allowed:
+        allowed_csv = ", ".join(str(v) for v in allowed)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Value for parameter '{spec.get('name', 'unknown')}' must be one of: {allowed_csv}",
+        )
+
+
+def _load_json_parameters(form: FormData) -> Dict[str, Any]:
+    """Load optional JSON payload embedded in the multipart request."""
+
+    raw_parameters = form.get("parameters")
+    if not raw_parameters:
+        return {}
+
+    if isinstance(raw_parameters, UploadFile):
+        raise HTTPException(status_code=400, detail="parameters field must be JSON")
+
+    try:
+        parsed = json.loads(raw_parameters)
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid parameters JSON") from exc
+
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="parameters JSON must be an object")
+
+    return parsed
+
+
+async def _handle_form_item(
+    key: str,
+    value: Any,
+    spec: Optional[Dict[str, Any]],
+    params: Dict[str, Any],
+    files: Dict[str, Dict[str, Any]],
+) -> None:
+    """Process a single multipart form entry."""
+
+    if isinstance(value, UploadFile):
+        content = await value.read()
+        await value.close()
+
+        files[key] = {
+            "filename": value.filename,
+            "content": content,
+            "content_type": value.content_type or DEFAULT_BINARY_CONTENT_TYPE,
+        }
+        return
+
+    if spec:
+        coerced = _coerce_form_value(value, spec)
+        if coerced is None and value == "":
+            return
+        _validate_allowed_value(coerced, spec)
+        params[key] = coerced
+        return
+
+    params[key] = value
+
+
+async def _parse_task_form_data(
+    form: FormData,
+    parameter_specs: Dict[str, Dict[str, Any]],
+) -> Tuple[Dict[str, Any], Dict[str, Dict[str, Any]]]:
+    """Parse multipart form data into structured parameters and file payloads."""
+
+    params = _load_json_parameters(form)
+    files: Dict[str, Dict[str, Any]] = {}
+
+    for key, value in form.multi_items():
+        if key == "parameters":
+            continue
+
+        spec = parameter_specs.get(key)
+        await _handle_form_item(key, value, spec, params, files)
+
+    missing_files = [
+        name
+        for name, spec in parameter_specs.items()
+        if spec.get("type") == "file" and spec.get("required") and name not in files
+    ]
+    if missing_files:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required file parameters: {', '.join(missing_files)}",
+        )
+
+    return params, files
 
 
 @router.get("/", response_model=List[Dict[str, Any]])
@@ -182,8 +308,31 @@ async def get_execution_results(execution_id: str):
         if not results:
             raise HTTPException(status_code=404, detail="Results not found or execution not completed")
         return results
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch results: {str(e)}")
+
+
+@router.delete("/executions/{execution_id}", status_code=204)
+async def delete_execution(execution_id: str, purge_files: bool = True):
+    """Delete an execution and optionally purge its stored files."""
+
+    try:
+        deleted = await unified_task_service.delete_execution(
+            execution_id,
+            delete_files=purge_files,
+        )
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        return Response(status_code=204)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid execution ID format")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Failed to delete execution %s: %s", execution_id, exc)
+        raise HTTPException(status_code=500, detail=f"Failed to delete execution: {exc}")
 
 
 @router.get("/{task_id}", response_model=Dict[str, Any])
@@ -204,59 +353,38 @@ async def get_task_details(
 @router.post("/{task_id}/execute")
 async def execute_task(
     task_id: str,
-    receptor_file: Optional[UploadFile] = File(None),
-    ligand_file: Optional[UploadFile] = File(None),
-    job_name: Optional[str] = Form(None),
-    note: Optional[str] = Form(None),
-    parameters: Optional[str] = Form("{}"),  # JSON string of additional parameters
+    request: Request,
     org_id: Optional[UUID] = Depends(get_current_org_id),
-    user_id: Optional[UUID] = Depends(get_current_user_id)
+    user_id: Optional[UUID] = Depends(get_current_user_id),
 ):
-    """Execute a task with provided parameters and files"""
+    """Execute a task with dynamically parsed parameters and files."""
+
     try:
-        # Parse parameters
-        try:
-            params = json.loads(parameters) if parameters else {}
-        except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid parameters JSON")
-        
-        # Add form fields to parameters
-        if job_name:
-            params["job_name"] = job_name
-        if note:
-            params["note"] = note
-        
-        # Prepare files
-        files = {}
-        if receptor_file:
-            files["receptor_file"] = {
-                "filename": receptor_file.filename,
-                "content": await receptor_file.read(),
-                "content_type": receptor_file.content_type
-            }
-        
-        if ligand_file:
-            files["ligand_file"] = {
-                "filename": ligand_file.filename,
-                "content": await ligand_file.read(),
-                "content_type": ligand_file.content_type
-            }
-        
-        # Execute task
+        task_definition = await unified_task_service.get_task_by_id(task_id, org_id)
+        if not task_definition:
+            raise HTTPException(status_code=404, detail="Task not found")
+
+        parameter_specs = {
+            param.get("name"): param for param in task_definition.get("parameters", [])
+        }
+
+        form = await request.form()
+        params, files = await _parse_task_form_data(form, parameter_specs)
+
         result = await unified_task_service.execute_task(
             task_id=task_id,
             parameters=params,
             files=files if files else None,
             org_id=org_id,
-            user_id=user_id
+            user_id=user_id,
         )
-        
+
         return result
-        
+
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Task execution failed: {str(e)}")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Task execution failed: {str(exc)}") from exc
 
 
 @router.get("/files/{file_id}/download")
@@ -302,7 +430,7 @@ async def download_file(
                 yield from f
         
         # Determine content type
-        content_type = file_metadata.get("content_type", "application/octet-stream")
+        content_type = file_metadata.get("content_type", DEFAULT_BINARY_CONTENT_TYPE)
         filename = file_metadata.get("filename", "download")
         
         return StreamingResponse(

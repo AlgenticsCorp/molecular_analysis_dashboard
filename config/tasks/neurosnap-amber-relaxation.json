@@ -1,0 +1,70 @@
+{
+  "id": "neurosnap-amber-relaxation",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter",
+    "class": "NeuroSnapAmberRelaxationAdapter"
+  },
+  "metadata": {
+    "name": "NeuroSnap Amber Relaxation",
+    "description": "Relax protein structures using Amber molecular dynamics on NeuroSnap",
+    "version": "1.0.0",
+    "category": "molecular-dynamics",
+    "tags": ["amber", "molecular-dynamics", "relaxation"],
+    "provider": "neurosnap",
+    "interface_type": "openapi",
+    "parameters": [
+      {
+        "name": "structure_file",
+        "type": "file",
+        "required": true,
+        "description": "Input protein structure in PDB or PDBQT format",
+        "validation": {
+          "file_types": [".pdb", ".pdbqt"],
+          "max_size_mb": 100
+        }
+      },
+      {
+        "name": "max_iterations",
+        "type": "integer",
+        "required": false,
+        "default": 2500,
+        "description": "Maximum number of energy minimization iterations",
+        "validation": {
+          "min": 100,
+          "max": 10000
+        }
+      },
+      {
+        "name": "tolerance",
+        "type": "number",
+        "required": false,
+        "default": 1.0,
+        "description": "Energy convergence tolerance",
+        "validation": {
+          "min": 0.1,
+          "max": 10.0
+        }
+      },
+      {
+        "name": "job_name",
+        "type": "string",
+        "required": false,
+        "default": "AMBER Relaxation",
+        "description": "Friendly name for the relaxation job"
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false,
+        "default": "Task framework execution",
+        "description": "Optional note recorded with the NeuroSnap job"
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "4",
+      "memory": "8Gi"
+    },
+    "execution_time_estimate": 1800,
+    "source": "framework"
+  }
+}

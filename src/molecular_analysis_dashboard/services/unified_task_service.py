@@ -37,7 +37,7 @@ class UnifiedTaskService:
     async def get_all_tasks(self, org_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
         """Get all available tasks from both database and framework"""
         # Get framework tasks first (they take priority)
-        framework_tasks = await self._get_framework_tasks()
+        framework_tasks = self._get_framework_tasks()
         framework_task_ids = {task['id'] for task in framework_tasks}
         
         # Get database tasks, excluding ones that exist in framework
@@ -55,7 +55,7 @@ class UnifiedTaskService:
             return db_task
             
         # Check framework
-        framework_task = await self._get_framework_task(task_id)
+        framework_task = self._get_framework_task(task_id)
         return framework_task
     
     async def execute_task(
@@ -69,7 +69,7 @@ class UnifiedTaskService:
         """Execute a task through appropriate system"""
         
         # Determine if this is a framework task
-        if await self._is_framework_task(task_id):
+        if self._is_framework_task(task_id):
             return await self._execute_framework_task(
                 task_id, parameters, files, org_id, user_id
             )
@@ -161,6 +161,34 @@ class UnifiedTaskService:
             'input_files': input_files,
             'output_files': output_files
         }
+
+    async def delete_execution(self, execution_id: str, delete_files: bool = True) -> bool:
+        """Remove an execution along with its associated files."""
+
+        try:
+            execution_uuid = UUID(execution_id)
+        except ValueError as exc:
+            raise ValueError("Invalid execution ID") from exc
+
+        async for db in get_db():
+            execution = await db.get(TaskFrameworkExecution, execution_uuid)
+            if not execution:
+                return False
+
+            try:
+                if delete_files:
+                    from .execution_file_service import ExecutionFileService
+
+                    file_service = ExecutionFileService()
+                    await file_service.delete_execution_files(execution_uuid)
+
+                await db.delete(execution)
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
+
+            return True
     
     async def _download_output_files(self, execution_id: str, framework_results: Dict[str, Any]) -> None:
         """Download output files from NeuroSnap and store locally when job completes.
@@ -300,10 +328,10 @@ class UnifiedTaskService:
             
             return None
     
-    async def _get_framework_tasks(self) -> List[Dict[str, Any]]:
+    def _get_framework_tasks(self) -> List[Dict[str, Any]]:
         """Get tasks from framework"""
         try:
-            framework_tasks = await self.task_framework.get_available_tasks()
+            framework_tasks = self.task_framework.get_available_tasks()
             
             # Convert to standard format
             tasks = []
@@ -328,10 +356,10 @@ class UnifiedTaskService:
             logger.error(f"Error fetching framework tasks: {e}")
             return []
     
-    async def _get_framework_task(self, task_id: str) -> Optional[Dict[str, Any]]:
+    def _get_framework_task(self, task_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific task from framework by task_id"""
         try:
-            framework_tasks = await self.task_framework.get_available_tasks()
+            framework_tasks = self.task_framework.get_available_tasks()
             task_info = framework_tasks.get(task_id)
             
             if task_info:
@@ -354,9 +382,9 @@ class UnifiedTaskService:
             logger.error(f"Error fetching framework task {task_id}: {e}")
             return None
     
-    async def _is_framework_task(self, task_id: str) -> bool:
+    def _is_framework_task(self, task_id: str) -> bool:
         """Check if task is handled by framework"""
-        framework_tasks = await self.task_framework.get_available_tasks()
+        framework_tasks = self.task_framework.get_available_tasks()
         return task_id in framework_tasks
     
     async def _execute_framework_task(
@@ -479,7 +507,7 @@ class UnifiedTaskService:
                 return existing
             
             # Create new definition
-            framework_task = await self._get_framework_task(task_id)
+            framework_task = self._get_framework_task(task_id)
             if not framework_task:
                 raise ValueError(f"Framework task {task_id} not found")
             
@@ -621,7 +649,7 @@ class UnifiedTaskService:
             "Please use the job creation system for database-defined tasks."
         )
     
-    async def _get_framework_execution_status(self, execution_id: str) -> Optional[Dict[str, Any]]:
+    async def _get_framework_execution_status(self, execution_id: str) -> Optional[Dict[str, Any]]:  # noqa: C901
         """Get status of framework task execution"""
         try:
             execution = await self._get_task_execution(execution_id)

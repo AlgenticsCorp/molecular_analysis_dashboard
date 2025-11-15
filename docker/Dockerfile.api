@@ -15,17 +15,14 @@ WORKDIR /app
 # Copy project metadata, config, source, database, and tests, then install in editable mode
 COPY pyproject.toml ./
 COPY docker/gunicorn_conf.py ./docker/gunicorn_conf.py
+COPY config ./config
 COPY src ./src
 COPY database ./database
 COPY tests ./tests
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev]"
-
-# Non-root user
-RUN useradd -m appuser
-
-# Create storage directories with proper ownership
-RUN mkdir -p /storage/uploads /storage/results /storage/temp \
+    && pip install --no-cache-dir -e ".[dev]" \
+    && useradd -m appuser \
+    && mkdir -p /storage/uploads /storage/results /storage/temp \
     && chown -R appuser:appuser /storage
 
 USER appuser
