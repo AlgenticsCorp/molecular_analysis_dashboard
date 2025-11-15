@@ -100,13 +100,50 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Initialize auth state from stored tokens
     const initializeAuth = async () => {
+      const isDemoAuthEnabled = String(import.meta.env.VITE_ENABLE_DEMO_AUTH ?? 'false')
+        .toLowerCase()
+        .trim() === 'true';
       try {
         const user = await authService.initializeAuth();
         if (user) {
           dispatch({ type: 'AUTH_SUCCESS', payload: user });
-        } else {
-          dispatch({ type: 'AUTH_FAILURE', payload: 'No valid session found' });
+          return;
         }
+
+        if (isDemoAuthEnabled) {
+          const now = new Date().toISOString();
+          const demoUser: User = {
+            user_id: (
+              import.meta.env.VITE_DEMO_USER_ID || '00000000-0000-0000-0000-000000000000'
+            ).toString(),
+            email: (import.meta.env.VITE_DEMO_USER_EMAIL || 'demo@local.dev').toString(),
+            org_id: (import.meta.env.VITE_DEMO_ORG_ID || 'demo-org').toString(),
+            roles: (import.meta.env.VITE_DEMO_USER_ROLES || 'admin')
+              .split(',')
+              .map((role) => role.trim())
+              .filter(Boolean),
+            created_at: now,
+            updated_at: now,
+          };
+
+          const demoAccessToken = import.meta.env.VITE_DEMO_ACCESS_TOKEN;
+          const demoRefreshToken = import.meta.env.VITE_DEMO_REFRESH_TOKEN;
+
+          localStorage.setItem('mad_user', JSON.stringify(demoUser));
+
+          if (demoAccessToken) {
+            localStorage.setItem('mad_access_token', demoAccessToken.toString());
+          }
+
+          if (demoRefreshToken) {
+            localStorage.setItem('mad_refresh_token', demoRefreshToken.toString());
+          }
+
+          dispatch({ type: 'AUTH_SUCCESS', payload: demoUser });
+          return;
+        }
+
+        dispatch({ type: 'AUTH_FAILURE', payload: 'No valid session found' });
       } catch (error) {
         dispatch({
           type: 'AUTH_FAILURE',

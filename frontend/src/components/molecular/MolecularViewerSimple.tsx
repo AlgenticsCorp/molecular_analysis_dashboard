@@ -29,71 +29,131 @@ export const MolecularViewer: React.FC<MolecularViewerProps> = ({
 }) => {
   const viewerRef = useRef<HTMLDivElement>(null);
   const viewerInstanceRef = useRef<any>(null);
+  const [viewerReady, setViewerReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadScript = () => {
+    let isMounted = true;
+
+    const ensureScript = (): Promise<void> => {
       if (window.$3Dmol) {
-        initializeViewer();
+        return Promise.resolve();
+      }
+
+      const scriptId = '3dmol-script';
+      let script = document.getElementById(scriptId) as HTMLScriptElement | null;
+
+      if (script) {
+        return new Promise<void>((resolve, reject) => {
+          const onLoad = () => {
+            script?.removeEventListener('load', onLoad);
+            script?.removeEventListener('error', onError);
+            resolve();
+          };
+          const onError = (err: Event) => {
+            script?.removeEventListener('load', onLoad);
+            script?.removeEventListener('error', onError);
+            reject(err);
+          };
+
+          script.addEventListener('load', onLoad);
+          script.addEventListener('error', onError);
+        });
+      }
+
+      script = document.createElement('script');
+      script.id = scriptId;
+      script.src = 'https://3Dmol.org/build/3Dmol-min.js';
+      script.async = true;
+
+      return new Promise<void>((resolve, reject) => {
+        script!.onload = () => resolve();
+        script!.onerror = (err) => reject(err);
+        document.head.appendChild(script!);
+      });
+    };
+
+    const initializeViewer = async () => {
+      if (!viewerRef.current) {
+        setLoading(false);
         return;
       }
 
-      const script = document.createElement('script');
-      script.src = 'https://3Dmol.org/build/3Dmol-min.js';
-      script.onload = initializeViewer;
-      script.onerror = () => setError('Failed to load 3Dmol.js');
-      document.head.appendChild(script);
-    };
-
-    const initializeViewer = () => {
-      if (!viewerRef.current) return;
-
       try {
-        const config = { backgroundColor: '#000000' };
-        viewerInstanceRef.current = window.$3Dmol.createViewer(viewerRef.current, config);
+        await ensureScript();
 
-        if (moleculeData) {
-          loadMolecule();
-        } else {
+        if (!isMounted || !viewerRef.current) {
+          return;
+        }
+
+        viewerInstanceRef.current = window.$3Dmol.createViewer(viewerRef.current, {
+          backgroundColor: '#000000',
+        });
+
+        setViewerReady(true);
+        setLoading(false);
+      } catch (err) {
+        console.error('Failed to load 3Dmol viewer script', err);
+        if (isMounted) {
+          setError('Failed to load 3D viewer');
           setLoading(false);
         }
-      } catch {
-        setError('Failed to initialize viewer');
-        setLoading(false);
       }
     };
 
-    const loadMolecule = () => {
-      if (!viewerInstanceRef.current || !moleculeData) return;
-
-      try {
-        viewerInstanceRef.current.removeAllModels();
-        const model = viewerInstanceRef.current.addModel(moleculeData, format);
-
-        if (model) {
-          viewerInstanceRef.current.setStyle({}, { cartoon: { color: 'spectrum' } });
-          viewerInstanceRef.current.zoomTo();
-          viewerInstanceRef.current.render();
-          setLoading(false);
-        } else {
-          setError('Failed to parse molecular data');
-          setLoading(false);
-        }
-      } catch {
-        setError('Failed to load molecule');
-        setLoading(false);
-      }
-    };
-
-    loadScript();
+    void initializeViewer();
 
     return () => {
+      isMounted = false;
       if (viewerInstanceRef.current) {
         viewerInstanceRef.current.clear();
       }
     };
-  }, [moleculeData, format]);
+  }, []);
+
+  useEffect(() => {
+    if (!viewerReady) {
+      return;
+    }
+
+    const viewer = viewerInstanceRef.current;
+    if (!viewer) {
+      return;
+    }
+
+    setError(null);
+
+    if (!moleculeData) {
+      viewer.removeAllModels();
+      viewer.render();
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      viewer.removeAllModels();
+
+      const normalizedFormat = normalizeFormat(format);
+      const model = viewer.addModel(moleculeData, normalizedFormat);
+
+      if (!model) {
+        throw new Error('3Dmol returned an empty model');
+      }
+
+      const style = selectStyle(normalizedFormat);
+      viewer.setStyle({}, style);
+      viewer.zoomTo();
+      viewer.render();
+      setLoading(false);
+    } catch (err) {
+      console.error('Failed to load molecule into viewer', err);
+      setError('Failed to load molecule');
+      setLoading(false);
+    }
+  }, [viewerReady, moleculeData, format]);
 
   if (error) {
     return (
@@ -136,6 +196,46 @@ export const MolecularViewer: React.FC<MolecularViewerProps> = ({
       />
     </Box>
   );
+};
+
+const normalizeFormat = (rawFormat?: string): string => {
+  const fmt = (rawFormat || 'pdb').toLowerCase();
+
+  switch (fmt) {
+    case 'mol':
+    case 'mol2':
+      return 'mol2';
+    case 'sdf':
+      return 'sdf';
+    case 'pdbqt':
+      return 'pdbqt';
+    case 'xyz':
+      return 'xyz';
+    default:
+      return 'pdb';
+  }
+};
+
+const selectStyle = (format: string) => {
+  const smallMoleculeFormats = new Set(['sdf', 'mol2', 'xyz']);
+
+  if (smallMoleculeFormats.has(format)) {
+    return {
+      stick: {
+        colorscheme: 'Jmol',
+        radius: 0.15,
+      },
+      sphere: {
+        colorscheme: 'Jmol',
+        radius: 0.3,
+        scale: 0.3,
+      },
+    };
+  }
+
+  return {
+    cartoon: { color: 'spectrum' },
+  };
 };
 
 export default MolecularViewer;

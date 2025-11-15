@@ -107,6 +107,14 @@ try:
 except ImportError:
     UNIFIED_TASKS_ROUTER_AVAILABLE = False
 
+# Import the files router
+try:
+    from .routes.files import router as files_router
+
+    FILES_ROUTER_AVAILABLE = True
+except ImportError:
+    FILES_ROUTER_AVAILABLE = False
+
 root_path = os.getenv("ROOT_PATH", "")
 
 # Define comprehensive tags metadata for Swagger UI organization
@@ -145,7 +153,11 @@ tags_metadata = [
         "description": "Generic task execution system for all computational services",
     },
     {
-        "name": "🛠️ System Health",
+        "name": "File Management",
+        "description": "Upload, manage, and organize molecular structure files",
+    },
+    {
+        "name": "System Health",
         "description": "Health checks, readiness probes, and system status monitoring",
     }
 ]
@@ -221,6 +233,9 @@ if TASK_FRAMEWORK_ROUTER_AVAILABLE:
 if UNIFIED_TASKS_ROUTER_AVAILABLE:
     app.include_router(unified_tasks_router)
 
+if FILES_ROUTER_AVAILABLE:
+    app.include_router(files_router)
+
 
 @app.middleware("http")
 async def add_request_id_header(request: Request, call_next: Callable[[Request], Any]) -> Response:
@@ -231,7 +246,7 @@ async def add_request_id_header(request: Request, call_next: Callable[[Request],
     return response
 
 
-@app.get("/health", tags=["🛠️ System Health"])
+@app.get("/health", tags=["System Health"])
 def health() -> dict[str, str]:
     """Liveness probe: Basic application health check.
     
@@ -250,7 +265,7 @@ def health() -> dict[str, str]:
     }
 
 
-@app.get("/ready", tags=["🛠️ System Health"])
+@app.get("/ready", tags=["System Health"])
 def ready() -> dict[str, Any]:
     """Readiness probe: Comprehensive service availability check.
     
@@ -272,6 +287,7 @@ def ready() -> dict[str, Any]:
         "dynamics_services": "ready" if MOLECULAR_DYNAMICS_ROUTER_AVAILABLE else "not_available",
         "neurosnap_unified": "ready" if NEUROSNAP_UNIFIED_ROUTER_AVAILABLE else "not_available",
         "task_framework": "ready" if TASK_FRAMEWORK_ROUTER_AVAILABLE else "not_available",
+        "file_management": "ready" if FILES_ROUTER_AVAILABLE else "not_available",
     }
     
     # Overall readiness assessment
@@ -292,5 +308,6 @@ def ready() -> dict[str, Any]:
             "job_management": service_checks["neurosnap_unified"] == "ready",
             "task_framework": service_checks["task_framework"] == "ready",
             "task_execution_api": service_checks["task_execution_api"] == "ready",
+            "file_management": service_checks["file_management"] == "ready",
         }
     }

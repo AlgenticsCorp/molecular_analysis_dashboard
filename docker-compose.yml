@@ -107,9 +107,19 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+        VITE_DEMO_USER_ID: ${VITE_DEMO_USER_ID:-00000000-0000-0000-0000-000000000000}
+        VITE_DEMO_USER_EMAIL: ${VITE_DEMO_USER_EMAIL:-demo@local.dev}
+        VITE_DEMO_ORG_ID: ${VITE_DEMO_ORG_ID:-demo-org}
+        VITE_DEMO_USER_ROLES: ${VITE_DEMO_USER_ROLES:-admin}
+        VITE_DEMO_ACCESS_TOKEN: ${VITE_DEMO_ACCESS_TOKEN:-}
+        VITE_DEMO_REFRESH_TOKEN: ${VITE_DEMO_REFRESH_TOKEN:-}
+        VITE_ENABLE_DEMO_AUTH: ${VITE_ENABLE_DEMO_AUTH:-true}
     environment:
       - NODE_ENV=production
-      - VITE_API_BASE_URL=http://localhost
+      - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/api/v1}
+      - VITE_ENABLE_DEMO_AUTH=${VITE_ENABLE_DEMO_AUTH:-true}
     depends_on:
       api:
         condition: service_healthy
@@ -117,6 +127,8 @@ services:
         condition: service_healthy
     expose:
       - "3000"
+    ports:
+      - "3000:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 15s
@@ -187,7 +199,7 @@ services:
     environment:
       - FLOWER_PORT=5555
       - FLOWER_BASIC_AUTH=user:password
-    command: ["flower", "--broker=${CELERY_BROKER_URL}"]
+    command: ["celery", "--broker=${CELERY_BROKER_URL}", "flower"]
     ports:
       - "5555:5555"
     depends_on:

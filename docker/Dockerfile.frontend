@@ -6,6 +6,25 @@ FROM node:20-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Propagate Vite env variables (can be overridden at build time)
+ARG VITE_API_BASE_URL="http://localhost"
+ARG VITE_DEMO_USER_ID="00000000-0000-0000-0000-000000000000"
+ARG VITE_DEMO_USER_EMAIL="demo@local.dev"
+ARG VITE_DEMO_ORG_ID="demo-org"
+ARG VITE_DEMO_USER_ROLES="admin"
+ARG VITE_DEMO_ACCESS_TOKEN=""
+ARG VITE_DEMO_REFRESH_TOKEN=""
+ARG VITE_ENABLE_DEMO_AUTH="true"
+
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV VITE_DEMO_USER_ID=${VITE_DEMO_USER_ID}
+ENV VITE_DEMO_USER_EMAIL=${VITE_DEMO_USER_EMAIL}
+ENV VITE_DEMO_ORG_ID=${VITE_DEMO_ORG_ID}
+ENV VITE_DEMO_USER_ROLES=${VITE_DEMO_USER_ROLES}
+ENV VITE_DEMO_ACCESS_TOKEN=${VITE_DEMO_ACCESS_TOKEN}
+ENV VITE_DEMO_REFRESH_TOKEN=${VITE_DEMO_REFRESH_TOKEN}
+ENV VITE_ENABLE_DEMO_AUTH=${VITE_ENABLE_DEMO_AUTH}
+
 # Copy package files first for better caching
 COPY frontend/package.json frontend/package-lock.json* ./
 
@@ -33,11 +52,11 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Create non-root user for security (nginx user already exists, just modify permissions)
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
-    chown -R nginx:nginx /var/cache/nginx && \
-    chown -R nginx:nginx /var/log/nginx && \
-    chown -R nginx:nginx /etc/nginx/conf.d
-RUN touch /var/run/nginx.pid && \
-    chown -R nginx:nginx /var/run/nginx.pid
+  chown -R nginx:nginx /var/cache/nginx && \
+  chown -R nginx:nginx /var/log/nginx && \
+  chown -R nginx:nginx /etc/nginx/conf.d && \
+  touch /var/run/nginx.pid && \
+  chown -R nginx:nginx /var/run/nginx.pid
 
 # Switch to non-root user
 USER nginx
