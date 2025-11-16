@@ -2,7 +2,7 @@
 Unified Task Service combining database task definitions with task framework
 """
 
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Tuple, TYPE_CHECKING
 from uuid import UUID, uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -20,6 +20,9 @@ from database.models.metadata import TaskDefinition
 from database.models.task_execution import TaskFrameworkExecution
 from ..adapters.providers.neurosnap_task_adapter import TaskExecutionService
 from ..infrastructure.database import get_metadata_session as get_db
+
+if TYPE_CHECKING:  # pragma: no cover - used for type checkers only
+    from .execution_file_service import ExecutionFileService
 
 logger = logging.getLogger(__name__)
 
@@ -113,39 +116,12 @@ class UnifiedTaskService:
         # Get NeuroSnap results if available
         neurosnap_results = None
         if execution.external_job_id:
-            # Get results from framework
-            framework_results = await self.task_framework.get_execution_results(
-                execution.task_id, execution.external_job_id
+            neurosnap_results, output_files = await self._refresh_framework_results(
+                execution=execution,
+                execution_id=execution_id,
+                file_service=file_service,
+                output_files=output_files,
             )
-            
-            if framework_results:
-                neurosnap_results = framework_results
-                
-                # Note: Output files are downloaded automatically when job completes during status polling
-                # If for some reason they weren't downloaded, try downloading now
-                download_urls = framework_results.get('download_urls', {})
-                local_output_files = [f for f in output_files if f.get('storage_backend') == 'local']
-                if download_urls and len(local_output_files) == 0:
-                    logger.warning(f"Output files not yet downloaded for {execution_id}, downloading now")
-                    try:
-                        await self._download_output_files(execution_id, framework_results)
-                        # Re-fetch output files after storing
-                        output_files = await file_service.get_execution_files(
-                            execution_id=UUID(execution_id),
-                            file_type='output'
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to download output files: {e}")
-                
-                # Update database with results (excluding large file data)
-                execution.output_data = {
-                    'binding_affinity': framework_results.get('binding_affinity'),
-                    'top_poses_count': framework_results.get('top_poses_count'),
-                    'computation_time': framework_results.get('computation_time'),
-                    'status': framework_results.get('status')
-                }
-                execution.update_status('completed')
-                await self._save_execution(execution)
         
         # Return combined data
         return {
@@ -161,6 +137,60 @@ class UnifiedTaskService:
             'input_files': input_files,
             'output_files': output_files
         }
+
+    async def _refresh_framework_results(
+        self,
+        execution: TaskFrameworkExecution,
+        execution_id: str,
+        file_service: 'ExecutionFileService',
+        output_files: List[Dict[str, Any]],
+    ) -> Tuple[Optional[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Fetch fresh results from NeuroSnap, downloading files if needed."""
+
+        framework_results: Optional[Dict[str, Any]] = None
+        try:
+            framework_results = await self.task_framework.get_execution_results(
+                execution.task_id,
+                execution.external_job_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Unable to refresh NeuroSnap results for %s (%s): %s",
+                execution_id,
+                execution.external_job_id,
+                exc,
+            )
+            return None, output_files
+
+        if not framework_results:
+            return None, output_files
+
+        download_urls = framework_results.get('download_urls', {})
+        local_output_files = [f for f in output_files if f.get('storage_backend') == 'local']
+        if download_urls and len(local_output_files) == 0:
+            logger.warning(
+                "Output files not yet downloaded for %s, downloading now",
+                execution_id,
+            )
+            try:
+                await self._download_output_files(execution_id, framework_results)
+                output_files = await file_service.get_execution_files(
+                    execution_id=UUID(execution_id),
+                    file_type='output'
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.error("Failed to download output files: %s", exc)
+
+        execution.output_data = {
+            'binding_affinity': framework_results.get('binding_affinity'),
+            'top_poses_count': framework_results.get('top_poses_count'),
+            'computation_time': framework_results.get('computation_time'),
+            'status': framework_results.get('status')
+        }
+        execution.update_status('completed')
+        await self._save_execution(execution)
+
+        return framework_results, output_files
 
     async def delete_execution(self, execution_id: str, delete_files: bool = True) -> bool:
         """Remove an execution along with its associated files."""
@@ -652,64 +682,94 @@ class UnifiedTaskService:
             "Please use the job creation system for database-defined tasks."
         )
     
-    async def _get_framework_execution_status(self, execution_id: str) -> Optional[Dict[str, Any]]:  # noqa: C901
+    async def _get_framework_execution_status(self, execution_id: str) -> Optional[Dict[str, Any]]:
         """Get status of framework task execution"""
+
         try:
             execution = await self._get_task_execution(execution_id)
-            if not execution:
-                return None
-            
-            status_dict = {
-                'execution_id': str(execution.execution_id),
-                'task_id': execution.task_id,
-                'status': execution.status,
-                'created_at': execution.created_at.isoformat() if execution.created_at else None,
-                'started_at': execution.started_at.isoformat() if execution.started_at else None,
-                'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
-                'error_message': execution.error_message,
-                'external_job_id': execution.external_job_id,
-                'progress': execution.progress_percentage
-            }
-            
-            # If there's an external job ID, get status from framework
-            if execution.external_job_id and execution.task_id:
-                try:
-                    framework_status = await self.task_framework.get_execution_status(
-                        execution.task_id,
-                        execution.external_job_id
-                    )
-                    
-                    # Update database if status changed
-                    if framework_status and framework_status.get('status') != execution.status:
-                        old_status = execution.status
-                        new_status = framework_status['status']
-                        execution.update_status(new_status)
-                        await self._save_execution(execution)
-                        
-                        # Download output files when job completes
-                        if new_status == 'completed' and old_status != 'completed':
-                            logger.info(f"Job {execution_id} completed, downloading output files")
-                            try:
-                                await self._download_output_files(execution_id, framework_status)
-                            except Exception as e:
-                                logger.error(f"Failed to download output files for {execution_id}: {e}")
-                    
-                    # Merge framework status
-                    if framework_status:
-                        status_dict.update({
-                            'progress': framework_status.get('progress', execution.progress_percentage),
-                            'message': framework_status.get('message'),
-                            'framework_status': framework_status
-                        })
-                        
-                except Exception as e:
-                    logger.error(f"Error getting framework status: {e}")
-            
-            return status_dict
-            
-        except Exception as e:
-            logger.error(f"Error getting execution status: {e}")
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Error getting execution status %s: %s", execution_id, exc)
             return None
+
+        if not execution:
+            return None
+
+        status_dict = self._build_execution_status_payload(execution)
+
+        if execution.external_job_id and execution.task_id:
+            framework_status = await self._try_get_framework_status(execution_id, execution)
+            status_dict = await self._apply_framework_status_updates(
+                execution_id,
+                execution,
+                status_dict,
+                framework_status,
+            )
+
+        return status_dict
+
+    def _build_execution_status_payload(self, execution: TaskFrameworkExecution) -> Dict[str, Any]:
+        return {
+            'execution_id': str(execution.execution_id),
+            'task_id': execution.task_id,
+            'status': execution.status,
+            'created_at': execution.created_at.isoformat() if execution.created_at else None,
+            'started_at': execution.started_at.isoformat() if execution.started_at else None,
+            'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
+            'error_message': execution.error_message,
+            'external_job_id': execution.external_job_id,
+            'progress': execution.progress_percentage,
+        }
+
+    async def _try_get_framework_status(
+        self,
+        execution_id: str,
+        execution: TaskFrameworkExecution,
+    ) -> Optional[Dict[str, Any]]:
+        try:
+            return await self.task_framework.get_execution_status(
+                execution.task_id,
+                execution.external_job_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error("Error getting framework status for %s: %s", execution_id, exc)
+            return None
+
+    async def _apply_framework_status_updates(
+        self,
+        execution_id: str,
+        execution: TaskFrameworkExecution,
+        status_dict: Dict[str, Any],
+        framework_status: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        if not framework_status:
+            return status_dict
+
+        new_status = framework_status.get('status')
+        if new_status and new_status != execution.status:
+            old_status = execution.status
+            execution.update_status(new_status)
+            await self._save_execution(execution)
+
+            if new_status == 'completed' and old_status != 'completed':
+                logger.info(
+                    "Job %s completed, downloading output files",
+                    execution_id,
+                )
+                try:
+                    await self._download_output_files(execution_id, framework_status)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "Failed to download output files for %s: %s",
+                        execution_id,
+                        exc,
+                    )
+
+        status_dict.update({
+            'progress': framework_status.get('progress', execution.progress_percentage),
+            'message': framework_status.get('message'),
+            'framework_status': framework_status,
+        })
+        return status_dict
 
 
 # Global instance
