@@ -147,6 +147,32 @@ class Settings(BaseSettings):
 [SERVICE_NAME]_MAX_RETRIES=3
 ```
 
+#### **Step 2.3: Task Registry Configuration**
+Register your integration with the unified task registry. All external services exposed through `/api/v1/tasks-unified/...` must provide a validated JSON descriptor so the registry can wire adapters, metadata, and parameter contracts consistently.
+
+1. **Generate a starter config (recommended):**
+    ```bash
+    python tools/create_external_task.py \
+      --task-id gnina-molecular-docking \
+      --name "GNINA Molecular Docking" \
+      --description "Protein–ligand docking via NeuroSnap GNINA" \
+      --adapter-module molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter \
+      --adapter-class NeuroSnapDockingAdapter
+    ```
+    This script writes `config/tasks/gnina-molecular-docking.json` and ensures the file conforms to the registry validators (`adapter.module`, `adapter.class`, `metadata`, `parameters`, etc.).
+
+2. **Review required fields:**
+    - `metadata.provider` must be `external` for GNINA/AMBER workloads.
+    - `metadata.interface_type` should map to the upstream contract (usually `openapi`).
+    - Each entry in `metadata.parameters` requires `name`, `type`, `description`, and a `validation` object with any file/enum constraints.
+    - Include `resource_requirements` so schedulers can plan worker capacity.
+
+3. **Keep GNINA / AMBER in sync:**
+    - Use `gnina-molecular-docking` and `neurosnap-amber-relaxation` IDs to match the existing adapters.
+    - Avoid legacy `/api/v1/providers/neurosnap/*` routes—those now return HTTP 410 and instruct callers to migrate to the unified task API.
+
+> 📌 **Tip:** The registry rejects configs missing required fields. Run `make lint` or execute the API startup locally to surface validation errors early.
+
 ---
 
 ### **Phase 3: Domain Layer Implementation** (1-2 hours)

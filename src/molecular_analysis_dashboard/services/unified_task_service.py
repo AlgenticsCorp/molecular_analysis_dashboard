@@ -209,18 +209,21 @@ class UnifiedTaskService:
             logger.error(f"No job_id found in framework_results for execution {execution_id}")
             return
         
+        api_key = os.getenv("NEUROSNAP_API_KEY")
+        if not api_key:
+            logger.warning("NEUROSNAP_API_KEY not configured; skipping NeuroSnap file downloads")
+            return
+
         logger.info(f"Downloading {len(download_urls)} output file(s) from NeuroSnap for execution {execution_id}")
         
         file_service = ExecutionFileService()
         import httpx
         
-        async with httpx.AsyncClient(timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
             for filename, url in download_urls.items():
                 try:
-                    # Download file using NeuroSnap adapter instead of direct URL
-                    adapter_url = f"http://api:8000/api/v1/providers/neurosnap/download/{job_id}/{filename}"
-                    logger.info(f"Downloading {filename} via adapter: {adapter_url}")
-                    response = await client.get(adapter_url)
+                    logger.info(f"Downloading {filename} from NeuroSnap URL: {url}")
+                    response = await client.get(url, headers={"X-API-KEY": api_key})
                     response.raise_for_status()
                     file_content = response.content
                     

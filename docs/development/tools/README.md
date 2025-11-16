@@ -111,6 +111,19 @@ echo "  API: http://localhost:8000"
 echo "  API Docs: http://localhost:8000/docs"
 ```
 
+### Task Registry Scaffolding
+```bash
+# tools/create_external_task.py - Generate external task config skeletons
+python tools/create_external_task.py \
+    --task-id amber-molecular-dynamics \
+    --name "AMBER Molecular Dynamics" \
+    --description "NeuroSnap AMBER molecular dynamics" \
+    --adapter-module molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter \
+    --adapter-class NeuroSnapAmberAdapter
+```
+
+Ensures new GNINA or AMBER-style integrations produce registry-compliant JSON under `config/tasks/` with all required metadata, parameter validation, and resource hints before enabling the adapter in production.
+
 ### Database Management Utilities
 ```python
 # scripts/db-manager.py - Database management utility

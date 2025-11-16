@@ -172,7 +172,6 @@ export const DynamicTaskForm: React.FC<DynamicTaskFormProps> = ({
       case 'string':
       default:
         const textFieldProps: any = {
-          key: parameter.name,
           fullWidth: true,
           label: parameter.name,
           value: value ?? '',
@@ -188,7 +187,12 @@ export const DynamicTaskForm: React.FC<DynamicTaskFormProps> = ({
           textFieldProps.rows = 1;
         }
 
-        return <TextField {...textFieldProps} />;
+        if (parameter.name === 'sequences') {
+          textFieldProps.multiline = true;
+          textFieldProps.rows = Math.max(4, String(value ?? '').split('\n').length);
+        }
+
+        return <TextField key={parameter.name} {...textFieldProps} />;
     }
   };
 

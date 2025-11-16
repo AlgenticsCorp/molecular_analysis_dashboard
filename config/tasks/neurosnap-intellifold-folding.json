@@ -1,0 +1,119 @@
+{
+  "id": "neurosnap-intellifold-folding",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter",
+    "class": "NeuroSnapIntelliFoldAdapter"
+  },
+  "metadata": {
+    "name": "NeuroSnap IntelliFold (AlphaFold3)",
+    "description": "Predict protein, DNA, or RNA structures using NeuroSnap's IntelliFold (AlphaFold3) service.",
+    "version": "1.0.0",
+    "category": "structure-prediction",
+    "tags": ["alphafold3", "structure-prediction", "protein"],
+    "provider": "neurosnap",
+    "interface_type": "openapi",
+    "parameters": [
+      {
+        "name": "job_name",
+        "type": "string",
+        "required": false,
+        "default": "IntelliFold Prediction",
+        "description": "Human-readable name recorded with the execution."
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false,
+        "default": "Task framework execution",
+        "description": "Optional note stored with the NeuroSnap job."
+      },
+      {
+        "name": "sequences",
+        "type": "string",
+        "required": true,
+        "description": "JSON array of sequence objects (e.g., [{\"name\": \"prot1\", \"sequence\": \"ACD...\", \"type\": \"aa|dna|rna\"}]) or FASTA-formatted text."
+      },
+      {
+        "name": "molecules",
+        "type": "string",
+        "required": false,
+        "description": "Optional JSON array of molecule descriptors: [{\"data\": \"SMILES or SDF text\", \"type\": \"smiles|sdf|mol|pdb\"}]."
+      },
+      {
+        "name": "residue_modifications",
+        "type": "string",
+        "required": false,
+        "description": "Residue modification instructions (e.g., protein_1:102:MLY)."
+      },
+      {
+        "name": "msa_mode",
+        "type": "string",
+        "required": false,
+        "default": "mmseqs2_uniref_env",
+        "description": "MSA generation mode (mmseqs2_uniref_env or custom).",
+        "validation": {
+          "allowed_values": ["mmseqs2_uniref_env", "custom"]
+        }
+      },
+      {
+        "name": "number_recycles",
+        "type": "integer",
+        "required": false,
+        "default": 6,
+        "description": "Number of recycling iterations.",
+        "validation": {
+          "min": 1,
+          "max": 20
+        }
+      },
+      {
+        "name": "sampling_steps",
+        "type": "integer",
+        "required": false,
+        "default": 200,
+        "description": "Number of sampling steps.",
+        "validation": {
+          "min": 1,
+          "max": 1000
+        }
+      },
+      {
+        "name": "diffusion_samples",
+        "type": "integer",
+        "required": false,
+        "default": 5,
+        "description": "Number of diffusion samples.",
+        "validation": {
+          "min": 1,
+          "max": 50
+        }
+      },
+      {
+        "name": "custom_msa_file",
+        "type": "file",
+        "required": false,
+        "description": "Optional custom MSA file (A3M/STO/TXT).",
+        "validation": {
+          "file_types": [".a3m", ".sto", ".txt"],
+          "max_size_mb": 25
+        }
+      },
+      {
+        "name": "molecule_file",
+        "type": "file",
+        "required": false,
+        "description": "Optional ligand file (SDF/MOL/PDB/SMILES).",
+        "validation": {
+          "file_types": [".sdf", ".mol", ".pdb", ".smiles", ".smi"],
+          "max_size_mb": 10
+        }
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "16",
+      "memory": "32Gi"
+    },
+    "execution_time_estimate": 3600,
+    "source": "framework"
+  }
+}

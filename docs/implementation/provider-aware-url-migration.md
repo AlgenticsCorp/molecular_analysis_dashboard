@@ -11,6 +11,8 @@
 /api/v1/neurosnap/status/{job_id}   → Universal job status
 ```
 
+> ℹ️ **Legacy Behavior:** These provider-specific routes now respond with HTTP 410 (Gone) and instruct API consumers to migrate to the unified `/api/v1/tasks-unified/<task-id>/execute` workflow (`gnina-molecular-docking`, `neurosnap-amber-relaxation`, etc.). Keep them in documentation only as historical references.
+
 ### **Migration Complexity: MODERATE** ⚠️
 
 **Easy Changes (1-2 hours):**
