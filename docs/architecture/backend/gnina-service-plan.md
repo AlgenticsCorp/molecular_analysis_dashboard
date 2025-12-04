@@ -1,8 +1,17 @@
 # In-House GNINA Service Integration Plan
 
-This document outlines the end-to-end plan for delivering an internal GNINA-based docking service. It covers
-architectural context, deployment requirements, API integration, and dashboard wiring so future services can
-follow the same approach.
+This document captures the end-to-end plan for the internal GNINA-based docking service **and** documents the
+implementation that shipped on December 4, 2025. It now acts as the integration playbook for any future
+in-house computational services: architectural context, deployment requirements, API wiring, verification
+checklist, and lessons learned are all consolidated here.
+
+> **Status snapshot – 2025-12-04**
+>
+> - GNINA microservice (FastAPI) is live in local Compose with `/healthz`, `/info`, and job lifecycle routes under
+>   `/api/v1/gnina/*`.
+> - Dashboard backend exposes the task through `GninaServiceAdapter`, and Celery workers can poll/collect results.
+> - Frontend uses the unified task form to submit GNINA jobs; documentation and tests cover submit/poll/download.
+> - The remaining roadmap items focus on observability, GPU enablement, and production deployment patterns.
 
 ## 1. Objectives & Scope
 
@@ -29,45 +38,87 @@ follow the same approach.
 
 ### Containerized API
 
-- Python (FastAPI) service exposing `/health`, `/info`, and `/dock` endpoints.
-- `/dock` accepts receptor & ligand files plus optional parameters; returns job ID + polling URL.
-- Service writes output to shared volume or object storage (MinIO/S3-compatible) and reports metadata.
-- Configurable via env vars: `GNINA_EXEC_PATH`, GPU toggle, queue depth, storage credentials.
+- Python (FastAPI) service exposing:
+  - `GET /healthz` – liveness probe used by Compose/Kubernetes.
+  - `GET /info` – returns build metadata (GNINA version, storage root, simulated runtime when in demo mode).
+  - `POST /api/v1/gnina/jobs` – accepts receptor & ligand uploads plus form parameters (e.g., `exhaustiveness`).
+    Advanced GNINA CLI flags can be tunneled via `advanced_parameters` (JSON object) which is stored with the job and
+    forwarded by the adapter when the real CLI integration is enabled.
+  - `GET /api/v1/gnina/jobs/{job_id}` – polling endpoint for status/progress messages.
+  - `GET /api/v1/gnina/jobs/{job_id}/results` – final binding affinity + pose metadata.
+  - `GET /api/v1/gnina/jobs/{job_id}/files/{filename}` – download persisted artifacts (docked pose, log, etc.).
+- Service writes output to a dedicated storage directory (default `/storage`). The path is configurable and
+  mounted via Docker volume so API + worker can share artifacts.
+- Configurable via environment variables:
+  - `GNINA_SERVICE_STORAGE_DIR` (defaults to `/storage`)
+  - `GNINA_SIMULATED_RUNTIME_SECONDS` & `GNINA_SIMULATED_PROGRESS_INTERVAL` (demo defaults; replace when wiring
+    real GNINA binary)
+  - `GNINA_SERVICE_PORT` (Compose published port)
+  - `LOG_LEVEL`
 
 ### Docker Artifacts
 
-- `docker/Dockerfile.gnina-service`: builds GNINA binary + FastAPI service.
-- `docker-compose.yml` additions: new `gnina-service` service with volume mounts, optional GPU device requests.
-- `.env.example` keys: `GNINA_SERVICE_URL`, `GNINA_SERVICE_API_KEY`, storage credentials for remote deployments.
+- `docker/Dockerfile.gnina` builds the FastAPI service (currently using a simulated GNINA loop while GPU support
+  is validated). The file installs the project in editable mode, creates a non-root user, and runs Uvicorn.
+- `docker-compose.yml` defines the `gnina-service` container with health checks, exposed port `8080` (published as
+  `${GNINA_SERVICE_PORT:-8085}`), and a dedicated `gnina_storage` volume. The API and worker mount the shared
+  storage volume via `/storage/results` and `/storage/uploads` for cross-service file access.
+- `.env.example` includes the keys required by the backend to call the service: `GNINA_SERVICE_URL`,
+  `GNINA_SERVICE_API_KEY`, and tunables for simulated runtime. Future GPU integration will extend this list with
+  CUDA device configuration.
 
 ### Deployment Modes
 
-1. **Local Development**: Compose stack runs GNINA service alongside API; API points to `http://gnina-service:8080`.
-2. **Remote Deployment**: GNINA service runs in separate environment; API gateway routes to external URL set via env vars.
-3. **Hybrid**: multiple GNINA instances registered; future load balancing handled by gateway rules.
+1. **Local Development** (current): Compose stack runs GNINA service alongside API. `GNINA_SERVICE_URL` defaults to
+  `http://gnina-service:8080/api/v1/gnina` inside the network, and to `http://localhost:8085/api/v1/gnina` for
+  host-based curl tests.
+2. **Remote Deployment** (beta): Run GNINA service on a separate host/cluster; set `GNINA_SERVICE_URL` to the remote
+  base URL. Ensure network ACLs and API key enforcement (once enabled) are in place.
+3. **Hybrid / Multi-instance** (future): Multiple GNINA services registered in Consul or the API gateway, with
+  routing logic to pick a target based on queue depth or available GPU resources.
 
 ## 4. Backend Integration
 
 ### Task Configuration
 
-- Add `config/tasks/gnina-local-docking.json` describing parameters, validation (PDBQT, SDF, etc.), and metadata.
-- Extend `TaskRegistry` to load the GNINA adapter and expose via `/api/v1/tasks-unified/available`.
+- `config/tasks/gnina-molecular-docking.json` registers the task, parameter schema, and adapter reference. The
+  provider is set to `internal`, enabling the dashboard UI to tag it as a first-party service.
+- `TaskRegistry` loads the config at startup, exposing metadata through `/api/v1/tasks-unified/available` and
+  ensuring validation (file presence, allowed extensions, numeric range checks) happens before job submission.
 
 ### Adapter Implementation
 
-- Create `GninaLocalAdapter` (in `adapters/providers`):
-  - Validates receptor/ligand extensions.
-  - Calls GNINA API with multipart form data.
-  - Parses job ID and registers for polling.
-- Reuse `_download_output_files` with new mapping for GNINA’s output names (poses, log).
+- `GninaServiceAdapter` (in `adapters/providers/gnina_service_adapter.py`) handles uploads, submits multipart
+  form data to the microservice, and registers the returned job for polling.
+- File validation enforces expected MIME types and non-empty payloads before hitting the service.
+- Result handling maps the docked pose and metadata into the unified execution model so downstream systems (file
+  service, result viewers) behave consistently with other providers.
+
+### Storage Integration Pattern
+
+- The unified task service now persists both input and output artifacts via `ExecutionFileService`, using the same
+  abstraction that powers NeuroSnap downloads. This ensures GNINA jobs surface downloadable files under
+  `/api/v1/tasks-unified/files/{file_id}/download` without bespoke wiring.
+- Providers should return a `download_urls` mapping keyed by semantic parameter name; during completion the service
+  dereferences each URL, streams the payload into the shared storage volume, and records hashes plus metadata in
+  `execution_files`.
+- Storage paths follow the convention `/uploads/{organization_id or 0000...}/{execution_id}/{filename}`, enabling
+  multi-tenant isolation and reuse of retention policies. Future first-party services can plug in by delivering
+  stable download endpoints and optional MIME type hints.
+- When new services require cloud-backed storage, implement an adapter for `ExecutionFileService` instead of
+  bypassing the abstraction so the dashboard UI gains downloads, previews, and audit logs for free.
 
 ### Execution Flow
 
-1. Upload receptor/ligand via dashboard or Swagger.
-2. Submit task with `task_id = gnina-local-docking`.
-3. Adapter stores files, POSTs to GNINA service.
-4. Celery polls `/status/{job_id}` on GNINA API, updates execution status.
-5. When completed, fetch result metadata and store output files.
+1. User uploads receptor (`.pdbqt`/`.pdb`) and ligand (`.sdf`/`.pdbqt`) through the unified task API/UI.
+2. Adapter persists raw files, then POSTs to `GNINA_SERVICE_URL + "/jobs"`.
+3. GNINA service immediately enqueues work and responds with `{job_id, status, queued_at, parameters}`.
+4. Celery worker runs `poll_gnina_job` (new task) which queries `/jobs/{job_id}` until status is terminal, updating
+  dashboard execution state.
+5. On success, worker fetches `/jobs/{job_id}/results` and `/jobs/{job_id}/files/*`; the unified task service streams
+  artifacts into `/storage/uploads/...`, records file metadata (hashes, content type) via `ExecutionFileService`, and
+  updates the execution record with binding affinity metrics so downstream consumers inherit consistent storage
+  semantics.
 
 ### Configuration
 
@@ -76,48 +127,82 @@ follow the same approach.
 
 ## 5. API & Swagger
 
-- Auto-registered in Swagger via unified task endpoints.
-- Provide example request/response in `docs/api/examples/gnina-docking.http`.
-- Optionally add dedicated `/api/v1/gnina/health` endpoint for operational checks.
+- GNINA task surfaces through the existing unified task endpoints, so Swagger auto-generates request/response
+  models (`/api/v1/tasks-unified/execute`). Example payloads are in `docs/api/examples/gnina-docking.http`.
+- Dedicated GNINA microservice routes (`/api/v1/gnina/jobs/*`) are documented in `docs/deployment/docker/setup.md`
+  and linked from the API operations section for operators who need to run health checks outside the dashboard.
+- The backend also exposes `GET /api/v1/gnina/proxy/health` (internal) which forwards to the service—useful for
+  platform monitoring without exposing the service publicly.
 
 ## 6. Frontend & Dashboard
 
-- Add GNINA task card with icon and description in task library.
-- Ensure task form renderer respects spec (file inputs, numeric fields, optional JSON parameters).
-- Update execution result UI to display GNINA-specific metadata (e.g., binding affinity, log file link).
-- Add filter option to view only in-house services.
+- GNINA card appears in the task library when `GNINA_SERVICE_ENABLED` flag is on.
+- Task form reuses the file upload components; configured to require receptor + ligand and optional `exhaustiveness`.
+- Execution detail view includes binding affinity and download buttons (pose + raw log). Future iteration will add
+  inline pose visualization once 3D viewer component is ready.
+- Dashboard filters now include “Internal Services” to quickly locate GNINA and similar in-house providers.
 
 ## 7. Monitoring & Observability
 
-- Expose Prometheus metrics (`/metrics`) from GNINA service: job durations, failures, queue depth.
-- Integrate with structured logging (correlation IDs, execution_id).
-- Add health check entry to dashboard status page.
-- Document log shipping or remote monitoring options.
+- GNINA service emits structured logs (JSON) including `job_id`, `execution_id`, and timing details. Ensure log
+  forwarders include the service in their allowlists.
+- Flower dashboard (`http://localhost:5555`) shows Celery tasks polling GNINA jobs; it is the quickest way to
+  inspect queue health locally.
+- Health endpoints: `docker compose ps` highlights container health state; `curl http://localhost:8085/healthz`
+  verifies service reachability from host.
+- Future work: add Prometheus `/metrics` endpoint and integrate with Grafana dashboards; add OpenTelemetry spans
+  linking dashboard requests to GNINA job executions.
 
 ## 8. Testing Strategy
 
 ### Unit Tests
 
-- Validate adapter payload construction and error handling.
-- Ensure task registry loads GNINA config and enforces file validation.
+- Adapter tests cover payload construction, validation errors (empty files, missing params), and job submission
+  response parsing.
+- `tests/unit/gnina_service/test_job_manager.py` ensures the microservice manager handles lifecycle transitions.
+- `tests/unit/gnina_service/test_routes.py` runs against the FastAPI router using `httpx.ASGITransport` to verify
+  submission, polling, and artifact download routes.
 
 ### Integration Tests
 
-- Use HTTPX mock server to emulate GNINA service.
-- Test full submit → poll → download workflow storing output files.
+- HTTPX mocking (planned) will let us simulate slow/success/failure cases without spinning up the container.
+- Backend integration tests (future) should assert Celery polling logic stores results correctly in storage service.
 
 ### End-to-End
 
-- Compose scenario running GNINA container; execute sample docking; verify dashboard displays results.
+- Local Compose validation: `docker compose up gnina-service api worker gateway frontend` then submit a docking job
+  through the UI or via `curl`. Sample command using repository fixtures:
+
+  ```bash
+  curl -f -X POST http://localhost:8085/api/v1/gnina/jobs \
+    -F "receptor_file=@EGFR_KD_L858R_T790M_model_1.pdb;type=chemical/x-pdb" \
+    -F "ligand_file=@erlotinib.sdf;type=chemical/x-mdl-sdfile" \
+    -F exhaustiveness=4 \
+    -F job_name="local-cli-test"
+  ```
+
+- Monitor progress with:
+
+  ```bash
+  watch -n 2 "curl -s http://localhost:8085/api/v1/gnina/jobs/<job_id> | jq '.status,.message'"
+  ```
+
+- Retrieve results once `status == "succeeded"`:
+
+  ```bash
+  curl -f http://localhost:8085/api/v1/gnina/jobs/<job_id>/results | jq
+  curl -f http://localhost:8085/api/v1/gnina/jobs/<job_id>/files/docked_pose.pdbqt -o docked_pose.pdbqt
+  ```
 
 ## 9. Rollout Plan
 
-1. Implement adapter + config + tests; merge behind feature flag (`GNINA_SERVICE_ENABLED`).
-2. Build GNINA service image, run locally via compose.
-3. Update documentation (`docs/integration/provider-examples/gnina.md`).
-4. Deploy to staging environment with remote GNINA service; perform smoke tests.
-5. Enable dashboard feature flag for GNINA tasks; monitor usage.
-6. Collect feedback, iterate on performance/UX.
+1. ✅ Implement microservice, adapter, task config, and unit tests behind `GNINA_SERVICE_ENABLED` flag.
+2. ✅ Build GNINA service image and include it in local Compose; verify job submission using repository sample files.
+3. 🔃 Update remaining documentation touchpoints (`docs/integration/provider-examples/gnina.md`, frontend playbook)
+  to reference the shipping endpoints.
+4. 🔜 Deploy to staging with remote GNINA instance; configure gateway routing and API key enforcement.
+5. 🔜 Flip feature flag for select users, monitor Celery/Flower metrics, and gather UX feedback.
+6. 🔜 Iterate on GPU support, observability, and dashboard visualization enhancements before general availability.
 
 ## 10. Future Enhancements
 
@@ -128,4 +213,4 @@ follow the same approach.
 
 ---
 
-_Revision history: initial draft, December 4, 2025._
+_Revision history_: original plan (2025-12-04 AM); implementation details + instructions updated (2025-12-04 PM).
