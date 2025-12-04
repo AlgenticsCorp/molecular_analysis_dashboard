@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import httpx
 from pathlib import Path
 import os
+from math import ceil
 
 from database.models.task_execution import TaskFrameworkExecution
 from ....services.unified_task_service import unified_task_service
@@ -40,6 +41,62 @@ def get_current_user_id() -> Optional[UUID]:
 FORM_TRUE_VALUES = {"true", "1", "yes", "on"}
 FORM_FALSE_VALUES = {"false", "0", "no", "off"}
 DEFAULT_BINARY_CONTENT_TYPE = "application/octet-stream"
+def _normalize_extension(ext: str) -> str:
+    normalized = ext.lower().strip()
+    if not normalized:
+        return ""
+    if not normalized.startswith("."):
+        normalized = f".{normalized}" if normalized else normalized
+    return normalized
+
+
+def _validate_file_upload(
+    parameter_name: str,
+    upload: UploadFile,
+    content: bytes,
+    spec: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Validate uploaded files against parameter specification."""
+
+    if not spec:
+        return
+
+    validation = spec.get("validation", {}) or {}
+
+    allowed_extensions = validation.get("file_types") or []
+    if allowed_extensions:
+        normalized_allowed = {
+            _normalize_extension(ext)
+            for ext in allowed_extensions
+            if isinstance(ext, str)
+        }
+        filename = upload.filename or ""
+        extension = _normalize_extension(Path(filename).suffix)
+        if not extension or extension not in normalized_allowed:
+            allowed_display = ", ".join(sorted(normalized_allowed))
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Parameter '{parameter_name}' must use one of the supported file extensions: "
+                    f"{allowed_display or 'unspecified'}"
+                ),
+            )
+
+    max_size_mb = validation.get("max_size_mb")
+    if max_size_mb is not None:
+        try:
+            max_size_bytes = int(float(max_size_mb) * 1024 * 1024)
+        except (TypeError, ValueError):
+            max_size_bytes = None
+        if max_size_bytes is not None and len(content) > max_size_bytes:
+            actual_mb = ceil(len(content) / (1024 * 1024))
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Parameter '{parameter_name}' exceeds the maximum allowed size of {max_size_mb} MB "
+                    f"(received ~{actual_mb} MB)."
+                ),
+            )
 
 
 def _coerce_form_value(value: str, spec: Dict[str, Any]) -> Any:
@@ -113,6 +170,8 @@ async def _handle_form_item(
     if isinstance(value, UploadFile):
         content = await value.read()
         await value.close()
+
+        _validate_file_upload(key, value, content, spec)
 
         files[key] = {
             "filename": value.filename,

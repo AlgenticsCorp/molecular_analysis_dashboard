@@ -764,6 +764,14 @@ class UnifiedTaskService:
                         exc,
                     )
 
+            status_dict.update(
+                {
+                    'status': execution.status,
+                    'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
+                    'started_at': execution.started_at.isoformat() if execution.started_at else None,
+                }
+            )
+
         status_dict.update({
             'progress': framework_status.get('progress', execution.progress_percentage),
             'message': framework_status.get('message'),

@@ -251,6 +251,205 @@ class NeuroSnapDockingAdapter(NeuroSnapBaseAdapter):
             raise RuntimeError(f"Failed to submit GNINA docking task: {exc}") from exc
 
 
+class NeuroSnapAutoDockVinaAdapter(NeuroSnapDockingAdapter):
+    """Adapter for executing AutoDock Vina (smina) tasks via NeuroSnap endpoints."""
+
+    SERVICE_NAME = "AutoDock Vina (smina)"
+
+    def __init__(self, base_url: str = DEFAULT_NEUROSNAP_BASE_URL) -> None:
+        super().__init__(base_url)
+
+    def _compose_note(self, parameters: Dict[str, Any]) -> str:
+        job_name = parameters.get("job_name", "AutoDock Vina Docking")
+        note = parameters.get("note")
+
+        if job_name and note:
+            return f"{job_name}: {note}"
+        if job_name:
+            return job_name
+        return note or DEFAULT_TASK_NOTE
+
+    async def _build_ligand_payload(
+        self,
+        file_service: Any,
+        parameters: Dict[str, Any],
+    ) -> str:
+        file_payload = await self._collect_ligands_from_files(file_service, parameters)
+        entry_payload = self._collect_ligands_from_entries(parameters)
+        payload = file_payload + entry_payload
+
+        if not payload:
+            raise RuntimeError("At least one ligand must be provided via ligand_file or ligand_entries_json")
+
+        return json.dumps(payload)
+
+    async def _collect_ligands_from_files(
+        self,
+        file_service: Any,
+        parameters: Dict[str, Any],
+    ) -> List[Dict[str, Any]]:
+        ligand_files = parameters.get("ligand_file")
+        if not ligand_files:
+            return []
+
+        entries = ligand_files if isinstance(ligand_files, list) else [ligand_files]
+        payload: List[Dict[str, Any]] = []
+
+        for entry in entries:
+            filename, content, _ = await self._load_file_bytes(
+                file_service,
+                entry,
+                "ligand_file parameter is missing required file content",
+            )
+            text = self._decode_ligand_content(content)
+            payload.append(
+                {
+                    "data": text,
+                    "type": self._infer_ligand_type(filename, entry.get("content_type")),
+                }
+            )
+
+        return payload
+
+    def _collect_ligands_from_entries(self, parameters: Dict[str, Any]) -> List[Dict[str, Any]]:
+        ligand_entries = parameters.get("ligand_entries_json")
+        if not ligand_entries:
+            return []
+
+        parsed_entries = self._parse_ligand_entries(ligand_entries)
+        payload: List[Dict[str, Any]] = []
+
+        for index, entry in enumerate(parsed_entries):
+            if isinstance(entry, str):
+                payload.append({"data": entry, "type": "smiles"})
+                continue
+            if not isinstance(entry, dict):
+                raise RuntimeError(f"ligand_entries_json entry {index} must be a string or object")
+            data = entry.get("data")
+            if not data:
+                raise RuntimeError(f"ligand_entries_json entry {index} is missing 'data'")
+            payload.append({"data": data, "type": entry.get("type", "smiles")})
+
+        return payload
+
+    def _parse_ligand_entries(self, ligand_entries: Any) -> List[Any]:
+        if isinstance(ligand_entries, list):
+            return ligand_entries
+        if not isinstance(ligand_entries, str):
+            raise RuntimeError("ligand_entries_json must be a JSON array")
+        candidate = ligand_entries.strip()
+        if not candidate:
+            return []
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("ligand_entries_json must be valid JSON") from exc
+        if not isinstance(parsed, list):
+            raise RuntimeError("ligand_entries_json must be a JSON array")
+        return parsed
+
+    def _decode_ligand_content(self, content: bytes) -> str:
+        try:
+            return content.decode("utf-8")
+        except UnicodeDecodeError:
+            return content.decode("latin-1")
+
+    def _infer_ligand_type(self, filename: Optional[str], content_type: Optional[str]) -> str:
+        if content_type:
+            normalized = content_type.lower()
+            content_matches = {
+                "pdbqt": "pdbqt",
+                "pdb": "pdb",
+                "sdf": "sdf",
+                "mol": "mol",
+                "smiles": "smiles",
+            }
+            for needle, ligand_type in content_matches.items():
+                if needle in normalized:
+                    return ligand_type
+
+        if filename:
+            _, ext = os.path.splitext(filename.lower())
+            extension_map = {
+                ".pdbqt": "pdbqt",
+                ".pdb": "pdb",
+                ".sdf": "sdf",
+                ".mol": "mol",
+                ".smiles": "smiles",
+                ".smi": "smiles",
+            }
+            if ext in extension_map:
+                return extension_map[ext]
+
+        return "sdf"
+
+    async def submit_task(
+        self,
+        execution: TaskExecution,
+        task_definition: Dict[str, Any],
+    ) -> str:
+        """Submit AutoDock Vina task to NeuroSnap provider endpoint."""
+
+        try:
+            from ...services.execution_file_service import ExecutionFileService
+
+            file_service = ExecutionFileService()
+            parameters = execution.input_data or {}
+
+            receptor_field = await self._prepare_receptor_field(
+                file_service,
+                parameters,
+            )
+            ligand_payload = await self._build_ligand_payload(file_service, parameters)
+
+            fields: Dict[str, Any] = {
+                "Input Receptor": receptor_field,
+                "Input Ligand": ligand_payload,
+            }
+
+            scoring_function = parameters.get("scoring_function")
+            if scoring_function:
+                fields["Scoring Function"] = str(scoring_function)
+
+            if parameters.get("local_only"):
+                fields["Local Only"] = "true"
+
+            if parameters.get("score_only"):
+                fields["Score Only"] = "true"
+
+            minimization_iterations = parameters.get("minimization_iterations")
+            if minimization_iterations not in (None, ""):
+                fields["Minimization Iterations"] = str(minimization_iterations)
+
+            encoder = MultipartEncoder(fields=fields)
+            headers = {
+                "X-API-KEY": self._get_api_key(),
+                "Content-Type": encoder.content_type,
+            }
+
+            note_value = self._compose_note(parameters)
+            submission_url = f"{self.base_url}/api/job/submit/{quote(self.SERVICE_NAME)}"
+            if note_value:
+                submission_url = f"{submission_url}?note={quote(note_value)}"
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    submission_url,
+                    headers=headers,
+                    content=encoder.to_string(),
+                )
+                response.raise_for_status()
+
+                result = response.json()
+                job_id = result.get("job_id") if isinstance(result, dict) else result
+                if not isinstance(job_id, str):
+                    raise RuntimeError("Unexpected response payload from NeuroSnap AutoDock Vina API")
+                return job_id
+
+        except Exception as exc:
+            raise RuntimeError(f"Failed to submit AutoDock Vina task: {exc}") from exc
+
+
 class NeuroSnapAmberRelaxationAdapter(NeuroSnapBaseAdapter):
     """Adapter for executing Amber relaxation tasks via NeuroSnap provider endpoints."""
 

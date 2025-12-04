@@ -1,0 +1,96 @@
+{
+  "id": "neurosnap-autodock-vina-docking",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter",
+    "class": "NeuroSnapAutoDockVinaAdapter"
+  },
+  "metadata": {
+    "name": "NeuroSnap AutoDock Vina",
+    "description": "Run NeuroSnap's AutoDock Vina (smina) docking workflow for receptor-ligand complexes.",
+    "version": "1.0.0",
+    "category": "molecular-docking",
+    "tags": ["autodock", "vina", "docking"],
+    "provider": "neurosnap",
+    "interface_type": "openapi",
+    "parameters": [
+      {
+        "name": "job_name",
+        "type": "string",
+        "required": false,
+        "default": "AutoDock Vina Docking",
+        "description": "Human-readable name recorded with the execution."
+      },
+      {
+        "name": "note",
+        "type": "string",
+        "required": false,
+        "default": "Task framework execution",
+        "description": "Optional note stored with the provider job."
+      },
+      {
+        "name": "receptor_file",
+        "type": "file",
+        "required": true,
+        "description": "Primary receptor structure file (PDB or PDBQT).",
+        "validation": {
+          "file_types": [".pdb", ".pdbqt"],
+          "max_size_mb": 50
+        }
+      },
+      {
+        "name": "ligand_file",
+        "type": "file",
+        "required": false,
+        "description": "Optional ligand file (SDF/MOL/PDB/PDBQT/SMILES).",
+        "validation": {
+          "file_types": [".sdf", ".mol", ".pdb", ".pdbqt", ".smiles", ".smi"],
+          "max_size_mb": 25
+        }
+      },
+      {
+        "name": "ligand_entries_json",
+        "type": "string",
+        "required": false,
+        "description": "JSON array of ligand descriptors (e.g., [{\"data\": \"C=C=C\", \"type\": \"smiles\"}])."
+      },
+      {
+        "name": "scoring_function",
+        "type": "string",
+        "required": false,
+        "default": "default",
+        "description": "Optional scoring function override supplied to the provider."
+      },
+      {
+        "name": "local_only",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Run local-only search (omit when false)."
+      },
+      {
+        "name": "score_only",
+        "type": "boolean",
+        "required": false,
+        "default": false,
+        "description": "Score the provided pose without docking (omit when false)."
+      },
+      {
+        "name": "minimization_iterations",
+        "type": "integer",
+        "required": false,
+        "default": 0,
+        "description": "Number of minimization iterations to run.",
+        "validation": {
+          "min": 0,
+          "max": 1000
+        }
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "8",
+      "memory": "16Gi"
+    },
+    "execution_time_estimate": 3600,
+    "source": "framework"
+  }
+}

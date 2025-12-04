@@ -2,7 +2,7 @@
 
 This guide walks through onboarding a new provider-backed computation so that it flows end-to-end:
 
-1. **Provider Discovery** – confirm the external API contract and the service identifier exposed by the provider.
+1. **Provider Discovery** – confirm the external API contract and identify the provider-specific service handle.
 2. **Adapter Implementation** – add or extend a task adapter in `src/molecular_analysis_dashboard/adapters/providers/` that translates unified requests into provider submissions.
 3. **Task Registration** – declare the task in `config/tasks/` so the unified task registry exposes it via `/api/v1/tasks-unified`.
 4. **Unified API Wiring** – ensure the task is reachable through the unified execute/status/results endpoints and that required files land in storage.
@@ -12,24 +12,24 @@ Each section below highlights the artifacts to touch, recommended conventions, a
 
 ## 1. Provider Discovery
 
-- Collect the provider submission recipe: required multipart field names, optional parameters, note/metadata handling, and response schema.
-- Verify the service identifier by calling `GET https://<provider>/api/services` (or the provider equivalent). For NeuroSnap
-  this is the "title"/"slug" field used by `/api/job/submit/<service>`.
-- Capture example payloads in `docs/integration/provider-examples/` if you need to share curl/python snippets with teammates.
+- Collect the provider submission recipe: required multipart field names, optional parameters, note/metadata handling, and response schema. Pay attention to provider quirks such as omitted fields meaning `false` or the order of keys inside JSON payloads.
+- Verify the service identifier by calling the provider capability endpoint (for example `GET https://<provider>/api/services`) or consulting vendor documentation.
+- Capture example payloads in `docs/integration/provider-examples/` if you need to share curl/python snippets with teammates. Update these examples whenever you learn about format nuances so future adapters stay aligned.
 - Confirm authentication requirements (API key header, OAuth token, etc.) and whether rate limits apply.
 
 ## 2. Adapter Implementation
 
-Create a new adapter class if none exists for the provider/task combination. Use the NeuroSnap adapters under
-`src/molecular_analysis_dashboard/adapters/providers/neurosnap_task_adapter.py` as references.
+Create a new adapter class if none exists for the provider/task combination. Use the existing adapters under
+`src/molecular_analysis_dashboard/adapters/providers/` as references.
 
 Key guidelines:
 
-- Inherit from `NeuroSnapBaseAdapter` (or create a provider-specific base class) to inherit shared utilities like API key retrieval and result polling.
+- Reuse a provider-specific base class if one already exists (for example, see how the NeuroSnap adapters inherit from a shared base).
 - Keep multipart construction provider-native; map framework parameter names to provider field names (e.g., `structure_file`
   → `Input Structure`).
-- Quote service names and `note` values via `urllib.parse.quote` before generating submission URLs.
-- Set sensible defaults inside the adapter so missing optional parameters fall back to provider defaults.
+- URL-encode service names and `note` values before generating submission URLs when a provider requires query parameters.
+- Set sensible defaults inside the adapter so missing optional parameters fall back to provider defaults. Only include an optional field in the multipart payload when the provider expects a non-default override.
+- Support multiple input sources where needed (e.g., uploaded ligand files plus JSON descriptors) and normalize data before submitting to the provider.
 - Log descriptive errors and rethrow them as `RuntimeError` so the unified task framework can surface informative messages.
 
 Implementation checklist:
@@ -40,7 +40,7 @@ Implementation checklist:
 
 ## 3. Task Registration
 
-Add a task definition JSON file under `config/tasks/`. Copy the structure used by `neurosnap-amber-relaxation.json`:
+Add a task definition JSON file under `config/tasks/`. Copy the structure used by the existing task definitions:
 
 ```json
 {
@@ -127,7 +127,7 @@ Checklist:
 
 ## 7. Examples
 
-### AMBER Relaxation
+### Example: AMBER Relaxation
 
 The AMBER integration demonstrates the full flow:
 
@@ -136,18 +136,25 @@ The AMBER integration demonstrates the full flow:
 3. **Unified API** – `/api/v1/tasks-unified/neurosnap-amber-relaxation/execute` accepts file uploads and returns framework execution IDs.
 4. **Frontend** – The molecular dynamics UI queries the unified tasks endpoint and displays relaxed structure outputs.
 
-Review these files when onboarding something similar.
+Review these files when onboarding a structurally similar task.
 
-### AlphaFold3 Folding (IntelliFold & Boltz-2)
+### Folding Workflows
 
-Two folding services share the same adapter foundation (`NeuroSnapAlphaFoldBaseAdapter`) with service-specific subclasses:
+Multiple folding services share the same adapter foundation with service-specific subclasses. The general approach is:
 
-1. **Adapters** – `NeuroSnapIntelliFoldAdapter` and `NeuroSnapBoltz2Adapter` translate unified parameters (JSON-encoded sequences, optional ligand files, restraints) into the provider's multipart form submission.
-2. **Config** – `config/tasks/neurosnap-intellifold-folding.json` and `config/tasks/neurosnap-boltz2-folding.json` supply metadata and adapter wiring.
-3. **Unified API** – `/api/v1/tasks-unified/neurosnap-intellifold-folding/execute` and `/api/v1/tasks-unified/neurosnap-boltz2-folding/execute` now show up in the unified catalog.
-4. **Validation** – `curl http://localhost:8000/api/v1/tasks-unified/` lists both IDs once the API container is rebuilt/restarted.
+1. **Adapters** – Create a base folding adapter that handles shared parsing (for example, raw or FASTA sequence ingestion) and derive lightweight subclasses for individual provider offerings.
+2. **Config** – Add one task definition JSON per provider offering and point each to the appropriate adapter subclass.
+3. **Unified API** – Ensure each task appears under `/api/v1/tasks-unified/` once the API container is rebuilt or restarted.
+4. **Validation** – Smoke test execution/status/results endpoints for one service to confirm the shared foundation behaves as expected.
 
-Use these as blueprint when onboarding additional NeuroSnap services with similar payload structures.
+### Example: AutoDock Vina Docking
+
+This docking workflow illustrates how to combine file uploads with inline ligand descriptors while honouring provider-specific flags:
+
+1. **Adapter** – `NeuroSnapAutoDockVinaAdapter` accepts receptor files, optional ligand files, and JSON ligand entries, omitting `Local Only` / `Score Only` fields when false so the provider defaults remain intact.
+2. **Config** – `config/tasks/neurosnap-autodock-vina-docking.json` describes the unified parameters (`receptor_file`, `ligand_entries_json`, `scoring_function`, etc.).
+3. **Provider Example** – `docs/integration/provider-examples/neurosnap-autodock-vina.md` captures the raw multipart format supplied by NeuroSnap.
+4. **Validation** – Submitting through `/api/v1/tasks-unified/neurosnap-autodock-vina-docking/execute` stores the execution and returns job IDs; results become available via the standard unified endpoints once downloaded.
 
 ## 8. Troubleshooting
 
@@ -165,4 +172,4 @@ Use these as blueprint when onboarding additional NeuroSnap services with simila
 5. Surface the task in the frontend and add automated coverage.
 6. Document credentials and update release notes.
 
-Following this flow keeps new external tasks consistent with the existing GNINA and AMBER experiences while minimizing duplicated wiring.
+Following this flow keeps new external tasks consistent with the existing catalog while minimizing duplicated wiring.
