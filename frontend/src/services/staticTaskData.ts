@@ -19,8 +19,12 @@ const STATIC_TASKS: TaskTemplate[] = [
     subcategory: 'basic',
     tags: ['vina', 'protein', 'ligand'],
     engine: 'vina',
+    provider: 'domestic',
+    provider_type: 'domestic',
+    source: 'fallback',
     version: '1.0.0',
     status: 'active',
+    interface_type: 'rest',
     parameters: [
       {
         name: 'receptor_file',
@@ -168,8 +172,12 @@ const STATIC_TASKS: TaskTemplate[] = [
     subcategory: 'advanced',
     tags: ['vina', 'flexible', 'custom-scoring'],
     engine: 'vina',
+    provider: 'domestic',
+    provider_type: 'domestic',
+    source: 'fallback',
     version: '1.1.0',
     status: 'active',
+    interface_type: 'rest',
     parameters: [
       {
         name: 'receptor_file',
@@ -260,8 +268,12 @@ const STATIC_TASKS: TaskTemplate[] = [
     subcategory: 'protein',
     tags: ['preparation', 'protein', 'cleanup'],
     engine: 'internal',
+    provider: 'domestic',
+    provider_type: 'domestic',
+    source: 'fallback',
     version: '1.0.0',
     status: 'active',
+    interface_type: 'rest',
     parameters: [
       {
         name: 'protein_file',

@@ -9,6 +9,8 @@ x-common-env: &common-env
   CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
   RESULTS_DIR: ${RESULTS_DIR}
   UPLOADS_DIR: ${UPLOADS_DIR}
+  GNINA_SERVICE_URL: ${GNINA_SERVICE_URL:-http://gnina-service:8080/api/v1/gnina}
+  GNINA_SERVICE_API_KEY: ${GNINA_SERVICE_API_KEY:-}
 
 services:
   postgres:
@@ -56,6 +58,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      gnina-service:
+        condition: service_started
     expose:
       - "8000"
     ports:
@@ -173,6 +177,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      gnina-service:
+        condition: service_started
     volumes:
       - results:${RESULTS_DIR}
       - uploads:${UPLOADS_DIR}
@@ -207,12 +213,35 @@ services:
         condition: service_healthy
     networks: [appnet]
 
+  gnina-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gnina
+    environment:
+      - LOG_LEVEL=${GNINA_LOG_LEVEL:-info}
+      - GNINA_SERVICE_STORAGE_DIR=${GNINA_SERVICE_STORAGE_DIR:-/storage}
+      - GNINA_SIMULATED_RUNTIME_SECONDS=${GNINA_SIMULATED_RUNTIME_SECONDS:-8}
+      - GNINA_SIMULATED_PROGRESS_INTERVAL=${GNINA_SIMULATED_PROGRESS_INTERVAL:-1.5}
+    volumes:
+      - gnina_storage:/storage
+    expose:
+      - "8080"
+    ports:
+      - "${GNINA_SERVICE_PORT:-8085}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks: [appnet]
+
 volumes:
   pgdata:
   redisdata:
   results:
   uploads:
   storage_temp:
+  gnina_storage:
 
 networks:
   appnet:

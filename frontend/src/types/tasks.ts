@@ -15,11 +15,15 @@ export interface TaskTemplate {
   version: string;
   engine: string;
   status: string;
+  provider?: string;
+  provider_type?: string;
+  source?: string;
   tags: string[];
   parameters: TaskParameter[];
   outputs?: TaskOutput[];
   execution_time_estimate?: number;
   resource_requirements?: ResourceRequirements;
+  interface_type?: string;
   created_at: string;
   updated_at: string;
 }
@@ -52,13 +56,14 @@ export interface ResourceRequirements {
   cpu_cores: number;
   memory_gb: number;
   disk_gb: number;
+  gpu?: string | number;
 }
 
 // API response types
 export interface TaskListResponse {
   tasks: TaskTemplate[];
   total_count: number;
-  organization_id: string;
+  organization_id: string | null;
 }
 
 export interface TaskDetailResponse {

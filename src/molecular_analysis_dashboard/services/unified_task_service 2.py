@@ -10,9 +10,6 @@ from sqlalchemy.orm import selectinload
 import json
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
-from urllib.parse import urljoin, urlparse
-import re
 import sys
 import os
 
@@ -31,267 +28,15 @@ logger = logging.getLogger(__name__)
 
 # System organization ID for framework/system tasks
 SYSTEM_ORG_ID = UUID('00000000-0000-0000-0000-000000000000')
-DEFAULT_TIMESTAMP = datetime(2024, 1, 1, tzinfo=timezone.utc).isoformat()
 
 
 class UnifiedTaskService:
     """Service for managing both database and framework tasks"""
-
-    STATUS_ALIASES = {
-        'succeeded': 'completed',
-        'success': 'completed',
-        'successful': 'completed',
-        'finished': 'completed',
-        'complete': 'completed',
-        'failed': 'failed',
-        'failure': 'failed',
-        'errored': 'failed',
-        'error': 'failed',
-        'cancelled': 'cancelled',
-        'canceled': 'cancelled',
-    }
-
-    TERMINAL_STATUSES = {'completed', 'failed', 'cancelled'}
-
+    
     def __init__(self):
         self.task_framework = TaskExecutionService()
         self._framework_tasks_cache = {}
-
-    def _normalize_status_value(self, status: Optional[str]) -> Optional[str]:
-        if status is None:
-            return None
-
-        normalized = str(status).strip().lower()
-        if not normalized:
-            return None
-
-        return self.STATUS_ALIASES.get(normalized, normalized)
         
-    def _normalize_task(
-        self,
-        task_id: str,
-        metadata: Dict[str, Any],
-        source: str,
-        extra: Optional[Dict[str, Any]] = None,
-    ) -> Dict[str, Any]:
-        """Transform metadata into a TaskTemplate-compatible payload."""
-
-        extra = extra or {}
-
-        provider_value = self._resolve_provider(metadata, extra, source)
-        provider_type = self._resolve_provider_type(metadata, extra, provider_value)
-        engine_value = self._resolve_engine(metadata, extra, provider_value, source)
-        status_value = self._resolve_status(metadata, extra)
-        parameters = self._resolve_parameters(metadata, extra)
-        outputs = self._resolve_outputs(metadata, extra)
-        raw_resources = self._resolve_resource_block(metadata, extra)
-        execution_estimate = self._resolve_execution_estimate(metadata, extra)
-        interface_type = self._resolve_interface_type(metadata, extra)
-        created_at = self._resolve_timestamp('created_at', metadata, extra)
-        updated_at = self._resolve_timestamp('updated_at', metadata, extra)
-        subcategory = metadata.get('subcategory') or extra.get('subcategory')
-
-        normalized: Dict[str, Any] = {
-            'id': task_id,
-            'name': metadata.get('name', task_id.replace('-', ' ').title()),
-            'description': metadata.get('description', ''),
-            'version': metadata.get('version', '1.0.0'),
-            'category': metadata.get('category', 'general'),
-            'subcategory': subcategory,
-            'tags': metadata.get('tags', []),
-            'engine': engine_value,
-            'status': status_value,
-            'parameters': parameters,
-            'resource_requirements': self._normalize_resource_requirements(raw_resources),
-            'execution_time_estimate': execution_estimate,
-            'provider': provider_value,
-            'provider_type': provider_type,
-            'interface_type': interface_type,
-            'source': source,
-            'created_at': created_at,
-            'updated_at': updated_at,
-        }
-
-        if outputs:
-            normalized['outputs'] = outputs
-
-        for key, value in extra.items():
-            if key in {
-                'parameters',
-                'resource_requirements',
-                'execution_time_estimate',
-                'provider',
-                'provider_type',
-                'interface_type',
-                'created_at',
-                'updated_at',
-                'subcategory',
-                'status',
-                'engine',
-                'outputs',
-            }:
-                continue
-            if value is not None:
-                normalized[key] = value
-
-        return normalized
-
-    def _normalize_resource_requirements(self, resources: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        if not resources:
-            return {}
-
-        normalized: Dict[str, Any] = {}
-
-        cpu_value = self._parse_numeric(
-            resources.get('cpu_cores')
-            or resources.get('cpu')
-            or resources.get('vcpus')
-        )
-        if cpu_value is not None:
-            normalized['cpu_cores'] = cpu_value
-
-        memory_value = self._parse_memory(
-            resources.get('memory_gb')
-            or resources.get('memory')
-            or resources.get('ram')
-        )
-        if memory_value is not None:
-            normalized['memory_gb'] = memory_value
-
-        disk_value = self._parse_numeric(
-            resources.get('disk_gb')
-            or resources.get('disk')
-            or resources.get('storage')
-        )
-        if disk_value is not None:
-            normalized['disk_gb'] = disk_value
-
-        gpu_value = resources.get('gpu') or resources.get('gpu_type')
-        if gpu_value is not None:
-            normalized['gpu'] = gpu_value
-
-        return normalized
-
-    def _parse_numeric(self, value: Any) -> Optional[float]:
-        if value is None:
-            return None
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            cleaned = value.strip()
-            if not cleaned:
-                return None
-            match = re.findall(r"[-+]?\d*\.?\d+", cleaned)
-            if not match:
-                return None
-            try:
-                return float(match[0])
-            except ValueError:
-                return None
-        return None
-
-    def _parse_memory(self, value: Any) -> Optional[float]:
-        numeric_value = self._parse_numeric(value)
-        if numeric_value is None:
-            return None
-        if isinstance(value, str):
-            lowered = value.lower()
-            if 'ti' in lowered or 'tb' in lowered:
-                return round(numeric_value * 1024, 2)
-            if 'mi' in lowered or 'mb' in lowered:
-                return round(numeric_value / 1024, 2)
-        return round(numeric_value, 2)
-
-    def _resolve_provider(self, metadata: Dict[str, Any], extra: Dict[str, Any], source: str) -> str:
-        provider = metadata.get('provider') or extra.get('provider')
-        if provider:
-            return provider
-        return 'internal' if source == 'framework' else 'database'
-
-    def _resolve_provider_type(
-        self,
-        metadata: Dict[str, Any],
-        extra: Dict[str, Any],
-        provider: str,
-    ) -> Optional[str]:
-        provider_type = metadata.get('provider_type') or extra.get('provider_type')
-        if provider_type:
-            return provider_type
-
-        lowered = provider.lower() if isinstance(provider, str) else ''
-        if lowered in {'internal', 'domestic'}:
-            return 'domestic'
-        if lowered in {'neurosnap', 'cloud', 'external'}:
-            return 'cloud'
-        return None
-
-    def _resolve_engine(
-        self,
-        metadata: Dict[str, Any],
-        extra: Dict[str, Any],
-        provider: str,
-        source: str,
-    ) -> str:
-        return metadata.get('engine') or extra.get('engine') or provider or source
-
-    def _resolve_status(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> str:
-        return metadata.get('status') or extra.get('status') or 'active'
-
-    def _resolve_parameters(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> List[Dict[str, Any]]:
-        parameters = extra.get('parameters')
-        if parameters is not None:
-            return parameters
-        return metadata.get('parameters', [])
-
-    def _resolve_outputs(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> List[Dict[str, Any]]:
-        outputs = extra.get('outputs')
-        if outputs is not None:
-            return outputs
-        return metadata.get('outputs', [])
-
-    def _resolve_resource_block(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
-        return extra.get('resource_requirements') or metadata.get('resource_requirements', {})
-
-    def _resolve_execution_estimate(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> float:
-        estimate = metadata.get('execution_time_estimate')
-        if estimate is None:
-            estimate = extra.get('execution_time_estimate')
-        return estimate if estimate is not None else 0
-
-    def _resolve_interface_type(self, metadata: Dict[str, Any], extra: Dict[str, Any]) -> Optional[str]:
-        return metadata.get('interface_type') or extra.get('interface_type')
-
-    def _resolve_timestamp(
-        self,
-        field: str,
-        metadata: Dict[str, Any],
-        extra: Dict[str, Any],
-    ) -> str:
-        return metadata.get(field) or extra.get(field) or DEFAULT_TIMESTAMP
-
-    def _timestamp_or_none(self, value: Any) -> Optional[str]:
-        if value is None:
-            return None
-        try:
-            return value.isoformat()
-        except AttributeError:
-            return None
-
-    def _prepare_database_task(self, task_def: TaskDefinition) -> Dict[str, Any]:
-        metadata = dict(task_def.task_metadata or {})
-        if 'version' not in metadata and getattr(task_def, 'version', None):
-            metadata['version'] = task_def.version
-
-        extra = {
-            'parameters': self._extract_parameters_from_spec(task_def.interface_spec),
-            'task_definition_id': str(task_def.task_definition_id),
-            'status': 'active' if getattr(task_def, 'is_active', True) else 'inactive',
-            'created_at': self._timestamp_or_none(getattr(task_def, 'created_at', None)),
-            'updated_at': self._timestamp_or_none(getattr(task_def, 'updated_at', None)),
-        }
-
-        return self._normalize_task(task_def.task_id, metadata, 'database', extra)
-
     async def get_all_tasks(self, org_id: Optional[UUID] = None) -> List[Dict[str, Any]]:
         """Get all available tasks from both database and framework"""
         # Get framework tasks first (they take priority)
@@ -428,7 +173,7 @@ class UnifiedTaskService:
                 execution_id,
             )
             try:
-                await self._download_output_files(execution, framework_results)
+                await self._download_output_files(execution_id, framework_results)
                 output_files = await file_service.get_execution_files(
                     execution_id=UUID(execution_id),
                     file_type='output'
@@ -436,20 +181,13 @@ class UnifiedTaskService:
             except Exception as exc:  # noqa: BLE001
                 logger.error("Failed to download output files: %s", exc)
 
-        provider_status = framework_results.get('status')
-        normalized_status = self._normalize_status_value(provider_status)
-
         execution.output_data = {
             'binding_affinity': framework_results.get('binding_affinity'),
             'top_poses_count': framework_results.get('top_poses_count'),
             'computation_time': framework_results.get('computation_time'),
-            'status': normalized_status or provider_status,
+            'status': framework_results.get('status')
         }
-
-        if isinstance(provider_status, str) and normalized_status != provider_status:
-            execution.output_data['provider_status'] = provider_status
-
-        execution.update_status(normalized_status or 'completed')
+        execution.update_status('completed')
         await self._save_execution(execution)
 
         return framework_results, output_files
@@ -482,165 +220,67 @@ class UnifiedTaskService:
 
             return True
     
-    def _resolve_download_provider(self, execution: TaskFrameworkExecution) -> Tuple[Optional[str], Dict[str, str], str]:
-        metadata = self._get_framework_task(execution.task_id) or {}
-        provider_name = str(metadata.get('provider', '') or '').lower()
-        provider_type = str(metadata.get('provider_type', '') or '').lower()
-
-        if provider_type == 'domestic' or provider_name == 'domestic':
-            base_url = os.getenv("GNINA_SERVICE_URL") or "http://gnina-service:8080/api/v1/gnina"
-            return base_url, {}, provider_name or provider_type or 'domestic'
-
-        api_key = os.getenv("NEUROSNAP_API_KEY")
-        if not api_key:
-            raise RuntimeError("NEUROSNAP_API_KEY not configured for cloud provider downloads")
-
-        return None, {"X-API-KEY": api_key}, provider_name or provider_type or 'cloud'
-
-    def _resolve_download_url(self, base_url: Optional[str], url: str) -> Optional[str]:
-        if url.startswith("http"):
-            return url
-        if not base_url:
-            return None
-        base = base_url.rstrip('/')
-        if url.startswith('/'):
-            return urljoin(base, url)
-        return urljoin(f"{base}/", url)
-
-    @staticmethod
-    def _derive_output_identity(alias: str, resolved_url: str, job_id: str) -> Tuple[str, str]:
-        parsed = urlparse(resolved_url)
-        filename = Path(parsed.path).name or f"{alias or job_id}.bin"
-        parameter_name = alias or Path(filename).stem
-        return filename, parameter_name.replace('.', '_')
-
-    @staticmethod
-    def _guess_content_type(filename: str) -> str:
-        suffix = filename.lower()
-        if suffix.endswith('.csv'):
-            return 'text/csv'
-        if suffix.endswith('.sdf'):
-            return 'chemical/x-mdl-sdfile'
-        if suffix.endswith('.pdbqt'):
-            return 'chemical/x-pdbqt'
-        if suffix.endswith('.pdb'):
-            return 'chemical/x-pdb'
-        return 'application/octet-stream'
-
-    async def _handle_completed_transition(
-        self,
-        execution_id: str,
-        execution: TaskFrameworkExecution,
-        framework_status: Dict[str, Any],
-        normalized_status: Optional[str],
-    ) -> None:
-        if normalized_status != 'completed':
-            return
-
-        logger.info(
-            "Job %s completed, downloading output files",
-            execution_id,
-        )
-        try:
-            await self._download_output_files(execution, framework_status)
-        except Exception as exc:  # noqa: BLE001
-            logger.error(
-                "Failed to download output files for %s: %s",
-                execution_id,
-                exc,
-            )
-
-    async def _update_execution_status_from_provider(
-        self,
-        execution_id: str,
-        execution: TaskFrameworkExecution,
-        framework_status: Dict[str, Any],
-    ) -> Tuple[Optional[str], Optional[str]]:
-        provider_status = framework_status.get('status')
-        normalized_status = self._normalize_status_value(provider_status)
-
-        if normalized_status and execution.status != normalized_status:
-            execution.update_status(normalized_status)
-            await self._save_execution(execution)
-            await self._handle_completed_transition(execution_id, execution, framework_status, normalized_status)
-
-        return provider_status, normalized_status
-
-    async def _download_output_files(self, execution: TaskFrameworkExecution, framework_results: Dict[str, Any]) -> None:
-        """Download output files from a provider and persist them locally.
-
-        Supports both NeuroSnap (cloud) and domestic providers (e.g., GNINA).
-        Files are downloaded as soon as a job completes so links remain valid.
+    async def _download_output_files(self, execution_id: str, framework_results: Dict[str, Any]) -> None:
+        """Download output files from NeuroSnap and store locally when job completes.
+        
+        This is called automatically when the status changes to 'completed' during polling.
+        Files are downloaded immediately while NeuroSnap URLs are still valid.
         """
         from .execution_file_service import ExecutionFileService
-
+        
         download_urls = framework_results.get('download_urls', {})
         if not download_urls:
-            logger.info("No download URLs found for execution %s", execution.execution_id)
+            logger.info(f"No download URLs found for execution {execution_id}")
             return
-
+        
+        # Get job_id from framework results
         job_id = framework_results.get('job_id')
         if not job_id:
-            logger.error("No job_id found in framework_results for execution %s", execution.execution_id)
+            logger.error(f"No job_id found in framework_results for execution {execution_id}")
+            return
+        
+        api_key = os.getenv("NEUROSNAP_API_KEY")
+        if not api_key:
+            logger.warning("NEUROSNAP_API_KEY not configured; skipping NeuroSnap file downloads")
             return
 
-        try:
-            base_url, base_headers, provider_label = self._resolve_download_provider(execution)
-        except RuntimeError as exc:
-            logger.warning("%s; skipping output download for execution %s", exc, execution.execution_id)
-            return
-
-        logger.info(
-            "Downloading %s output file(s) for execution %s from provider %s",
-            len(download_urls),
-            execution.execution_id,
-            provider_label or "unknown",
-        )
-
+        logger.info(f"Downloading {len(download_urls)} output file(s) from NeuroSnap for execution {execution_id}")
+        
         file_service = ExecutionFileService()
         import httpx
-
+        
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
-            for alias, url in download_urls.items():
-                resolved_url = self._resolve_download_url(base_url, url) if url else None
-                if not resolved_url:
-                    logger.warning(
-                        "Skipping download for execution %s because URL '%s' cannot be resolved",
-                        execution.execution_id,
-                        url,
-                    )
-                    continue
-
-                filename, parameter_name = self._derive_output_identity(alias, resolved_url, job_id)
-                request_headers = dict(base_headers)
-
+            for filename, url in download_urls.items():
                 try:
-                    logger.info("Downloading %s from %s", filename, resolved_url)
-                    response = await client.get(resolved_url, headers=request_headers)
+                    logger.info(f"Downloading {filename} from NeuroSnap URL: {url}")
+                    response = await client.get(url, headers={"X-API-KEY": api_key})
                     response.raise_for_status()
+                    file_content = response.content
+                    
+                    # Determine content type from extension
+                    content_type = 'application/octet-stream'
+                    if filename.endswith('.csv'):
+                        content_type = 'text/csv'
+                    elif filename.endswith('.sdf'):
+                        content_type = 'chemical/x-mdl-sdfile'
+                    elif filename.endswith('.pdbqt'):
+                        content_type = 'chemical/x-pdbqt'
+                    elif filename.endswith('.pdb'):
+                        content_type = 'chemical/x-pdb'
+                    
+                    # Store file locally
                     await file_service.store_output_file_content(
-                        execution_id=execution.execution_id,
-                        parameter_name=parameter_name,
+                        execution_id=UUID(execution_id),
+                        parameter_name=filename.replace('.', '_'),  # e.g., output_csv, output_sdf
                         filename=filename,
-                        content=response.content,
-                        content_type=self._guess_content_type(filename),
-                        org_id=execution.org_id,
+                        content=file_content,
+                        content_type=content_type
                     )
-                    logger.info(
-                        "Stored %s (%s bytes) for execution %s",
-                        filename,
-                        len(response.content),
-                        execution.execution_id,
-                    )
-                except httpx.HTTPStatusError as exc:
-                    logger.error(
-                        "Failed to download %s (HTTP %s) from %s",
-                        filename,
-                        exc.response.status_code,
-                        resolved_url,
-                    )
-                except Exception as exc:  # noqa: BLE001
-                    logger.error("Failed to download or store output file %s: %s", filename, exc)
+                    logger.info(f"Successfully stored {filename} ({len(file_content)} bytes)")
+                except httpx.HTTPStatusError as e:
+                    logger.error(f"Failed to download {filename} from NeuroSnap (HTTP {e.response.status_code}): {url}")
+                except Exception as e:
+                    logger.error(f"Failed to download/store output file {filename}: {e}")
     
     async def list_user_executions(
         self, 
@@ -674,7 +314,24 @@ class UnifiedTaskService:
             result = await db.execute(query)
             task_definitions = result.scalars().all()
             
-            return [self._prepare_database_task(td) for td in task_definitions]
+            tasks = []
+            for td in task_definitions:
+                task_dict = {
+                    'id': td.task_id,
+                    'name': td.task_metadata.get('name', td.task_id),
+                    'description': td.task_metadata.get('description', 'No description available'),
+                    'version': td.version,
+                    'category': td.task_metadata.get('category', 'general'),
+                    'tags': td.task_metadata.get('tags', []),
+                    'parameters': self._extract_parameters_from_spec(td.interface_spec),
+                    'resource_requirements': td.task_metadata.get('resource_requirements', {}),
+                    'execution_time_estimate': td.task_metadata.get('execution_time_estimate', 300),
+                    'source': 'database',
+                    'task_definition_id': str(td.task_definition_id)
+                }
+                tasks.append(task_dict)
+            
+            return tasks
     
     async def _get_database_task(self, task_id: str, org_id: Optional[UUID] = None) -> Optional[Dict[str, Any]]:
         """Get a specific task from database by task_id"""
@@ -688,8 +345,20 @@ class UnifiedTaskService:
             td = result.scalars().first()
             
             if td:
-                return self._prepare_database_task(td)
-
+                return {
+                    'id': td.task_id,
+                    'name': td.task_metadata.get('name', td.task_id),
+                    'description': td.task_metadata.get('description', 'No description available'),
+                    'version': td.version,
+                    'category': td.task_metadata.get('category', 'general'),
+                    'tags': td.task_metadata.get('tags', []),
+                    'parameters': self._extract_parameters_from_spec(td.interface_spec),
+                    'resource_requirements': td.task_metadata.get('resource_requirements', {}),
+                    'execution_time_estimate': td.task_metadata.get('execution_time_estimate', 300),
+                    'source': 'database',
+                    'task_definition_id': str(td.task_definition_id)
+                }
+            
             return None
     
     def _get_framework_tasks(self) -> List[Dict[str, Any]]:
@@ -697,10 +366,23 @@ class UnifiedTaskService:
         try:
             framework_tasks = self.task_framework.get_available_tasks()
             
+            # Convert to standard format
             tasks = []
             for task_id, task_info in framework_tasks.items():
-                tasks.append(self._normalize_task(task_id, task_info, 'framework'))
-
+                task_dict = {
+                    'id': task_id,
+                    'name': task_info.get('name', task_id.replace('-', ' ').title()),
+                    'description': task_info.get('description', ''),
+                    'version': task_info.get('version', '1.0.0'),
+                    'category': task_info.get('category', 'computational'),
+                    'tags': task_info.get('tags', []),
+                    'parameters': task_info.get('parameters', []),
+                    'resource_requirements': task_info.get('resource_requirements', {}),
+                    'execution_time_estimate': task_info.get('execution_time_estimate', 1200),
+                    'source': 'framework'
+                }
+                tasks.append(task_dict)
+                
             return tasks
             
         except Exception as e:
@@ -712,10 +394,21 @@ class UnifiedTaskService:
         try:
             framework_tasks = self.task_framework.get_available_tasks()
             task_info = framework_tasks.get(task_id)
-
+            
             if task_info:
-                return self._normalize_task(task_id, task_info, 'framework')
-
+                return {
+                    'id': task_id,
+                    'name': task_info.get('name', task_id.replace('-', ' ').title()),
+                    'description': task_info.get('description', ''),
+                    'version': task_info.get('version', '1.0.0'),
+                    'category': task_info.get('category', 'computational'),
+                    'tags': task_info.get('tags', []),
+                    'parameters': task_info.get('parameters', []),
+                    'resource_requirements': task_info.get('resource_requirements', {}),
+                    'execution_time_estimate': task_info.get('execution_time_estimate', 1200),
+                    'source': 'framework'
+                }
+                
             return None
             
         except Exception as e:
@@ -1015,11 +708,10 @@ class UnifiedTaskService:
         return status_dict
 
     def _build_execution_status_payload(self, execution: TaskFrameworkExecution) -> Dict[str, Any]:
-        normalized_status = self._normalize_status_value(execution.status)
-        payload = {
+        return {
             'execution_id': str(execution.execution_id),
             'task_id': execution.task_id,
-            'status': normalized_status or execution.status,
+            'status': execution.status,
             'created_at': execution.created_at.isoformat() if execution.created_at else None,
             'started_at': execution.started_at.isoformat() if execution.started_at else None,
             'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
@@ -1027,11 +719,6 @@ class UnifiedTaskService:
             'external_job_id': execution.external_job_id,
             'progress': execution.progress_percentage,
         }
-
-        if normalized_status and normalized_status != execution.status:
-            payload['provider_status'] = execution.status
-
-        return payload
 
     async def _try_get_framework_status(
         self,
@@ -1057,33 +744,39 @@ class UnifiedTaskService:
         if not framework_status:
             return status_dict
 
-        provider_status, normalized_status = await self._update_execution_status_from_provider(
-            execution_id,
-            execution,
-            framework_status,
-        )
+        new_status = framework_status.get('status')
+        if new_status and new_status != execution.status:
+            old_status = execution.status
+            execution.update_status(new_status)
+            await self._save_execution(execution)
 
-        normalized_framework_status = dict(framework_status)
-        if normalized_status is not None:
-            normalized_framework_status['status_normalized'] = normalized_status
+            if new_status == 'completed' and old_status != 'completed':
+                logger.info(
+                    "Job %s completed, downloading output files",
+                    execution_id,
+                )
+                try:
+                    await self._download_output_files(execution_id, framework_status)
+                except Exception as exc:  # noqa: BLE001
+                    logger.error(
+                        "Failed to download output files for %s: %s",
+                        execution_id,
+                        exc,
+                    )
 
-        canonical_status = self._normalize_status_value(execution.status) or execution.status
+            status_dict.update(
+                {
+                    'status': execution.status,
+                    'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
+                    'started_at': execution.started_at.isoformat() if execution.started_at else None,
+                }
+            )
 
-        status_dict.update(
-            {
-                'status': canonical_status,
-                'completed_at': execution.completed_at.isoformat() if execution.completed_at else None,
-                'started_at': execution.started_at.isoformat() if execution.started_at else None,
-                'progress': framework_status.get('progress', execution.progress_percentage),
-                'message': framework_status.get('message'),
-                'framework_status': normalized_framework_status,
-            }
-        )
-
-        canonical_lower = (canonical_status or '').lower() if isinstance(canonical_status, str) else ''
-        if isinstance(provider_status, str) and provider_status.lower() != canonical_lower:
-            status_dict['provider_status'] = provider_status
-
+        status_dict.update({
+            'progress': framework_status.get('progress', execution.progress_percentage),
+            'message': framework_status.get('message'),
+            'framework_status': framework_status,
+        })
         return status_dict
 
 

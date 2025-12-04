@@ -10,12 +10,12 @@ A comprehensive web-based platform for molecular analysis and computational chem
 ## 🎯 Key Features
 
 ### 🧬 Molecular Analysis Capabilities
-- **Multi-Engine Docking**: Support for AutoDock Vina, Smina, and **Gnina (✅ LIVE)** via NeuroSnap cloud API
+- **Multi-Engine Docking**: Support for AutoDock Vina, Smina, and **GNINA (✅ In-House)** via the internal GNINA microservice
 - **3D Molecular Visualization**: Interactive molecule viewing with 3Dmol.js
 - **Cheminformatics Integration**: RDKit-powered molecular processing
 - **Pipeline Management**: Create and manage complex analysis workflows
 - **Real-time Job Monitoring**: Live updates on running computations
-- **🆕 GNINA Cloud Integration**: Production-ready molecular docking via NeuroSnap API with comprehensive workflow orchestration
+- **🆕 GNINA Internal Integration**: Production-ready molecular docking powered by the bundled GNINA microservice with comprehensive workflow orchestration
 
 ### 🎨 Modern Web Interface
 - **React TypeScript Frontend**: Type-safe, responsive user interface
@@ -54,7 +54,7 @@ docker compose up -d postgres redis
 # Run database migrations
 docker compose run --rm migrate
 
-# Configure NeuroSnap API integration
+# (Optional) Configure NeuroSnap API integration for external providers
 echo "NEUROSNAP_API_KEY=your_api_key_here" >> .env
 
 # Start all services including gateway
@@ -65,10 +65,11 @@ docker compose up -d
 - **Dashboard**: http://localhost (gateway routes to frontend)
 - **API Documentation**: http://localhost/api/docs
 - **GNINA Docking API**: http://localhost/api/v1/tasks/gnina-molecular-docking/execute
+- **GNINA Service Health**: http://localhost:8085/healthz
 - **API Health Check**: http://localhost/health
 - **System Status**: http://localhost/api/v1/health
 
-> **🧬 GNINA Integration**: Complete molecular docking workflow now available via NeuroSnap cloud API with interactive Swagger UI testing.
+> **🧬 GNINA Integration**: Complete molecular docking workflow now available through the bundled GNINA microservice with interactive Swagger UI testing.
 
 ## 📱 Application Overview
 
@@ -152,7 +153,7 @@ The molecular analysis dashboard provides eight main interfaces:
 ```
 ├── AutoDock Vina (Molecular Docking)
 ├── Smina (Enhanced Docking)
-├── ✅ Gnina (Deep Learning Docking) - LIVE via NeuroSnap Cloud API
+├── ✅ GNINA (Deep Learning Docking) - Bundled internal microservice
 ├── RDKit (Cheminformatics)
 ├── OpenBabel (Format Conversion)
 └── ChemAxon (Enterprise Tools)
@@ -160,7 +161,7 @@ The molecular analysis dashboard provides eight main interfaces:
 
 **🆕 GNINA Integration Status:**
 - ✅ **Production Ready**: Complete Clean Architecture implementation
-- ✅ **Cloud Integration**: NeuroSnap API with async workflow orchestration
+- ✅ **Internal Microservice**: Bundled FastAPI service orchestrated through Docker Compose
 - ✅ **API Endpoints**: Full FastAPI REST interface with OpenAPI documentation
 - ✅ **Comprehensive Testing**: Unit, integration, and E2E test suites (>80% coverage)
 - ✅ **Interactive Testing**: Live Swagger UI at http://localhost:8000/docs

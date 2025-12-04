@@ -1,25 +1,32 @@
 {
   "id": "gnina-molecular-docking",
   "adapter": {
-    "module": "molecular_analysis_dashboard.adapters.providers.neurosnap_task_adapter",
-    "class": "NeuroSnapDockingAdapter"
+    "module": "molecular_analysis_dashboard.adapters.providers.gnina_service_adapter",
+    "class": "GninaServiceAdapter",
+    "options": {
+      "timeout_seconds": 120
+    }
   },
   "metadata": {
     "name": "GNINA Molecular Docking",
-    "description": "Perform molecular docking using GNINA via NeuroSnap",
+    "description": "Perform molecular docking using the internal GNINA microservice",
     "version": "1.0.0",
     "category": "molecular-docking",
+    "subcategory": "domestic",
     "tags": ["docking", "gnina", "protein-ligand"],
-    "provider": "neurosnap",
-    "interface_type": "openapi",
+    "provider": "domestic",
+    "provider_type": "domestic",
+    "engine": "gnina",
+    "status": "active",
+    "interface_type": "rest",
     "parameters": [
       {
         "name": "receptor_file",
         "type": "file",
         "required": true,
-        "description": "Protein receptor file (PDB format)",
+        "description": "Protein receptor file (PDBQT or PDB format)",
         "validation": {
-          "file_types": [".pdb"],
+          "file_types": [".pdbqt", ".pdb"],
           "max_size_mb": 100
         }
       },
@@ -27,7 +34,7 @@
         "name": "ligand_file",
         "type": "file",
         "required": true,
-        "description": "Ligand file (SDF/MOL2 format)",
+        "description": "Ligand file (SDF/MOL/MOL2 format)",
         "validation": {
           "file_types": [".sdf", ".mol2", ".mol"],
           "max_size_mb": 100
@@ -45,6 +52,63 @@
         }
       },
       {
+        "name": "num_modes",
+        "type": "integer",
+        "required": false,
+        "default": 9,
+        "description": "Maximum number of binding modes to generate",
+        "validation": {
+          "min": 1,
+          "max": 100
+        }
+      },
+      {
+        "name": "energy_range",
+        "type": "number",
+        "required": false,
+        "default": 3,
+        "description": "Energy range (kcal/mol) for the top poses",
+        "validation": {
+          "min": 0,
+          "max": 12
+        }
+      },
+      {
+        "name": "seed",
+        "type": "integer",
+        "required": false,
+        "description": "Random seed for deterministic docking runs",
+        "validation": {
+          "min": 0,
+          "max": 999999999
+        }
+      },
+      {
+        "name": "cnn_scoring",
+        "type": "string",
+        "required": false,
+        "default": "rescore",
+        "description": "GNINA CNN scoring mode (none, rescore, refinement, all)",
+        "validation": {
+          "allowed_values": ["none", "rescore", "refinement", "all"]
+        }
+      },
+      {
+        "name": "scoring",
+        "type": "string",
+        "required": false,
+        "description": "Override empirical scoring function (e.g., vina, vinardo)",
+        "validation": {
+          "allowed_values": ["vina", "vinardo", "ad4_scoring", "dkoes_fast", "dkoes_scoring"]
+        }
+      },
+      {
+        "name": "advanced_parameters",
+        "type": "string",
+        "required": false,
+        "description": "JSON object of additional GNINA CLI options to forward to the service"
+      },
+      {
         "name": "job_name",
         "type": "string",
         "required": false,
@@ -55,15 +119,16 @@
         "name": "note",
         "type": "string",
         "required": false,
-        "default": "Task framework execution",
-        "description": "Optional note recorded with the NeuroSnap job"
+        "default": "Internal GNINA execution",
+        "description": "Optional note stored alongside the GNINA job"
       }
     ],
     "resource_requirements": {
-      "cpu": "2",
-      "memory": "4Gi"
+      "cpu": "8",
+      "memory": "16Gi",
+      "gpu": "optional"
     },
-    "execution_time_estimate": 600,
-    "source": "framework"
+    "execution_time_estimate": 1800,
+    "source": "in-house"
   }
 }

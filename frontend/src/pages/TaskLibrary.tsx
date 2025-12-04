@@ -302,6 +302,18 @@ export const TaskLibrary: React.FC = () => {
                         sx={{ mr: 1, mb: 1 }}
                       />
                       <Chip label={task.engine} size="small" color="primary" sx={{ mb: 1 }} />
+                      {task.provider && (
+                        <Chip
+                          label={
+                            task.provider_type
+                              ? `${task.provider_type.charAt(0).toUpperCase()}${task.provider_type.slice(1)}`
+                              : task.provider
+                          }
+                          size="small"
+                          color="secondary"
+                          sx={{ mr: 1, mb: 1 }}
+                        />
+                      )}
                     </Box>
 
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 2 }}>

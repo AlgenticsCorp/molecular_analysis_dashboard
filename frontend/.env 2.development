@@ -1,0 +1,8 @@
+# Frontend Environment Variables for Local Development
+
+VITE_API_BASE_URL=http://localhost:8000/api/v1
+VITE_ENABLE_DEMO_AUTH=true
+VITE_DEMO_USER_ID=00000000-0000-0000-0000-000000000000
+VITE_DEMO_USER_EMAIL=demo@local.dev
+VITE_DEMO_ORG_ID=demo-org
+VITE_DEMO_USER_ROLES=admin

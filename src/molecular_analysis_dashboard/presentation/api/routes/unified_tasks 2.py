@@ -221,53 +221,6 @@ async def _parse_task_form_data(
     return params, files
 
 
-def _task_matches_filters(
-    task: Dict[str, Any],
-    category: Optional[str],
-    engine: Optional[str],
-    status: Optional[str],
-    provider: Optional[str],
-    provider_type: Optional[str],
-    search: Optional[str],
-) -> bool:
-    if category and task.get("category") != category:
-        return False
-
-    if engine and str(task.get("engine", "")).lower() != engine.lower():
-        return False
-
-    if status and str(task.get("status", "")).lower() != status.lower():
-        return False
-
-    if provider and str(task.get("provider", "")).lower() != provider.lower():
-        return False
-
-    if provider_type and str(task.get("provider_type", "")).lower() != provider_type.lower():
-        return False
-
-    if search:
-        search_lower = search.lower()
-        if search_lower in task.get("name", "").lower():
-            return True
-        if search_lower in task.get("description", "").lower():
-            return True
-        tags = [str(tag).lower() for tag in task.get("tags", [])]
-        return any(search_lower in tag for tag in tags)
-
-    return True
-
-
-def _paginate_tasks(
-    tasks: List[Dict[str, Any]],
-    offset: int,
-    limit: Optional[int],
-) -> List[Dict[str, Any]]:
-    safe_offset = max(offset, 0)
-    if limit is not None and limit >= 0:
-        return tasks[safe_offset : safe_offset + limit]
-    return tasks[safe_offset:]
-
-
 @router.get("/", response_model=List[Dict[str, Any]])
 async def list_all_tasks(
     org_id: Optional[UUID] = Depends(get_current_org_id)
@@ -281,35 +234,30 @@ async def list_all_tasks(
 
 
 @router.get("/available")
-async def get_available_tasks(
-    category: Optional[str] = None,
-    engine: Optional[str] = None,
-    status: Optional[str] = None,
-    provider: Optional[str] = None,
-    provider_type: Optional[str] = None,
-    search: Optional[str] = None,
-    offset: int = 0,
-    limit: Optional[int] = None,
-):
-    """Get available tasks for task library with optional filtering"""
+async def get_available_tasks():
+    """Get available tasks for task library (simplified endpoint)"""
     try:
         tasks = await unified_task_service.get_all_tasks()
+        
+        # Simplify response for frontend
+        simplified_tasks = []
+        for task in tasks:
+            simplified_task = {
+                "id": task["id"],
+                "name": task["name"],
+                "description": task["description"],
+                "category": task.get("category", "general"),
+                "tags": task.get("tags", []),
+                "execution_time_estimate": task.get("execution_time_estimate", 300),
+                "resource_requirements": task.get("resource_requirements", {}),
+                "parameters": task.get("parameters", []),
+                "source": task.get("source", "unknown")
+            }
+            simplified_tasks.append(simplified_task)
+        
+        return {"tasks": simplified_tasks}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch available tasks: {str(e)}")
-
-    filtered_tasks = [
-        task
-        for task in tasks
-        if _task_matches_filters(task, category, engine, status, provider, provider_type, search)
-    ]
-    total_count = len(filtered_tasks)
-    window = _paginate_tasks(filtered_tasks, offset, limit)
-
-    return {
-        "tasks": window,
-        "total_count": total_count,
-        "organization_id": None,
-    }
 
 
 # Health check endpoint
@@ -383,11 +331,11 @@ async def list_execution_files(
 ):
     """
     List all files associated with a specific execution.
-
+    
     Args:
         execution_id: The ID of the task execution
         file_type: Optional filter - 'input' or 'output'
-
+    
     Returns:
         List of file metadata including file_id, filename, size, etc.
     """
@@ -397,13 +345,13 @@ async def list_execution_files(
             execution_id=UUID(execution_id),
             file_type=file_type
         )
-
+        
         return {
             "execution_id": execution_id,
             "total_files": len(files),
             "files": files
         }
-
+        
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid execution ID format")
     except Exception as e:
