@@ -51,7 +51,7 @@ jobs:
       run: bandit -r src/ -f json -o bandit-report.json
 
     - name: Upload security scan results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       if: always()
       with:
         name: security-scan-results
@@ -137,7 +137,7 @@ jobs:
       run: mkdocs build --strict
 
     - name: Upload documentation artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: documentation
         path: site/
@@ -170,7 +170,7 @@ jobs:
       run: safety check --json --output safety-report.json || true
 
     - name: Upload safety scan results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       if: always()
       with:
         name: safety-scan-results
@@ -201,7 +201,7 @@ jobs:
       run: python -m build
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: package-dist
         path: dist/
