@@ -209,7 +209,7 @@ export class TaskService {
    * Fetch tasks from API with retry logic.
    */
   private async fetchTasksFromApi(params?: TaskListParams): Promise<TaskListResponse> {
-    const url = new URL(this.tasksRoot);
+    const url = this.buildUrl();
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -226,7 +226,7 @@ export class TaskService {
    * Fetch task detail from API.
    */
   private async fetchTaskDetailFromApi(params: TaskDetailParams): Promise<TaskDetailResponse> {
-    const url = new URL(`${this.tasksRoot}/${params.task_id}`);
+    const url = this.buildUrl(params.task_id);
 
     if (params.org_id) {
       url.searchParams.append('org_id', params.org_id);
@@ -480,7 +480,7 @@ export class TaskService {
    * List all task executions for the current user
    */
   async listExecutions(params?: { status?: string; limit?: number; offset?: number }): Promise<any> {
-    const url = new URL(`${this.tasksRoot}/executions`);
+    const url = this.buildUrl('executions');
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -495,6 +495,24 @@ export class TaskService {
 
   private get tasksRoot(): string {
     return this.config.baseUrl.replace(/\/$/, '');
+  }
+
+  /**
+   * Resolve root-relative or absolute URLs safely in both browser and Node.
+   */
+  private buildUrl(path?: string): URL {
+    const root = this.tasksRoot;
+    const cleanedPath = path ? path.replace(/^\//, '') : '';
+
+    if (/^https?:\/\//i.test(root)) {
+      const base = root.replace(/\/$/, '');
+      return new URL(cleanedPath ? `${base}/${cleanedPath}` : base);
+    }
+
+    // Browser-friendly resolution for relative roots (e.g., "/api/v1/tasks-unified")
+    const base = root.startsWith('/') ? root : `/${root}`;
+    const joined = cleanedPath ? `${base.replace(/\/$/, '')}/${cleanedPath}` : base;
+    return new URL(joined, window.location.origin);
   }
 }
 
