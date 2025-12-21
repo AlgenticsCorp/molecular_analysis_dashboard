@@ -47,6 +47,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     # Molecular analysis dependencies
     "rdkit>=2023.9.0",
+    "MDAnalysis>=2.7.0",
     "biopython>=1.83",
     "requests>=2.31.0",
 ]

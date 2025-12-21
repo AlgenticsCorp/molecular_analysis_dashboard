@@ -450,6 +450,130 @@ class NeuroSnapAutoDockVinaAdapter(NeuroSnapDockingAdapter):
             raise RuntimeError(f"Failed to submit AutoDock Vina task: {exc}") from exc
 
 
+class NeuroSnapDynamicBindAdapter(NeuroSnapAutoDockVinaAdapter):
+    """Adapter for NeuroSnap DynamicBind docking service."""
+
+    SERVICE_NAME = "DynamicBind"
+    MIN_NUMBER_SAMPLES = 5
+    MIN_INFERENCE_STEPS = 5
+    DEFAULT_NUMBER_SAMPLES = 10
+    DEFAULT_INFERENCE_STEPS = 20
+
+    def _compose_note(self, parameters: Dict[str, Any]) -> str:
+        # Override to ensure the provider note reflects DynamicBind instead of the Vina base class default
+        job_name = parameters.get("job_name", "DynamicBind Docking")
+        note = parameters.get("note")
+
+        if job_name and note:
+            return f"{job_name}: {note}"
+        if job_name:
+            return job_name
+        return note or DEFAULT_TASK_NOTE
+
+    async def submit_task(
+        self,
+        execution: TaskExecution,
+        task_definition: Dict[str, Any],
+    ) -> str:
+        """Submit DynamicBind task to NeuroSnap provider endpoint."""
+
+        try:
+            from ...services.execution_file_service import ExecutionFileService
+
+            file_service = ExecutionFileService()
+            parameters = execution.input_data or {}
+
+            receptor_field = await self._prepare_receptor_field(file_service, parameters)
+            ligand_payload = await self._build_ligand_payload(file_service, parameters)
+
+            # Enforce provider minimums and defaults for sampling params
+            number_samples = parameters.get("number_samples")
+            if number_samples is None:
+                number_samples = self.DEFAULT_NUMBER_SAMPLES
+            if isinstance(number_samples, str):
+                try:
+                    number_samples = int(number_samples)
+                except ValueError:
+                    raise RuntimeError("number_samples must be an integer")
+            if number_samples < self.MIN_NUMBER_SAMPLES:
+                raise RuntimeError(
+                    f"number_samples must be >= {self.MIN_NUMBER_SAMPLES} for DynamicBind"
+                )
+
+            inference_steps = parameters.get("inference_steps")
+            if inference_steps is None:
+                inference_steps = self.DEFAULT_INFERENCE_STEPS
+            if isinstance(inference_steps, str):
+                try:
+                    inference_steps = int(inference_steps)
+                except ValueError:
+                    raise RuntimeError("inference_steps must be an integer")
+            if inference_steps < self.MIN_INFERENCE_STEPS:
+                raise RuntimeError(
+                    f"inference_steps must be >= {self.MIN_INFERENCE_STEPS} for DynamicBind"
+                )
+
+            fields: Dict[str, Any] = {
+                "Input Receptor": receptor_field,
+                "Input Ligand": ligand_payload,
+            }
+
+            # Optional numeric/string parameters
+            if number_samples is not None:
+                fields["Number Samples"] = str(number_samples)
+
+            if inference_steps is not None:
+                fields["Inference Steps"] = str(inference_steps)
+
+            if parameters.get("model_version"):
+                fields["Model Version"] = parameters.get("model_version")
+
+            if parameters.get("random_seed") is not None:
+                fields["Random Seed"] = str(parameters.get("random_seed"))
+
+            # Optional booleans are only sent when True, matching provider guidance
+            if bool(parameters.get("relax_structure")):
+                fields["Relax Structure"] = "true"
+
+            if bool(parameters.get("noise_structure")):
+                fields["Noise Structure"] = "true"
+
+            encoder = MultipartEncoder(fields=fields)
+            headers = {
+                "X-API-KEY": self._get_api_key(),
+                "Content-Type": encoder.content_type,
+            }
+
+            note_value = self._compose_note(parameters)
+            submission_url = f"{self.base_url}/api/job/submit/{self.SERVICE_NAME}"
+            if note_value:
+                submission_url = f"{submission_url}?note={quote(note_value)}"
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    submission_url,
+                    headers=headers,
+                    content=encoder.to_string(),
+                )
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPStatusError as exc:
+                    # Surface provider error body to aid debugging when they return 400s
+                    body = exc.response.text
+                    raise RuntimeError(
+                        f"Provider responded {exc.response.status_code}: {body or exc.response.reason_phrase}"
+                    ) from exc
+
+                result = response.json()
+                job_id = result.get("job_id") if isinstance(result, dict) else result
+                if not isinstance(job_id, str):
+                    raise RuntimeError("Unexpected response payload from NeuroSnap DynamicBind API")
+                return job_id
+
+        except Exception as exc:
+            raise RuntimeError(f"Failed to submit DynamicBind task: {exc}") from exc
+
+
 class NeuroSnapAmberRelaxationAdapter(NeuroSnapBaseAdapter):
     """Adapter for executing Amber relaxation tasks via NeuroSnap provider endpoints."""
 

@@ -90,6 +90,22 @@ export const ExecuteTasks: React.FC = () => {
       }
     });
 
+    // Task-specific validation: DynamicBind requires at least one ligand source
+    if (task.id === 'neurosnap-dynamicbind') {
+      const ligandFile = formValues['ligand_file'];
+      const ligandEntries = formValues['ligand_entries_json'];
+      const hasLigandFile = ligandFile instanceof File;
+      const hasLigandEntries = typeof ligandEntries === 'string'
+        ? ligandEntries.trim().length > 0
+        : Array.isArray(ligandEntries) && ligandEntries.length > 0;
+
+      if (!hasLigandFile && !hasLigandEntries) {
+        const message = 'Provide a ligand file or ligand_entries_json';
+        errors['ligand_file'] = message;
+        errors['ligand_entries_json'] = message;
+      }
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -118,6 +134,8 @@ export const ExecuteTasks: React.FC = () => {
 
     setSubmitting(true);
     try {
+      const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+
       // Prepare form data
       const formData = new FormData();
 
@@ -133,14 +151,20 @@ export const ExecuteTasks: React.FC = () => {
       });
 
       // Submit to API
-      const response = await fetch(`/api/v1/tasks-unified/${taskId}/execute`, {
+      const response = await fetch(`${apiBase}/tasks-unified/${taskId}/execute`, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
-        throw new Error(errorData?.message || `HTTP ${response.status}: ${response.statusText}`);
+        const detail =
+          errorData?.detail ||
+          errorData?.message ||
+          errorData?.error ||
+          errorData?.errors?.[0]?.msg;
+        const message = detail || `HTTP ${response.status}: ${response.statusText}`;
+        throw new Error(message);
       }
 
       const result = await response.json();

@@ -171,6 +171,30 @@ Register your integration with the unified task registry. All external services 
     - Use `gnina-molecular-docking` and `neurosnap-amber-relaxation` IDs to match the existing adapters.
     - Avoid legacy `/api/v1/providers/neurosnap/*` routes—those now return HTTP 410 and instruct callers to migrate to the unified task API.
 
+4. **Adapter class placement (critical):**
+    - Define adapter classes at the **module top level** (not nested inside other classes or functions) so the registry can import them via `adapter.class` reflection.
+    - If the module uses `__all__`, add the adapter class there.
+
+5. **Verification checklist:**
+    ```bash
+    # 1) Start/refresh API so registry loads configs
+    docker compose up -d api
+
+    # 2) Confirm no adapter import errors
+    docker compose exec api python - <<'PY'
+    from molecular_analysis_dashboard.services.unified_task_service import unified_task_service
+    print(unified_task_service.task_framework.get_adapter_errors())
+    PY
+
+    # 3) Verify the task ID is surfaced
+    docker compose exec api python - <<'PY'
+    import json, urllib.request
+    data = json.load(urllib.request.urlopen('http://localhost:8000/api/v1/tasks-unified/'))
+    print([task['id'] for task in data])
+    PY
+    ```
+    - Expected: adapter errors `{}` and your new task ID present in the printed list.
+
 > 📌 **Tip:** The registry rejects configs missing required fields. Run `make lint` or execute the API startup locally to surface validation errors early.
 
 ---

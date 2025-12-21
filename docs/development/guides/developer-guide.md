@@ -687,12 +687,6 @@ class CachedJobRepository:
     async def get_by_id(self, job_id: str) -> Optional[Job]:
         # Check cache first
         cached = await self._cache.get(f"job:{job_id}")
-        if cached:
-            return Job.from_json(cached)
-
-        # Fallback to database
-        job = await self._repository.get_by_id(job_id)
-        if job:
             await self._cache.set(
                 f"job:{job_id}",
                 job.to_json(),

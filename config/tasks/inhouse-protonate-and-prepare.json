@@ -1,0 +1,81 @@
+{
+  "id": "inhouse-protonate-and-prepare",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.inhouse_prep_adapter",
+    "class": "ProtonateAndPrepareAdapter"
+  },
+  "metadata": {
+    "name": "Protonate Protein + Prepare Ligands",
+    "description": "Protonate a receptor at a target pH and prepare ligands with 3D embeddings and hydrogens.",
+    "version": "1.0.0",
+    "category": "structure-prep",
+    "subcategory": "domestic",
+    "tags": ["protonation", "ligand-prep", "rdkit", "pdb2pqr"],
+    "provider": "domestic",
+    "provider_type": "domestic",
+    "engine": "inhouse",
+    "status": "active",
+    "interface_type": "rest",
+    "parameters": [
+      {
+        "name": "receptor_file",
+        "type": "file",
+        "required": true,
+        "description": "Clean receptor structure (PDB/PDBQT).",
+        "validation": {
+          "file_types": [".pdb", ".pdbqt"],
+          "max_size_mb": 100
+        }
+      },
+      {
+        "name": "ligand_file",
+        "type": "file",
+        "required": true,
+        "description": "Ligand file containing one or more molecules (SDF).",
+        "validation": {
+          "file_types": [".sdf"],
+          "max_size_mb": 100
+        }
+      },
+      {
+        "name": "ph",
+        "type": "number",
+        "required": false,
+        "default": 7.4,
+        "description": "Target pH for protonation (pdb2pqr).",
+        "validation": {
+          "min": 0.0,
+          "max": 14.0
+        }
+      },
+      {
+        "name": "embed_seed",
+        "type": "integer",
+        "required": false,
+        "default": 42,
+        "description": "Random seed used for RDKit ETKDG embedding.",
+        "validation": {
+          "min": 0,
+          "max": 999999999
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "name": "protonated_receptor",
+        "type": "file",
+        "description": "Protonated receptor saved as PDB (pdb2pqr output)."
+      },
+      {
+        "name": "prepared_ligands",
+        "type": "file",
+        "description": "Ligands with hydrogens and 3D conformers (SDF)."
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "4",
+      "memory": "4Gi"
+    },
+    "execution_time_estimate": 300
+  }
+}

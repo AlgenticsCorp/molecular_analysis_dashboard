@@ -3,12 +3,17 @@ FROM python:3.11-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
+ENV PDB2PQR_BINARY=pdb2pqr
 
 # System deps (curl for health checks)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+     && apt-get install -y --no-install-recommends \
+         curl ca-certificates \
+         build-essential \
+         gfortran \
+         libopenblas-dev \
+         liblapack-dev \
+     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -20,7 +25,7 @@ COPY src ./src
 COPY database ./database
 COPY tests ./tests
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev]" \
+    && pip install --no-cache-dir -e ".[dev]" pdb2pqr MDAnalysis \
     && useradd -m appuser \
     && mkdir -p /storage/uploads /storage/results /storage/temp \
     && chown -R appuser:appuser /storage

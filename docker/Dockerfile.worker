@@ -5,9 +5,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-       ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+     && apt-get install -y --no-install-recommends \
+         ca-certificates \
+         build-essential \
+         gfortran \
+         libopenblas-dev \
+         liblapack-dev \
+     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -15,8 +19,10 @@ COPY pyproject.toml ./
 COPY config ./config
 COPY src ./src
 COPY database ./database
+ENV PDB2PQR_BINARY=pdb2pqr
+
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -e ".[dev]" \
+    && pip install --no-cache-dir -e ".[dev]" pdb2pqr MDAnalysis \
     && useradd -m appuser \
     && mkdir -p /storage/uploads /storage/results /storage/temp \
     && chown -R appuser:appuser /storage

@@ -16,6 +16,7 @@ Each section below highlights the artifacts to touch, recommended conventions, a
 - Verify the service identifier by calling the provider capability endpoint (for example `GET https://<provider>/api/services`) or consulting vendor documentation.
 - Capture example payloads in `docs/integration/provider-examples/` if you need to share curl/python snippets with teammates. Update these examples whenever you learn about format nuances so future adapters stay aligned.
 - Confirm authentication requirements (API key header, OAuth token, etc.) and whether rate limits apply.
+- Record required env vars and defaults. For NeuroSnap today: `NEUROSNAP_API_KEY` (required), `NEUROSNAP_MOCK_MODE` (optional), and base URL (defaults to `https://neurosnap.ai` in adapters). Document these in `SETUP.md` and `.env.example` when adding a new service.
 
 ## 2. Adapter Implementation
 
@@ -31,6 +32,7 @@ Key guidelines:
 - Set sensible defaults inside the adapter so missing optional parameters fall back to provider defaults. Only include an optional field in the multipart payload when the provider expects a non-default override.
 - Support multiple input sources where needed (e.g., uploaded ligand files plus JSON descriptors) and normalize data before submitting to the provider.
 - Log descriptive errors and rethrow them as `RuntimeError` so the unified task framework can surface informative messages.
+- Load input files via `ExecutionFileService` and persist downloaded outputs to storage (`uploads`/`results` volumes) so the unified API and frontend can serve them. The pattern is demonstrated in `NeuroSnapAutoDockVinaAdapter` and friends.
 
 Implementation checklist:
 
@@ -82,13 +84,13 @@ After adding the config file, restart the API so the `TaskRegistry` re-reads the
 
 ## 4. Unified API Wiring
 
-The unified task routes live in `src/molecular_analysis_dashboard/presentation/api/routes/unified_tasks.py`.
+The unified task routes live in `src/molecular_analysis_dashboard/presentation/api/routes/unified_tasks.py` and flow through `UnifiedTaskService` → `TaskExecutionService` → adapter. No extra routing is needed once the task config + adapter are in place.
 
 - Confirm the task requires no special-case routing. The execute endpoint streams parameters through the adapter via `TaskExecutionService`.
-- Validate file uploads land in storage (`storage:8080/uploads/...`).
-- Poll status until completion: `GET /api/v1/tasks-unified/executions/<execution_id>/status` and collect results from `.../results`.
+- Validate file uploads land in storage (`storage:8080/uploads/...`) and outputs end up in `results` via `ExecutionFileService`.
+- Poll status until completion: `GET /api/v1/tasks-unified/executions/<execution_id>/status` and collect results from `.../results` (which include downloaded provider files).
 - If you need post-processing (e.g., transforming provider outputs into dashboard-friendly files), extend
-  `TaskExecutionService` or a dedicated results service.
+  `TaskExecutionService` or add a dedicated results step.
 
 Functional smoke test (example):
 
@@ -117,6 +119,8 @@ Checklist:
 - [ ] Include validation and helper copy explaining required inputs.
 - [ ] Wire execution polling to show progress and surface provider errors gracefully.
 - [ ] Write a Cypress/Vitest smoke test where feasible (mocking the API).
+
+Gateway note: JWT and rate limiting still apply; ensure `X-Org-ID`/`X-User-ID` headers flow through the gateway so org scoping is preserved.
 
 ## 6. Operational Readiness
 
@@ -155,6 +159,12 @@ This docking workflow illustrates how to combine file uploads with inline ligand
 2. **Config** – `config/tasks/neurosnap-autodock-vina-docking.json` describes the unified parameters (`receptor_file`, `ligand_entries_json`, `scoring_function`, etc.).
 3. **Provider Example** – `docs/integration/provider-examples/neurosnap-autodock-vina.md` captures the raw multipart format supplied by NeuroSnap.
 4. **Validation** – Submitting through `/api/v1/tasks-unified/neurosnap-autodock-vina-docking/execute` stores the execution and returns job IDs; results become available via the standard unified endpoints once downloaded.
+
+### Quick references (current NeuroSnap examples)
+- Adapter implementations: `src/molecular_analysis_dashboard/adapters/providers/neurosnap_task_adapter.py`
+- Unified orchestration: `src/molecular_analysis_dashboard/services/unified_task_service.py`
+- Task configs: `config/tasks/neurosnap-*.json`
+- NeuroSnap folding route (API key/mock/credit handling): `src/molecular_analysis_dashboard/presentation/api/routes/folding.py`
 
 ## 8. Troubleshooting
 

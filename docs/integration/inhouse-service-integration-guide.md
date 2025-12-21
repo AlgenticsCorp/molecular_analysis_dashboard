@@ -55,6 +55,12 @@ Ensure the service writes to the shared storage mount (default `/storage`) using
    instantiate it by task ID.
 3. Add unit tests covering submission payload construction, error handling, and polling conversions.
 
+### Provider Constraints & Debugging (recommended)
+
+- Surface provider error bodies on 4xx/5xx in adapter exceptions so failures show the exact rejection reason.
+- Capture and enforce provider parameter constraints (min/max, required files/entries) before submitting.
+- Include a sample curl with the exact multipart payload (required files, optional booleans only when true) to speed up validation.
+
 ## 6. Orchestrate Through Unified Task Service
 
 - Ensure `UnifiedTaskService` knows how to:

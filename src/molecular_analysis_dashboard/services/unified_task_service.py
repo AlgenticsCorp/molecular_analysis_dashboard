@@ -450,7 +450,7 @@ class UnifiedTaskService:
             execution.output_data['provider_status'] = provider_status
 
         execution.update_status(normalized_status or 'completed')
-        await self._save_execution(execution)
+        execution = await self._save_execution(execution)
 
         return framework_results, output_files
 
@@ -561,7 +561,7 @@ class UnifiedTaskService:
 
         if normalized_status and execution.status != normalized_status:
             execution.update_status(normalized_status)
-            await self._save_execution(execution)
+            execution = await self._save_execution(execution)
             await self._handle_completed_transition(execution_id, execution, framework_status, normalized_status)
 
         return provider_status, normalized_status
@@ -756,7 +756,7 @@ class UnifiedTaskService:
             input_data=parameters  # Start with just parameters
         )
         
-        await self._save_execution(execution)
+        execution = await self._save_execution(execution)
         
         # Now store files and update input_data with file references
         input_data = {**parameters}
@@ -790,7 +790,7 @@ class UnifiedTaskService:
             
             # Update execution with file references
             execution.input_data = input_data
-            await self._save_execution(execution)
+            execution = await self._save_execution(execution)
         
         try:
             # Execute through framework - pass execution object and task definition
@@ -802,7 +802,7 @@ class UnifiedTaskService:
             execution.external_job_id = external_job_id
             execution.status = 'running'
             execution.started_at = datetime.now(timezone.utc)
-            await self._save_execution(execution)
+            execution = await self._save_execution(execution)
             
             # Schedule background polling task
             from ..infrastructure.tasks import poll_job_status
@@ -824,7 +824,7 @@ class UnifiedTaskService:
             execution.status = 'failed'
             execution.error_message = str(e)
             execution.completed_at = datetime.now(timezone.utc)
-            await self._save_execution(execution)
+            execution = await self._save_execution(execution)
             raise
     
     async def _get_or_create_framework_task_definition(
@@ -936,12 +936,13 @@ class UnifiedTaskService:
             logger.error(f"Error getting task execution {execution_id}: {e}")
             return None
     
-    async def _save_execution(self, execution: TaskFrameworkExecution):
-        """Save execution to database"""
+    async def _save_execution(self, execution: TaskFrameworkExecution) -> TaskFrameworkExecution:
+        """Save execution to database and return a managed instance."""
         async for db in get_db():
-            db.add(execution)
+            merged = await db.merge(execution)
             await db.commit()
-            await db.refresh(execution)
+            await db.refresh(merged)
+            return merged
     
     def _extract_parameters_from_spec(self, interface_spec: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract parameter info from OpenAPI spec"""

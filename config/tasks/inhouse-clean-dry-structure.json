@@ -1,0 +1,44 @@
+{
+  "id": "inhouse-clean-dry-structure",
+  "adapter": {
+    "module": "molecular_analysis_dashboard.adapters.providers.inhouse_prep_adapter",
+    "class": "CleanAndDryAdapter"
+  },
+  "metadata": {
+    "name": "Clean & Dry Structure",
+    "description": "Remove non-protein atoms from a receptor to produce a protein-only PDB.",
+    "version": "1.0.0",
+    "category": "structure-prep",
+    "subcategory": "domestic",
+    "tags": ["prep", "protein", "cleanup"],
+    "provider": "domestic",
+    "provider_type": "domestic",
+    "engine": "inhouse",
+    "status": "active",
+    "interface_type": "rest",
+    "parameters": [
+      {
+        "name": "receptor_file",
+        "type": "file",
+        "required": true,
+        "description": "Protein structure file (PDB/PDBQT).",
+        "validation": {
+          "file_types": [".pdb", ".pdbqt"],
+          "max_size_mb": 100
+        }
+      }
+    ],
+    "outputs": [
+      {
+        "name": "cleaned_receptor",
+        "type": "file",
+        "description": "Protein-only PDB after removing non-protein atoms."
+      }
+    ],
+    "resource_requirements": {
+      "cpu": "2",
+      "memory": "2Gi"
+    },
+    "execution_time_estimate": 120
+  }
+}

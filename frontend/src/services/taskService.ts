@@ -31,8 +31,12 @@ export class TaskService {
   private abortController: AbortController | null = null;
 
   constructor(config?: Partial<TaskServiceConfig>) {
+    const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+    const tasksRoot = `${apiBase}/tasks-unified`;
+
     this.config = {
-      baseUrl: '/api/v1/tasks-unified/available',
+      // Point directly at the unified tasks root; default derives from VITE_API_BASE_URL
+      baseUrl: tasksRoot,
       timeout: 10000,
       retries: 3,
       fallbackEnabled: true,
@@ -66,14 +70,15 @@ export class TaskService {
     if (featureFlagService.shouldUseApiTasks()) {
       try {
         const apiResponse = await this.fetchTasksFromApi(params);
+        const tasks = Array.isArray(apiResponse) ? apiResponse : apiResponse?.tasks || [];
 
         // Cache successful response
         if (featureFlagService.isCacheEnabled()) {
-          this.setCache('tasks', apiResponse.tasks);
+          this.setCache('tasks', tasks);
         }
 
         return {
-          data: apiResponse.tasks,
+          data: tasks,
           source: 'api',
           timestamp: Date.now(),
         };
@@ -204,7 +209,7 @@ export class TaskService {
    * Fetch tasks from API with retry logic.
    */
   private async fetchTasksFromApi(params?: TaskListParams): Promise<TaskListResponse> {
-    const url = new URL(this.config.baseUrl, window.location.origin);
+    const url = new URL(this.tasksRoot);
 
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -221,9 +226,7 @@ export class TaskService {
    * Fetch task detail from API.
    */
   private async fetchTaskDetailFromApi(params: TaskDetailParams): Promise<TaskDetailResponse> {
-    // Use the tasks-unified base path, not the /available subpath
-    const baseUrl = this.config.baseUrl.replace('/available', '');
-    const url = new URL(`${baseUrl}/${params.task_id}`, window.location.origin);
+    const url = new URL(`${this.tasksRoot}/${params.task_id}`);
 
     if (params.org_id) {
       url.searchParams.append('org_id', params.org_id);
@@ -427,8 +430,7 @@ export class TaskService {
     const start = Date.now();
 
     try {
-      // Use the unified tasks health endpoint instead
-      await this.fetchWithRetry(`/api/v1/tasks-unified/health`);
+      await this.fetchWithRetry(`${this.tasksRoot}/health`);
       return {
         available: true,
         latency: Date.now() - start,
@@ -445,7 +447,7 @@ export class TaskService {
    * Get execution status for a task
    */
   async getExecutionStatus(executionId: string): Promise<any> {
-    const url = `/api/v1/tasks-unified/executions/${executionId}/status`;
+    const url = `${this.tasksRoot}/executions/${executionId}/status`;
     return this.fetchWithRetry(url);
   }
 
@@ -453,7 +455,7 @@ export class TaskService {
    * Get execution results for a completed task
    */
   async getExecutionResults(executionId: string): Promise<any> {
-    const url = `/api/v1/tasks-unified/executions/${executionId}/results`;
+    const url = `${this.tasksRoot}/executions/${executionId}/results`;
     return this.fetchWithRetry(url);
   }
 
@@ -461,7 +463,7 @@ export class TaskService {
    * Delete an execution and optionally purge its files.
    */
   async deleteExecution(executionId: string, purgeFiles = true): Promise<void> {
-    const url = new URL(`/api/v1/tasks-unified/executions/${executionId}`, window.location.origin);
+    const url = new URL(`${this.tasksRoot}/executions/${executionId}`);
     url.searchParams.set('purge_files', String(purgeFiles));
 
     const response = await fetch(url.toString(), {
@@ -478,7 +480,7 @@ export class TaskService {
    * List all task executions for the current user
    */
   async listExecutions(params?: { status?: string; limit?: number; offset?: number }): Promise<any> {
-    const url = new URL('/api/v1/tasks-unified/executions', window.location.origin);
+    const url = new URL(`${this.tasksRoot}/executions`);
     
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
@@ -489,6 +491,10 @@ export class TaskService {
     }
     
     return this.fetchWithRetry(url.toString());
+  }
+
+  private get tasksRoot(): string {
+    return this.config.baseUrl.replace(/\/$/, '');
   }
 }
 
